@@ -86,6 +86,13 @@ GitHub's main branch; docs found by meaning too when search by meaning is on; do
 tools (search-and-answer only reads the archive); the README's overview in containers (its symlink points outside
 docs/).
 
+Found while landing it (the clicks survey hung after its first chat answer, one run in six): a reader leaving a
+streamed answer before it ends leaves its generator to the garbage collector, which closes it on whatever thread is
+running, mid-query, and the answer's cleanup (`on.end()`) then asked the database for the one embedded connection that
+same thread held: a self-deadlock that froze the whole server. `store.DB.conn` now gives a thread the connection it
+already holds. Refine later: the cleanup of a streamed answer (and, in a long conversation, its summary's model call)
+still runs on the thread that happens to collect it, the event loop's included; hand it to a worker instead.
+
 ## 2026-10-14 · Long recordings in pieces a speech provider takes
 
 Adeel: large audio files are segmented automatically to each transcription provider's limits. `speech.Engine` cuts a

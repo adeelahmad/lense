@@ -934,6 +934,7 @@ class DB:
         self._all = []
         # one connection now, the rest of the pool as concurrent queries need them: each server sign-in costs time
         self._size, self._grow_lock = size, threading.Lock()
+        self._held = threading.local()  # the connection the current thread is using, if any (conn)
         try:
             c = self._open()
             self._all.append(c)
@@ -1000,17 +1001,25 @@ class DB:
     def conn(self):
         """A connection from the pool. A server connection that has dropped (the server restarted, or a keepalive
         ping went unanswered while the machine slept) is replaced: without that, every query sent on it fails until
-        the process restarts."""
+        the process restarts. A thread already using a connection gets that one again: the garbage collector closes an
+        abandoned streamed answer (its reader left) on whatever thread it runs on, mid-query, and that answer's cleanup
+        queries too; with the embedded engine's one connection held by that very thread, waiting for it would hang the
+        whole server."""
+        if (held := getattr(self._held, "c", None)) is not None:
+            yield held
+            return
         c = self._take()
         try:
             if _closed(c):
                 c = self._replace(c)
+            self._held.c = c
             yield c
         except Exception as e:
             if not self.embedded and _lost(e):
                 c = self._replace(c)
             raise
         finally:
+            self._held.c = None
             self._pool.put(c)
 
     def _take(self):
