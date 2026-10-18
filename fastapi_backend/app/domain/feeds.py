@@ -428,17 +428,24 @@ def _url(cfg, src):
     return url
 
 
+class OtherServer(urllib.error.HTTPError):
+    """A redirect not followed: it goes to another server, which isn't given the request's credentials."""
+
+
 class _Redirects(urllib.request.HTTPRedirectHandler):
-    """Follows a calendar's redirects, but not with its password to another server (or to plain http)."""
+    """Follows redirects, but not with a password or any other credential header (an API key, a token, a cookie:
+    actions_web.secret) to another server (or to plain http)."""
 
     def redirect_request(self, req, fp, code, msg, headers, newurl):
+        from .actions_web import secret  # loaded here: the automation actions load what loads this
+
         new = super().redirect_request(req, fp, code, msg, headers, newurl)
-        if new is not None and req.has_header("Authorization"):
+        if new is not None and any(secret(k) for k in req.headers):
             a, b = urllib.parse.urlsplit(req.full_url), urllib.parse.urlsplit(new.full_url)
             same = (a.hostname, a.port) == (b.hostname, b.port) and (a.scheme == b.scheme or b.scheme == "https")
             if not same:
                 why = "it redirects to another server, which isn't given its password: use the address it ends at"
-                raise urllib.error.HTTPError(newurl, code, why, headers, fp)
+                raise OtherServer(newurl, code, why, headers, fp)
         return new
 
 

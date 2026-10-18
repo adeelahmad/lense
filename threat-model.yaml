@@ -382,12 +382,12 @@ entry_points:
         obligation_id: admin-creates-sources
         caller_must_enforce: "admin only, from the web app (API tokens refused), still an admin on return; single-use hashed state bound to the starting browser (cookie), 10 minutes, PKCE S256; client secret sealed on the flow, refresh token on the source; kept only when the source's scope was granted (read only, but all of Gmail over IMAP, all of Drive for Drive set to full access); Drive keeps its client's secret sealed too; returns only to the starting web origin"
         provenance: {kind: documented, source: 'docs/processing.md "the consent itself is a person''s"'}
-  - id: "POST /imports/web, extension http tools, notification targets"
+  - id: "POST /imports/web, extension http tools, workflow HTTP call nodes, notification targets"
     component: outbound
     parameters:
       - name: "URL"
         attacker_controllable: true
-        x-condition: "editors (web, tools), owners (targets)"
+        x-condition: "editors (web, tools), owners (targets), admins (workflow nodes, host written out)"
         control_kinds: [resource-name, x-network-destination]
         caller_must_enforce: "none — P-SSRF-GUARD"
         provenance: {kind: maintainer, date: "2026-10"}
@@ -1677,7 +1677,7 @@ properties_claimed:
     kind: confidentiality
     components: [outbound, assistant]
     tier: security-critical
-    conditions: "URLs a non-admin sets (web import and extension http tools by editors; notification targets by owners; an automation's http_request by its person, within the notification networks; the page addresses the assistant's web_read reads, which the model picks for whoever uses the assistant) reach public addresses only, or networks the operator listed; web paths use ports 80 and 443, follow redirects only to http and https, re-check every redirect and sub-request, and connect to the checked address; an automation's http_request follows no redirect, takes 10 seconds and reads 64 KB at most, asks first unless the person set its node to run on its own, and passes the answer on as outside text"
+    conditions: "URLs a non-admin sets (web import and extension http tools by editors; notification targets by owners; an automation's http_request by its person, within the notification networks; a workflow's HTTP call node by admins, with its host written out; the page addresses the assistant's web_read reads, which the model picks for whoever uses the assistant) reach public addresses only, or networks the operator listed; web paths use ports 80 and 443, follow redirects only to http and https, re-check every redirect and sub-request, and connect to the checked address; an automation's http_request follows no redirect, takes 10 seconds and reads 64 KB at most, asks first unless the person set its node to run on its own, and passes the answer on as outside text; a workflow's HTTP call node seals credential headers to their header and host and never sends them to another server, reads 200,000 characters at most, and passes the answer on marked as outside text"
     violation_symptoms: [info-leak]
     x-voided-by: "operator networks (domain/store.py:475-476, domain/netguard.py:40-41); admin notification networks (domain/notify.py:286-288); Chromium without sandbox (domain/convert.py:273)"
     provenance: {kind: maintainer, date: "2026-10"}
@@ -1979,7 +1979,7 @@ properties_claimed:
 # ---------------------------------------------------------------- §1.12
 properties_disclaimed:
   - {id: N-ADMIN, components: [outbound, ingest, assistant, optional], tier: security-critical, false_friend: false, conditions: "protection from the instance admin or host operator (admin-set URLs reaching internal hosts, admin code, templates, regexes, component installs, api_key_env). Covers only operands an admin or operator alone can set. Excludes the guards Lens documents on them (P-ADMIN-GUARD): an escape of one is VALID. Excludes saved telemetry headers when the endpoint moves host (unresolved, Q35 -> MODEL-GAP). A non-admin reaching any admin operand is in model.", provenance: {kind: maintainer, date: "2026-10"}}
-  - {id: N-EGRESS, components: [outbound], tier: security-critical, false_friend: true, conditions: "an egress firewall; netguard guards web import, iCal and news feeds, extension http tools, notifications, the assistant's web search and page reads, Chromium and the opt-in browser container (as browser-proxy), nothing else; admin-set URLs other than iCal and news feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel, a SearXNG instance for web search) are unguarded", x-false-friend-note: "'public addresses only' reads as server-wide", provenance: {kind: maintainer, date: "2026-10"}}
+  - {id: N-EGRESS, components: [outbound], tier: security-critical, false_friend: true, conditions: "an egress firewall; netguard guards web import, iCal and news feeds, extension http tools, workflow HTTP call nodes, notifications, the assistant's web search and page reads, Chromium and the opt-in browser container (as browser-proxy), nothing else; admin-set URLs other than iCal and news feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel, a SearXNG instance for web search) are unguarded", x-false-friend-note: "'public addresses only' reads as server-wide", provenance: {kind: maintainer, date: "2026-10"}}
   - {id: N-CODE-GUARD, components: [assistant], tier: security-critical, false_friend: true, conditions: "a sandbox for Python code tools; audit hooks, rlimits and an optional network namespace only raise the bar; admin-written code; runs as the Lens user", x-false-friend-note: "guard is not isolation", provenance: {kind: documented, source: 'domain/code_tools.py docstring "they aren''t a wall"'}}
   - {id: N-DOWNLOADS, components: [optional], tier: security-critical, false_friend: false, conditions: "integrity beyond HTTPS and the publisher for llama.cpp, cloudflared, pip installs and hf: models; catalog GGUF files are still checked (P-MODEL-CHECKSUM)", provenance: {kind: maintainer, date: "2026-10"}}
   - {id: N-DB-PLAIN, components: [outbound], tier: security-critical, false_friend: true, conditions: "encryption of the SurrealDB content (assets' text, indexes), derived files, renditions, reports, exports and the storage-source cache; stated limit", x-false-friend-note: "vaults cover files only", provenance: {kind: documented, source: 'docs/encryption.md "the SurrealDB database itself"'}}

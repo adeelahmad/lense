@@ -182,3 +182,27 @@ describe("entity filter", () => {
     expect(nodeSummary({ id: "f", type: "entity_filter", config: {} }, names)).toBe("all types");
   });
 });
+
+describe("HTTP call", () => {
+  const names = { template: () => undefined, field: () => undefined };
+  const wf = (config: Record<string, unknown>): WfGraph => ({
+    nodes: [
+      { id: "in", type: "input", config: {} },
+      { id: "h", type: "http", config },
+      { id: "o", type: "output", config: { key: "answer" } },
+    ],
+    edges: [
+      { source: "in", target: "h" },
+      { source: "h", target: "o" },
+    ],
+  });
+
+  it("an HTTP call node's host is written out", () => {
+    expect(inScope("http", "recording") && inScope("http", "graph")).toBe(true);
+    expect(inScope("http", "tool")).toBe(false);
+    expect(problems(wf({ method: "GET", url: "https://api.example.com/q?x={{ input }}" }), kind)).toEqual({});
+    expect(problems(wf({ url: "https://{{ input }}/x" }), kind).h).toMatch(/host written out/);
+    expect(problems(wf({ method: "GET", url: "https://a.example/", body: "x" }), kind).h).toMatch(/send a body/);
+    expect(nodeSummary({ id: "h", type: "http", config: defaultConfig("http") }, names)).toBe("GET https://");
+  });
+});

@@ -620,7 +620,7 @@ Todo:
 - [x] Attach workflows from the pipeline editor
 - [x] Content-type mapping on the Pipelines page (By content type)
 - [ ] Asset converter steps (video → audio, document → images) as pipeline steps
-- [ ] Workflow node types: HTTP call, template render, entity filter
+- [x] Workflow node types: HTTP call, template render, entity filter (HTTP call and entity filter added 2026-10-18; template render is the template primitive)
 - [x] Docs: processing.md section on workflows
 
 Content types (2026-10-02, follow-up in the same PR):

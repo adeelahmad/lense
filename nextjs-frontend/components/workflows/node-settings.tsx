@@ -60,6 +60,10 @@ function Lines({
   );
 }
 
+/** How a sealed value starts (mcp_servers.SEALED), and how it is shown. */
+const SEALED = "lens-sealed:";
+const HIDDEN = "••••";
+
 const typesText = (v: unknown) => ((v as string[] | undefined) ?? []).join(", ");
 const typesOf = (s: string) =>
   s
@@ -452,6 +456,91 @@ export function NodeSettings({
                   min={1}
                   value={c.min_mentions == null ? "" : String(c.min_mentions)}
                   onChange={(e) => set({ min_mentions: num(e.target.value) })}
+                />
+              )}
+            </Field>
+          </>
+        )}
+
+        {node.type === "http" && (
+          <>
+            <Field label="Method">
+              {({ id }) => (
+                <Select
+                  id={id}
+                  value={String(c.method ?? "GET")}
+                  onChange={(e) =>
+                    set({
+                      method: e.target.value,
+                      body: ["POST", "PUT", "PATCH"].includes(e.target.value)
+                        ? (c.body ?? "{{ input | json }}")
+                        : undefined,
+                    })
+                  }
+                  options={["GET", "POST", "PUT", "PATCH", "DELETE"].map((m) => ({ value: m, label: m }))}
+                />
+              )}
+            </Field>
+            <Field
+              label="Address"
+              hint="The host is written out; what came in can go in the path or query: /search?q={{ input | urlencode }}"
+            >
+              {({ id, describedBy }) => (
+                <Input
+                  id={id}
+                  aria-describedby={describedBy}
+                  mono
+                  value={String(c.url ?? "")}
+                  placeholder="https://api.example.com/items/{{ input.id }}"
+                  onChange={(e) => set({ url: e.target.value })}
+                />
+              )}
+            </Field>
+            <Lines
+              label="Headers"
+              hint="One per line, as Name: value. Keys, tokens and Authorization are sealed when saved and shown as ••••"
+              placeholder={"Accept: application/json\nX-Api-Key: …"}
+              value={Object.entries((c.headers as Record<string, string> | undefined) ?? {})}
+              show={(v) => {
+                const [k, val] = v as [string, string];
+                return `${k}: ${val.startsWith(SEALED) ? HIDDEN : val}`;
+              }}
+              parse={(lines) => {
+                const old = (c.headers as Record<string, string> | undefined) ?? {};
+                const headers: Record<string, string> = {};
+                for (const l of lines) {
+                  const i = l.indexOf(":");
+                  const k = (i < 0 ? l : l.slice(0, i)).trim();
+                  const val = i < 0 ? "" : l.slice(i + 1).trim();
+                  if (k) headers[k] = val === HIDDEN && old[k]?.startsWith(SEALED) ? old[k] : val;
+                }
+                set({ headers: Object.keys(headers).length ? headers : undefined });
+              }}
+            />
+            {["POST", "PUT", "PATCH"].includes(String(c.method)) && (
+              <Field label="Body" optional hint="A template: {{ input | json }} sends what came in as JSON">
+                {({ id, describedBy }) => (
+                  <Textarea
+                    id={id}
+                    aria-describedby={describedBy}
+                    rows={4}
+                    className="font-mono text-[12.5px]"
+                    value={String(c.body ?? "")}
+                    onChange={(e) => set({ body: e.target.value || undefined })}
+                  />
+                )}
+              </Field>
+            )}
+            <Field label="Wait up to" optional hint="Seconds, 1 to 60 (20 when empty)">
+              {({ id, describedBy }) => (
+                <Input
+                  id={id}
+                  aria-describedby={describedBy}
+                  type="number"
+                  min={1}
+                  max={60}
+                  value={c.seconds == null ? "" : String(c.seconds)}
+                  onChange={(e) => set({ seconds: num(e.target.value) })}
                 />
               )}
             </Field>

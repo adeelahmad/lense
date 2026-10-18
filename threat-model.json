@@ -72,7 +72,7 @@
         "Google Calendar sources",
         "News feed sources",
         "Connect with Google",
-        "POST /imports/web, extension http tools, notification targets",
+        "POST /imports/web, extension http tools, workflow HTTP call nodes, notification targets",
         "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, news feeds, MQTT bridge, OIDC issuer, web search)",
         "replies from remote servers",
         ".env, archive.yaml, LENS_*, ARCHIVE_SECRET_KEY, RCLONE_BINARY"
@@ -466,7 +466,7 @@
       "source": "docs/processing.md \"the consent itself is a person's\""
     },
     {
-      "entry_point": "POST /imports/web, extension http tools, notification targets",
+      "entry_point": "POST /imports/web, extension http tools, workflow HTTP call nodes, notification targets",
       "parameter": "URL",
       "attacker_controllable": "yes",
       "component": "outbound",
@@ -1225,7 +1225,7 @@
       "property": "P-SSRF-GUARD",
       "violation_symptom": "info-leak",
       "severity_tier": "security",
-      "conditions": "URLs a non-admin sets (web import and extension http tools by editors; notification targets by owners; an automation's http_request by its person, within the notification networks; the page addresses the assistant's web_read reads, which the model picks for whoever uses the assistant) reach public addresses only, or networks the operator listed; web paths use ports 80 and 443, follow redirects only to http and https, re-check every redirect and sub-request, and connect to the checked address; an automation's http_request follows no redirect, takes 10 seconds and reads 64 KB at most, asks first unless the person set its node to run on its own, and passes the answer on as outside text",
+      "conditions": "URLs a non-admin sets (web import and extension http tools by editors; notification targets by owners; an automation's http_request by its person, within the notification networks; a workflow's HTTP call node by admins, with its host written out; the page addresses the assistant's web_read reads, which the model picks for whoever uses the assistant) reach public addresses only, or networks the operator listed; web paths use ports 80 and 443, follow redirects only to http and https, re-check every redirect and sub-request, and connect to the checked address; an automation's http_request follows no redirect, takes 10 seconds and reads 64 KB at most, asks first unless the person set its node to run on its own, and passes the answer on as outside text; a workflow's HTTP call node seals credential headers to their header and host and never sends them to another server, reads 200,000 characters at most, and passes the answer on marked as outside text",
       "provenance": "documented",
       "source": "maintainer ruling, 2026-10"
     },
@@ -1528,7 +1528,7 @@
     },
     {
       "property": "N-EGRESS",
-      "reason": "an egress firewall; netguard guards web import, iCal and news feeds, extension http tools, notifications, the assistant's web search and page reads, Chromium and the opt-in browser container (as browser-proxy), nothing else; admin-set URLs other than iCal and news feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel, a SearXNG instance for web search) are unguarded",
+      "reason": "an egress firewall; netguard guards web import, iCal and news feeds, extension http tools, workflow HTTP call nodes, notifications, the assistant's web search and page reads, Chromium and the opt-in browser container (as browser-proxy), nothing else; admin-set URLs other than iCal and news feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel, a SearXNG instance for web search) are unguarded",
       "false_friend": true,
       "provenance": "documented",
       "source": "maintainer ruling, 2026-10"

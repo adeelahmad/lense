@@ -720,6 +720,20 @@ node passes what it makes along its connections.
   `confidence`, `sure` and `ranked`, so a Condition or Switch can branch on them; [classifying](#classifying)), Pick
   (a path like `action_items.0.text`), Condition (yes and no branches; one test, or a
   [match tree](automations.md#match-trees) of several) and Merge.
+- **Web:** HTTP call sends GET, POST, PUT, PATCH or DELETE to a web address and passes on the answer (`status`, `ok`,
+  `url`, `content_type`, `body`, and `json` when it is JSON, up to 200,000 characters), so a Condition can branch on
+  `ok` and a Pick or template can read the JSON. The address, header values and body are templates (what came in is
+  `{{ input }}`: `https://api.example.com/search?q={{ input | urlencode }}`), but the scheme, host and port are written
+  out, so what flows through a workflow never decides where it goes. It goes out as the assistant's web tools do:
+  through Lens's network guard, to public addresses on ports 80 and 443 only (or the private networks an admin allowed
+  in Settings → Documents), every redirect checked again. Headers that carry credentials (Authorization, cookies, API
+  keys and tokens) are sealed with the server's key when the workflow is saved, bound to that header and that host, and
+  shown as `••••`; a redirect to another server doesn't get them. A 4xx or 5xx answer is passed on with `ok` false; an
+  address that can't be reached fails the node. Each call is a `workflow.http` row in the [activity ledger](activity.md)
+  (the host and method, never what was sent). A try on the canvas sends a GET but only says what it would send for the
+  other methods. Asset and graph workflows have it; automations call web addresses with their own action, which asks
+  first ([actions](automations.md#actions-and-intents)). Refine later: credentials passed in through a custom node's parameter
+  aren't sealed, and a sealed header is bound to its host rather than to one workflow.
 - **Keeping results:** Save output (`outputs.<name>`), Set field (a custom field, kept in the metadata history), Save
   entities, and a Classify node set to act on a sure answer (it sets the content type, suggests the topic or adds the
   tag; a try on the canvas only says what it would do).
