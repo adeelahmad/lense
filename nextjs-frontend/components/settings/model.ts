@@ -73,6 +73,7 @@ export type SectionId =
   | "video"
   | "nsfw"
   | "workers"
+  | "scaling"
   | "automations"
   | "components"
   | "access"
@@ -363,6 +364,13 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["uploads"],
     description:
       "Audio and video people upload in the web app: which types, how large, and how long an unfinished upload waits.",
+  },
+  {
+    id: "scaling",
+    label: "Auto scaling",
+    backend: ["scaling"],
+    description:
+      "Off unless you turn it on. Scaling groups add workers when work waits and let them go when it doesn’t, within a budget; each launches nothing until you approve its terms here. Agents make and manage groups over the API, MCP and the assistant.",
   },
   {
     id: "backups",
@@ -2691,6 +2699,51 @@ export const FIELDS: FieldSpec[] = [
     hint: "One per line, like 192.168.1.0/24. NFS has no login, so machines anywhere else are turned away",
   },
   { section: "nfs", key: "port", label: "Port inside Lens", kind: "int", min: 1, max: 65535 },
+  // Auto scaling (docs/scaling.md), off by default
+  {
+    section: "scaling",
+    key: "enabled",
+    label: "Scale workers",
+    kind: "switch",
+    hint: "Off: nothing launches, and units already running are let go",
+  },
+  {
+    section: "scaling",
+    key: "tick_seconds",
+    label: "Look every",
+    kind: "int",
+    min: 10,
+    max: 600,
+    unit: "seconds",
+  },
+  {
+    section: "scaling",
+    key: "join_minutes",
+    label: "A new unit has to join within",
+    kind: "int",
+    min: 1,
+    max: 120,
+    unit: "minutes",
+    hint: "One that hasn’t by then counts as failed and is let go",
+  },
+  {
+    section: "scaling",
+    key: "accrue_minutes",
+    label: "Count a unit’s cost every",
+    kind: "int",
+    min: 1,
+    max: 60,
+    unit: "minutes",
+  },
+  {
+    section: "scaling",
+    key: "tag",
+    label: "Units’ names start with",
+    kind: "text",
+    mono: true,
+    placeholder: "lens",
+    hint: "Lowercase letters, digits and -, so they can be told apart at the provider",
+  },
   // Backups (docs/database.md#backups)
   {
     section: "backups",

@@ -294,6 +294,8 @@ describe("the Deep research switch", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Deep research" }));
     expect(onToggle).toHaveBeenCalled();
+    // the goal is typed next, without a click into the box
+    expect(screen.getByRole("textbox", { name: "Your question" })).toHaveFocus();
     rerender(
       <Composer
         value=""
