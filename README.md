@@ -106,6 +106,12 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [deep research](docs/assistant.md#deep-research), [answer records](docs/assistant.md#what-each-answer-records), [copy
   and export](docs/assistant.md#copy-and-export), [chat rooms](docs/chat-rooms.md), [email](docs/assistant-email.md),
   [speech providers](docs/speech-providers.md); [checks](docs/requirements.md#ask-and-get-cited-answers))
+- **Answer your email.** Lens drafts a reply to an email a watched mailbox brought in, from what that email's
+  namespace holds: each fact cited to its excerpt, what the archive doesn't say marked for you to confirm, addressed
+  and threaded as a reply to it. Drafts wait for you to edit or set aside, and nothing is sent on its own; ask for one
+  through the API or MCP (agents list what waits and draft with your instructions), or add the reply step to a
+  pipeline to draft each new email, which skips mailing lists, no-reply senders and your own mail without a model
+  call. ([Email replies](docs/email-replies.md); [checks](docs/requirements.md#answer-your-email))
 - **Work toward a goal in projects.** A project has a name, a goal in your words, instructions and the namespaces it
   draws on. Its coordinator conversation looks at the project as a whole: it is told about every thread, starts threads
   with a brief that the assistant answers there in the background, reads them and marks them done. Each thread is a
@@ -203,7 +209,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   Lens, with a yes in the chat it told you in; agents can decline an approval but never give one. Each automation has
   limits and budgets, and agents make, try and run them over MCP and in the assistant, or draft one from a sentence. An
   automation's workflow is drawn and tried on the workflow canvas, with its actions in the palette, and the studio
-  lists your automations and builds one in When, If and Then, tested on a recent activity before you save it.
+  lists your automations, builds one in When, If and Then (tested on a recent activity before you save it), and shows
+  its runs, what's coming up, its variables and its costs.
   ([Processing](docs/processing.md#workflows-and-the-canvas),
   [converting assets](docs/processing.md#converting-assets), [notifications](docs/notifications.md),
   [automations](docs/automations.md), [approvals](docs/automations.md#approvals), [schedules](docs/schedules.md),
@@ -291,8 +298,6 @@ These are open pull requests, not yet part of Lens:
 
 Next, and not in a pull request yet; each links to where it is tracked:
 
-- **The automations studio:** each automation's runs, what's coming up, its variables and its costs, in tabs
-  ([automations](docs/automations.md)).
 - **Timeline:** what each item caused, and Approve and Decline on waiting approvals ([timeline](docs/timeline.md)).
 - **Notes:** nesting a note under its project or area without a click, pages in the graph, and wiki addresses for
   topics, recordings and the other things that have pages ([notes](docs/notes.md)).
@@ -331,7 +336,7 @@ The guides are on the [docs site](https://adeelahmad.github.io/lense/) and in th
 - **Agents and apps:** [MCP server](docs/mcp.md), [API](docs/api.md), [authentication](docs/authentication.md),
   [access](docs/access.md)
 - **Use:** [chat and batch runs](docs/assistant.md), [chat rooms](docs/chat-rooms.md),
-  [the assistant by email](docs/assistant-email.md), [podcasts](docs/podcasts.md), [notes](docs/notes.md),
+  [the assistant by email](docs/assistant-email.md), [email replies](docs/email-replies.md), [podcasts](docs/podcasts.md), [notes](docs/notes.md),
   [web clipper](docs/web-clipper.md), [the assistant in your browser](docs/browser-assistant.md),
   [sensors](docs/sensors.md), [processing](docs/processing.md), [video](docs/video.md),
   [NSFW classification](docs/nsfw.md), [enhancing images](docs/enhance.md), [notifications](docs/notifications.md),

@@ -495,6 +495,15 @@
       "source": "docs/assistant.md \"Mail, calendars and files\""
     },
     {
+      "entry_point": "email replies",
+      "parameter": "an imported email's headers and text (From, Reply-To, Message-ID, References, the body), read to draft a reply",
+      "attacker_controllable": "yes",
+      "component": "assistant",
+      "caller_must_enforce": "drafting needs the right to process the email; the email reaches the model marked untrusted and the system prompt says not to follow it; only the email's own namespace is searched for excerpts; a web address in the draft that neither the email nor the excerpts hold is broken up, and a citation to an excerpt the model wasn't given is taken out; nothing is sent: a draft waits for the person, who sees its recipient (the address Reply-To names) before anything goes",
+      "provenance": "documented",
+      "source": "docs/email-replies.md \"Lens never sends a reply on its own\""
+    },
+    {
       "entry_point": "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, news feeds, MQTT bridge, OIDC issuer, web search, LanguageTool server)",
       "parameter": "URL, credentials, api_key_env",
       "attacker_controllable": "no",

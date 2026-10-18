@@ -1,6 +1,7 @@
 "use client";
 
-/** One automation: its name, on or off, Run now, and the builder; a new one starts from the builder alone. */
+/** One automation: its name, on or off, Run now, and tabs for the builder, its runs, what's coming up, its variables
+ * and its costs; a new one starts from the builder alone. */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Play, Zap } from "lucide-react";
 import Link from "next/link";
@@ -9,10 +10,12 @@ import { useEffect, useState } from "react";
 
 import { Automations } from "@/app/openapi-client";
 import { AutomationBuilder, type Hook } from "@/components/automations/automation-builder";
+import { CostsTab, RunsTab, UpcomingTab, VariablesTab } from "@/components/automations/detail-tabs";
 import { runStatus } from "@/components/automations/model";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/field";
 import { EmptyState, Skeleton } from "@/components/ui/states";
+import { Tabs } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/toast";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
 
@@ -51,7 +54,11 @@ export function NewAutomationPage() {
   );
 }
 
-export function AutomationPage({ id }: { id: number }) {
+export const TABS = ["edit", "runs", "upcoming", "variables", "costs"] as const;
+export type Tab = (typeof TABS)[number];
+
+export function AutomationPage({ id, tab: first }: { id: number; tab?: string }) {
+  const [tab, setTab] = useState<Tab>(TABS.includes(first as Tab) ? (first as Tab) : "edit");
   const client = useApiClient();
   const qc = useQueryClient();
   const toast = useToast();
@@ -84,6 +91,7 @@ export function AutomationPage({ id }: { id: number }) {
     mutationFn: () => data(Automations.runAutomation({ client, path: { aid: id }, body: {} })),
     onSuccess: (r) => {
       void qc.invalidateQueries({ queryKey: ["automation-runs", id] });
+      setTab("runs");
       toast(
         r.run
           ? { tone: "green", title: "It ran", body: runStatus(r.status).label }
@@ -143,11 +151,33 @@ export function AutomationPage({ id }: { id: number }) {
           ))}
         </div>
       )}
-      <AutomationBuilder
-        key={`${a.id}-${a.updated_at}`}
-        automation={a}
-        onSaved={(_, got) => got.length && setHooks(got)}
+      <Tabs
+        aria-label="Automation"
+        value={tab}
+        onChange={(v) => setTab(v as Tab)}
+        items={[
+          { value: "edit", label: "Edit" },
+          { value: "runs", label: "Runs" },
+          { value: "upcoming", label: "Coming up" },
+          { value: "variables", label: "Variables" },
+          { value: "costs", label: "Costs" },
+        ]}
       />
+      {tab === "runs" ? (
+        <RunsTab aid={a.id} />
+      ) : tab === "upcoming" ? (
+        <UpcomingTab aid={a.id} enabled={a.enabled} />
+      ) : tab === "variables" ? (
+        <VariablesTab aid={a.id} />
+      ) : tab === "costs" ? (
+        <CostsTab aid={a.id} />
+      ) : (
+        <AutomationBuilder
+          key={`${a.id}-${a.updated_at}`}
+          automation={a}
+          onSaved={(_, got) => got.length && setHooks(got)}
+        />
+      )}
     </div>
   );
 }

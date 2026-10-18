@@ -89,6 +89,8 @@ def test_clients_are_sent_to_sign_in(client, app, env):
         "create_feed",
         "publish_to_feed",
         "write_spec",
+        "draft_reply",
+        "edit_reply",
         "set_nsfw",
         "mark_nsfw",
         "enhance",

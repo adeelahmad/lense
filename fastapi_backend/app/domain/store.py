@@ -1571,6 +1571,9 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS feed_item SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS feed_item_feed ON feed_item FIELDS feed",
     "DEFINE INDEX IF NOT EXISTS feed_item_key ON feed_item FIELDS key UNIQUE",
+    # a reply drafted to an email (app/domain/responder.py): email_reply:<recording id>
+    "DEFINE TABLE IF NOT EXISTS email_reply SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS email_reply_space ON email_reply FIELDS space",
     "DEFINE TABLE IF NOT EXISTS output SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS output_rec ON output FIELDS recording",
     "DEFINE TABLE IF NOT EXISTS chat SCHEMALESS",
