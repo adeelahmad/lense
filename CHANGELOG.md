@@ -4,13 +4,15 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
-- **Clean up a recording's sound before it's transcribed.** A new pipeline step, Clean up audio (`clean_audio`), runs a
-  recording through WebRTC's audio processing (pywebrtc-audio, Apache-2.0, about 0.5 MB, fetched the first time it
-  runs): noise suppression, automatic gain, a high-pass filter, echo cancellation for two-channel call recordings, and
-  pauses left out of what's transcribed, with the transcript's times put back on the recording's timeline. Settings →
-  Transcription → Audio cleanup holds what it does; no pipeline has it until you add it, the file is never changed, and
-  `GET /api/v1/recordings/{id}` says what it found (`audio_cleanup`)
-  ([Cleaning up audio](docs/processing.md#cleaning-up-audio)).
+## 0.16.0 <small>October 18, 2026</small> {id="0.16.0"}
+
+### Features
+
+- **web:** SchemaForm, a form generated from a JSON Schema with a variable picker ([#566](https://github.com/adeelahmad/lense/pull/566))
+- **chat:** recover when the model's context is full, and show what a summary covers ([#558](https://github.com/adeelahmad/lense/pull/558))
+- **pipelines:** convert steps that make a video's soundtrack an audio asset and a document's pages image assets ([#568](https://github.com/adeelahmad/lense/pull/568))
+- **scaling:** DigitalOcean and Hetzner Cloud providers ([#573](https://github.com/adeelahmad/lense/pull/573))
+- **workflows:** draw an automation's workflow on the canvas, with action and decide nodes ([#576](https://github.com/adeelahmad/lense/pull/576))
 
 ## 0.15.0 <small>October 18, 2026</small> {id="0.15.0"}
 
