@@ -12,6 +12,7 @@ import { BackupsPanel } from "@/components/settings/backups-panel";
 import { ComponentsStatus } from "@/components/settings/components-status";
 import { EditionChoice, NetworkReach } from "@/components/settings/install-settings";
 import { LogViewer } from "@/components/settings/log-viewer";
+import { McpServers } from "@/components/settings/mcp-servers";
 import { AllTokens } from "@/components/account/all-tokens";
 import { ACCESS } from "@/components/iiif/metadata-model";
 import { RIGHTS } from "@/components/iiif/rights";
@@ -2680,6 +2681,7 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
         </ul>
       </More>
       <WebSearch ctx={ctx} />
+      <McpServers />
       <More
         ctx={ctx}
         ids={["research.max_tool_calls", "research.max_minutes", "research.model", "research.agents_skip_review"]}
