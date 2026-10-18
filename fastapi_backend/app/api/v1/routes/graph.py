@@ -79,7 +79,7 @@ def graph_related(
     user: CurrentUser,
     acl: Acl,
     db: Db,
-    node: str = Query(description="a node id: n<id>, c<id>, r<id>, s<id>, e<id> or e:<name key>"),
+    node: str = Query(description="a node id: n<id>, c<id>, r<id>, s<id>, e<id> or e:<name key>, t<id>, or a:<actor> for a source"),
     relation: Literal["children", "parents", "ancestors", "descendants", "neighbours"] = "neighbours",
     depth: int = Query(1, ge=1, le=8),
     types: str | None = Query(

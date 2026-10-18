@@ -43,6 +43,9 @@ import { useArchive } from "@/lib/hooks/session";
 
 const DEFAULT_KINDS = new Set(EDGE_KINDS.map((k) => k.key).filter((k) => k !== "maybe the same voice"));
 const ALL_GROUPS = new Set(NODE_GROUPS.map((g) => g.key));
+// ?show=actors (the Timeline page's Graph button): the sources and what their assets mention, nothing else
+const ACTOR_GROUPS = new Set(NODE_GROUPS.map((g) => g.key).filter((k) => k !== "speaker"));
+const ACTOR_KINDS = new Set(["added"]);
 
 /** True at 1280px and up, where the node panel has its own column (below that it opens as a drawer). */
 function useWide(): boolean {
@@ -82,9 +85,10 @@ export function GraphPage() {
   const scope = scopeMode === "all" || !ns ? "global" : `ns:${ns}`;
   const view = params.get("view") === "table" ? "table" : "graph";
   const asOf = params.get("as_of");
+  const actors = params.get("show") === "actors";
 
-  const [groups, setGroups] = useState<Set<string>>(ALL_GROUPS);
-  const [kinds, setKinds] = useState<Set<string>>(DEFAULT_KINDS);
+  const [groups, setGroups] = useState<Set<string>>(actors ? ACTOR_GROUPS : ALL_GROUPS);
+  const [kinds, setKinds] = useState<Set<string>>(actors ? ACTOR_KINDS : DEFAULT_KINDS);
   const [minWeight, setMinWeight] = useState(1);
   const [selected, setSelected] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);

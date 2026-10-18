@@ -41356,7 +41356,7 @@ export type GraphRelatedData = {
     /**
      * Node
      *
-     * a node id: n<id>, c<id>, r<id>, s<id>, e<id> or e:<name key>
+     * a node id: n<id>, c<id>, r<id>, s<id>, e<id> or e:<name key>, t<id>, or a:<actor> for a source
      */
     node: string;
     /**

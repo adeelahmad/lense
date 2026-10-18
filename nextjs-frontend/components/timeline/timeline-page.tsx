@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowUp, CheckCheck, History, ListFilter } from "lucide-react";
+import { ArrowUp, CheckCheck, History, ListFilter, Waypoints } from "lucide-react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -252,15 +253,22 @@ export function TimelinePage() {
         title="Timeline"
         meta="What came in from every source, newest first"
         actions={
-          <Button
-            size="sm"
-            variant="secondary"
-            icon={<CheckCheck />}
-            disabled={!unreviewedShown}
-            onClick={markAllShown}
-          >
-            Mark all shown as reviewed
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild size="sm" variant="ghost" icon={<Waypoints />}>
+              <Link href="/graph?show=actors" title="Every source, sensor, person and agent, and what they brought in">
+                Graph
+              </Link>
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={<CheckCheck />}
+              disabled={!unreviewedShown}
+              onClick={markAllShown}
+            >
+              Mark all shown as reviewed
+            </Button>
+          </div>
         }
       />
       <div className="flex items-center gap-2">

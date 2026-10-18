@@ -124,3 +124,36 @@ def test_ask_in_plain_language(llm, env):
     bad = c.post("/api/v1/graph/ask", json={"question": "delete everything"}, headers=h)
     assert bad.status_code == 422
     assert c.post("/api/v1/graph/query", json={"query": "MATCH (n:Namespace) RETURN count(*)"}, headers=h).json()["rows"] == [[1]]
+
+
+def test_sources_are_actors_in_the_graph(env, db):
+    """Whoever brought an asset in (the activity stream's actor) is a Source node with an ADDED relationship to it, in
+    the explorer, in Cypher and on the canvas (docs/graph.md, docs/timeline.md)."""
+    from app.domain import store
+
+    c, h = env.c, env.h["viewer"]
+    ed = db.one("SELECT record::id(id) AS id FROM account WHERE email = 'ed@x.io'")["id"]
+    db.q("UPDATE $r SET created_by = $who", r=store.R("recording", env.a), who=ed)
+    s = c.get("/api/v1/graph/schema", params={"scope": "ns:pods"}, headers=h).json()
+    assert next(x for x in s["labels"] if x["label"] == "Source")["count"] == 2  # the editor, and Lens for the rest
+    rel = next(r for r in s["relationships"] if r["type"] == "ADDED")
+    assert rel["from_to"] == ["Source->Recording"] and rel["hierarchy"]
+    # a recording's parents are its collection and the source that added it
+    up = c.get("/api/v1/graph/related", params={"node": f"r{env.a}", "relation": "parents", "scope": "ns:pods"}, headers=h).json()
+    src = [n for n in up["nodes"] if n["labels"] == ["Source"]]
+    assert len(src) == 1 and src[0]["id"] == f"a:account/{ed}"
+    assert src[0]["kind"] == "person" and src[0]["type"] == "Person" and src[0]["recordings"] == 1
+    assert any(e["type"] == "ADDED" and e["a"] == f"a:account/{ed}" and e["b"] == f"r{env.a}" for e in up["edges"])
+    # Cypher walks from the source through what it added to what that mentions
+    q = (
+        "MATCH (s:Source)-[:ADDED]->(r:Recording)-[:MENTIONS]->(e:Organisation) "
+        "RETURN s.kind AS kind, s.name AS name, count(DISTINCT r) AS assets ORDER BY kind"
+    )
+    rows = c.post("/api/v1/graph/query", json={"query": q, "scope": "ns:pods"}, headers=h).json()["rows"]
+    assert [r[0] for r in rows] == ["agent", "person"] and rows[0][1] == "Lens" and rows[0][2] >= 1
+    # the canvas draws sources too, linked to the entities their assets mention
+    canvas = c.get("/api/v1/graph", params={"scope": "ns:pods"}, headers=h).json()
+    srcs = {n["id"]: n for n in canvas["nodes"] if n["kind"] == "source"}
+    assert srcs["a:app"]["label"] == "Lens" and srcs["a:app"]["type"] == "agent" and srcs["a:app"]["ns"] == ["pods"]
+    assert srcs["a:app"]["weight"] >= 2
+    assert any(e["kind"] == "added" and "a:app" in (e["a"], e["b"]) for e in canvas["edges"])

@@ -166,7 +166,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   recognised by voice (long recordings go to a speech provider in pieces that fit its limits), text on screen and in scans, faces (off by default), NSFW pictures flagged by a model on your own
   server (off by default, per namespace), low quality images enhanced before they're read (off by default), entities
   and topics in a knowledge graph you can explore, query with Cypher or
-  SPARQL, and see as it was at any version. Every entity has its own page at a wiki address
+  SPARQL, and see as it was at any version, where every source, sensor, person and agent is a node linked to what it
+  brought in. Every entity has its own page at a wiki address
   (`/wiki/<namespace>/<Name>`), and entities, topics and people are edited and merged from their lists, the graph or an
   asset, with Undo instead of a confirm. Names get their real types (people, places, organisations, events, works) by
   rules, without a model, and a decision model types the ones the rules can't. Find what is most like a passage, an
