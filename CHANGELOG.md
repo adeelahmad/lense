@@ -119,6 +119,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   one stops the old address at once, and the feed asks directories and search engines not to list it. Editors make and
   fill feeds with `POST /api/v1/feeds` and `POST /api/v1/feeds/{id}/items`; agents use the MCP tools `list_feeds`,
   `create_feed` and `publish_to_feed` ([Published feeds](docs/feeds.md)).
+    - Routines fill them: the graph workflow nodes Select assets and Select activities pick what came in since the
+      routine last ran, Publish to feed adds it to a feed, and Podcast episode makes an episode about it (added to a
+      feed, listed once it's made). Try on the canvas says what they would do
+      ([Publishing from the graph](docs/processing.md#publishing-from-the-graph)).
+
 ## 0.14.0 <small>October 17, 2026</small> {id="0.14.0"}
 
 - **Dates read as days, for agents.** With Settings → Analysis → Read dates on (off by default), analysis reads the
