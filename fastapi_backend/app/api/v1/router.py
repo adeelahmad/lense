@@ -15,6 +15,7 @@ from app.api.v1.routes import (
     browser,
     budgets,
     chats,
+    circles,
     classify,
     collections,
     comments,
@@ -157,5 +158,6 @@ for module in (
     feeds,
     specs,
     mesh,
+    circles,
 ):
     api_router.include_router(module.router)

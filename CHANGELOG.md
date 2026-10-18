@@ -124,6 +124,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   recording, and keeps the types it is sure of. Settings › Analysis › Names the rules can't type (`analysis.typing`)
   can also let the language model answer, or turn it off; the language model is never asked by default
   ([Names the rules can't type](docs/processing.md#entities-and-the-graph-explorer)).
+- **Circles of trust.** Put the people close to you in circles of your own (Immediate family, Close family, Friends,
+  Colleagues are suggested) and share an activity from your timeline or a resource with a circle and a note: each of
+  them gets it in their own timeline as `share.received`, which their automations can follow, and you get
+  `share.sent`. *With the item* also gives them permission on that one resource (it needs `publish`); undo takes the
+  share back everywhere, with the permissions it gave. Nothing in a vault can be shared. Works through
+  `/api/v1/circles`, MCP (`list_circles`, `save_circle`, `share_with_circle`, `undo_share`) and the assistant, which
+  asks first ([Circles of trust](docs/circles.md)).
 - **A loading bar, as in Gmail.** A thin blue bar runs along the top of the web app while a page or its data loads:
   on every page change, and while a page waits for its first answers from the API. Refreshing what's already on screen
   and anything quicker than a blink don't show it ([The web app](docs/frontend.md#data)).

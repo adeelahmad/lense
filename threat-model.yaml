@@ -8,7 +8,7 @@ project: lens
 prose_version: "threat-model.md@same-commit"
 model_status: under-review
 triage_policy: strict
-confidence: {documented: 208, maintainer: 46, inferred: 91, assumption: 8}
+confidence: {documented: 211, maintainer: 46, inferred: 91, assumption: 8}
 
 generation:
   model: "Claude Opus 5.5 (claude-opus-5-5)"
@@ -496,6 +496,16 @@ entry_points:
         obligation_id: keep-feed-addresses-secret
         caller_must_enforce: "the person shares the address as a password; Lens finds the token by its hash, stops the old address when a new one is made, and lists only what the namespace's readers can read"
         provenance: {kind: documented, source: 'docs/feeds.md "Private by default"'}
+  - id: "POST /circles and /circles/shares, MCP save_circle and share_with_circle, the assistant's share_with_circle (circles and sharing with them)"
+    component: authz
+    parameters:
+      - name: "circle members, an activity or resource id, a note, with_item"
+        attacker_controllable: true
+        x-condition: "anyone signed in; the note and the snapshot reach the recipients"
+        control_kinds: [data, resource-name, size, x-prompt-injection]
+        obligation_id: share-only-with-circles
+        caller_must_enforce: "members must be people the sharer may add; Lens checks the sharer can read the item, refuses vaults, caps the note, and needs publish to give the item; the assistant asks first"
+        provenance: {kind: documented, source: 'docs/circles.md "What keeps it safe"'}
   - id: "automations' params and prompts, POST /automations/preview and /automations/variables"
     component: optional
     parameters:
@@ -983,6 +993,15 @@ outputs:
     downstream_must_not_assume:
       - {id: dmna-feed-address-private, statement: "that the address stays private once shared: it is a bearer credential until rotated", provenance: {kind: documented, source: 'docs/feeds.md "Private by default"'}}
       - {id: dmna-feed-directories-keep-out, statement: "that a directory or crawler honours the request to keep out", provenance: {kind: documented, source: 'docs/feeds.md "Private by default"'}}
+  - component: authz
+    channel: "Shares in a recipient's timeline (share.received, GET /circles/shares; domain/circles.py)"
+    taint: same-as-input
+    x-taint-note: "the sharer's note and a snapshot of the item's name, timeline line and entities, marked lens.untrusted and wrapped as data in prompts; seen by the recipient alone"
+    taint_provenance: {kind: documented, source: 'docs/circles.md "What keeps it safe"'}
+    invariants:
+      - {id: inv-share-only-to-circles, statement: "a share reaches only people in the sharer's circles and carries only what the sharer can read, never a vault's", property_id: P-CIRCLES, provenance: {kind: documented, source: 'docs/circles.md "What keeps it safe"'}}
+    downstream_must_not_assume:
+      - {id: dmna-share-snapshot-current, statement: "that the snapshot still matches the item, or that the note is not text steering an agent", provenance: {kind: documented, source: 'docs/circles.md "What keeps it safe"'}}
 
 # ---------------------------------------------------------------- §1.10
 adversaries:
@@ -1531,6 +1550,14 @@ properties_claimed:
     violation_symptoms: [info-leak]
     x-voided-by: "the token is sealed with the server key, not only hashed, so the namespace's readers and whoever holds secret.key see the address again (domain/syndication.py token_of); anyone given the address reads the feed until it is rotated; editors choose what goes in, as does a routine (admins make them) whose workflow nodes publish what they pick, bounded the same way; a resource's title and summary show as they are now; the fit is by namespace roles (domain/syndication.py Fit), not per-asset grants"
     provenance: {kind: documented, source: 'docs/feeds.md "Private by default"'}
+  - id: P-CIRCLES
+    kind: confidentiality
+    components: [authz, assistant]
+    tier: security-critical
+    conditions: "a share goes only to people in the sharer's circles, who are people they share a namespace with, who have them in a circle, or anyone for an admin; it carries only an activity or resource the sharer can read, never one in a vault; with the item, it gives each recipient permission on that one resource only when the sharer holds publish in its namespace; undo deletes the share from every timeline and takes back the permissions it gave; a received share is seen only by its recipient and belongs to no namespace; the assistant always asks before sharing; read-only tokens can't share"
+    violation_symptoms: [info-leak]
+    x-voided-by: "the snapshot (name, summary, entities, note) is kept as it was when shared, so an edit or deletion of the item later doesn't reach it; deleting a circle doesn't take back what was shared with it; a recipient keeps what they read before an undo (domain/circles.py)"
+    provenance: {kind: documented, source: 'docs/circles.md "What keeps it safe"'}
   - id: P-AUTH-REQ
     kind: authentication
     components: [web, identity]

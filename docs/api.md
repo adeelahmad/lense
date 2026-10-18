@@ -243,6 +243,28 @@ Each person marks activities `reviewed`, `important` or `hidden` for themselves 
 and `POST /activities/mark` with `ids` (up to 500) answers `{marks, unknown}`. `GET /activities` has your marks on
 the page in `marks` and filters by them with `reviewed`, `important` and `hidden` (true or false).
 
+## circles
+
+```
+GET    /api/v1/circles
+POST   /api/v1/circles
+GET    /api/v1/circles/people
+GET    /api/v1/circles/shares
+POST   /api/v1/circles/shares
+DELETE /api/v1/circles/shares/{share_id}
+GET    /api/v1/circles/{circle_id}
+PATCH  /api/v1/circles/{circle_id}
+DELETE /api/v1/circles/{circle_id}
+```
+
+Your [circles of trust](circles.md) and what you share with them; yours alone. `POST /circles` takes a `name` and
+`members` (account ids or emails of people you can add, from `/circles/people`); `PATCH` renames, sets `members`, or
+`add`s and `remove`s people. `POST /circles/shares` shares an `activity` (its id) or a `recording` you can see with
+`circles` and `people` in them, with a `note`; `with_item` also gives those who can't open the resource permission on
+it (needs `publish` there). Each person gets `share.received` in their timeline and you get `share.sent`.
+`GET /circles/shares?direction=received|sent` lists them newest first; `DELETE /circles/shares/{id}` takes one back,
+with the permissions it gave.
+
 ## automations
 
 ```

@@ -3899,6 +3899,94 @@ export type ChatUpdate = {
 };
 
 /**
+ * Circle
+ */
+export type Circle = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Members
+   */
+  members: Array<Person>;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * CircleCreate
+ */
+export type CircleCreate = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Members
+   *
+   * people by account id or email
+   */
+  members?: Array<number | string>;
+};
+
+/**
+ * CircleUpdate
+ */
+export type CircleUpdate = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Members
+   *
+   * everyone in it, replacing who was
+   */
+  members?: Array<number | string> | null;
+  /**
+   * Add
+   *
+   * people to add
+   */
+  add?: Array<number | string>;
+  /**
+   * Remove
+   *
+   * people to take out
+   */
+  remove?: Array<number | string>;
+};
+
+/**
+ * Circles
+ */
+export type Circles = {
+  /**
+   * Circles
+   */
+  circles: Array<Circle>;
+  /**
+   * Suggested
+   *
+   * names of circles people often make, which this person hasn't made yet
+   */
+  suggested: Array<string>;
+  [key: string]: unknown;
+};
+
+/**
  * ClassifyRequest
  *
  * Give a `recording` or a `text`, and `labels` or a `vocabulary`.
@@ -15936,6 +16024,25 @@ export type PermissionAdd = {
 };
 
 /**
+ * Person
+ */
+export type Person = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Email
+   */
+  email?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * PhotoHit
  *
  * A photo like what was asked for (embeddings.photos).
@@ -21693,73 +21800,6 @@ export type SetupView = {
 };
 
 /**
- * Share
- */
-export type Share = {
-  /**
-   * Id
-   *
-   * first characters of the link's id
-   */
-  id: string;
-  /**
-   * Created By
-   */
-  created_by?: string | null;
-  /**
-   * Created At
-   */
-  created_at?: string | null;
-  /**
-   * Expires At
-   */
-  expires_at?: string | null;
-  /**
-   * Active
-   *
-   * it still works: not revoked and not expired
-   */
-  active: boolean;
-  /**
-   * Revoked
-   */
-  revoked?: boolean;
-  /**
-   * Revoked By
-   */
-  revoked_by?: string | null;
-  /**
-   * Revoked At
-   */
-  revoked_at?: string | null;
-  /**
-   * Short
-   *
-   * it has a short /s/ address (links made before short links have none)
-   */
-  short?: boolean;
-  /**
-   * Plays
-   *
-   * times its player started playing, once per page load (not counting Lens itself)
-   */
-  plays?: number;
-  /**
-   * Played At
-   *
-   * the last play
-   */
-  played_at?: string | null;
-  /**
-   * Embedded On
-   *
-   * sites whose pages framed its player, most recent first (up to 50)
-   */
-  embedded_on?: Array<ShareSite>;
-  [key: string]: unknown;
-};
-
-/**
  * ShareCreate
  */
 export type ShareCreate = {
@@ -21767,6 +21807,48 @@ export type ShareCreate = {
    * Days
    */
   days?: number;
+};
+
+/**
+ * ShareIn
+ */
+export type ShareIn = {
+  /**
+   * Activity
+   *
+   * an activity's id, as the timeline gives it
+   */
+  activity?: string | null;
+  /**
+   * Recording
+   *
+   * a resource's id
+   */
+  recording?: number | null;
+  /**
+   * Circles
+   *
+   * your circles to share with
+   */
+  circles?: Array<number>;
+  /**
+   * People
+   *
+   * people in your circles, by id or email
+   */
+  people?: Array<number | string>;
+  /**
+   * Note
+   *
+   * what you want them to know
+   */
+  note?: string | null;
+  /**
+   * With Item
+   *
+   * also give members who can't open the resource permission on it (needs the publish permission there)
+   */
+  with_item?: boolean;
 };
 
 /**
@@ -21847,6 +21929,47 @@ export type ShareSite = {
    * Last At
    */
   last_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * Shared
+ */
+export type Shared = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * At
+   */
+  at: string;
+  /**
+   * Object
+   *
+   * what was shared, as it read then: type, id, name, summary, url, the note as content
+   */
+  object: {
+    [key: string]: unknown;
+  };
+  /**
+   * Circles
+   */
+  circles: Array<string>;
+  /**
+   * People
+   */
+  people: Array<Person>;
+  /**
+   * With Item
+   */
+  with_item: boolean;
+  /**
+   * Granted
+   *
+   * how many members were given permission on the resource
+   */
+  granted: number;
   [key: string]: unknown;
 };
 
@@ -24692,23 +24815,6 @@ export type TunnelStatus = {
 };
 
 /**
- * Undone
- */
-export type Undone = {
-  /**
-   * Undone
-   */
-  undone: number;
-  /**
-   * Failed
-   *
-   * changes that couldn't be undone (an entity in them was deleted since)
-   */
-  failed?: number;
-  [key: string]: unknown;
-};
-
-/**
  * UpdateStatus
  */
 export type UpdateStatus = {
@@ -26488,6 +26594,158 @@ export type WorkflowVersionInfo = {
    * Created By
    */
   created_by?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * Share
+ */
+export type AppSchemasCirclesShare = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * At
+   */
+  at: string;
+  /**
+   * Activity
+   *
+   * the share's own activity in your timeline
+   */
+  activity: string;
+  /**
+   * Object
+   */
+  object: {
+    [key: string]: unknown;
+  };
+  /**
+   * Note
+   */
+  note?: string | null;
+  /**
+   * With Item
+   */
+  with_item?: boolean;
+  /**
+   * who shared it (shares with you)
+   */
+  by?: Person | null;
+  /**
+   * Circles
+   *
+   * the circles it went to (your shares)
+   */
+  circles?: Array<string> | null;
+  /**
+   * People
+   *
+   * who it went to (your shares)
+   */
+  people?: Array<Person> | null;
+  [key: string]: unknown;
+};
+
+/**
+ * Undone
+ */
+export type AppSchemasCirclesUndone = {
+  /**
+   * Undone
+   */
+  undone: number;
+  /**
+   * Taken Back
+   *
+   * permissions on the resource taken back
+   */
+  taken_back: number;
+  [key: string]: unknown;
+};
+
+/**
+ * Share
+ */
+export type AppSchemasRecordingsShare = {
+  /**
+   * Id
+   *
+   * first characters of the link's id
+   */
+  id: string;
+  /**
+   * Created By
+   */
+  created_by?: string | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Expires At
+   */
+  expires_at?: string | null;
+  /**
+   * Active
+   *
+   * it still works: not revoked and not expired
+   */
+  active: boolean;
+  /**
+   * Revoked
+   */
+  revoked?: boolean;
+  /**
+   * Revoked By
+   */
+  revoked_by?: string | null;
+  /**
+   * Revoked At
+   */
+  revoked_at?: string | null;
+  /**
+   * Short
+   *
+   * it has a short /s/ address (links made before short links have none)
+   */
+  short?: boolean;
+  /**
+   * Plays
+   *
+   * times its player started playing, once per page load (not counting Lens itself)
+   */
+  plays?: number;
+  /**
+   * Played At
+   *
+   * the last play
+   */
+  played_at?: string | null;
+  /**
+   * Embedded On
+   *
+   * sites whose pages framed its player, most recent first (up to 50)
+   */
+  embedded_on?: Array<ShareSite>;
+  [key: string]: unknown;
+};
+
+/**
+ * Undone
+ */
+export type AppSchemasRoutinesUndone = {
+  /**
+   * Undone
+   */
+  undone: number;
+  /**
+   * Failed
+   *
+   * changes that couldn't be undone (an entity in them was deleted since)
+   */
+  failed?: number;
   [key: string]: unknown;
 };
 
@@ -33325,7 +33583,7 @@ export type ListSharesResponses = {
    *
    * Successful Response
    */
-  200: Array<Share>;
+  200: Array<AppSchemasRecordingsShare>;
 };
 
 export type ListSharesResponse = ListSharesResponses[keyof ListSharesResponses];
@@ -44388,7 +44646,7 @@ export type UndoRunResponses = {
   /**
    * Successful Response
    */
-  200: Undone;
+  200: AppSchemasRoutinesUndone;
 };
 
 export type UndoRunResponse = UndoRunResponses[keyof UndoRunResponses];
@@ -46640,3 +46898,243 @@ export type NodeBeatResponses = {
 };
 
 export type NodeBeatResponse = NodeBeatResponses[keyof NodeBeatResponses];
+
+export type ListCirclesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/circles";
+};
+
+export type ListCirclesResponses = {
+  /**
+   * Successful Response
+   */
+  200: Circles;
+};
+
+export type ListCirclesResponse = ListCirclesResponses[keyof ListCirclesResponses];
+
+export type CreateCircleData = {
+  body: CircleCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/circles";
+};
+
+export type CreateCircleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateCircleError = CreateCircleErrors[keyof CreateCircleErrors];
+
+export type CreateCircleResponses = {
+  /**
+   * Successful Response
+   */
+  201: Circle;
+};
+
+export type CreateCircleResponse = CreateCircleResponses[keyof CreateCircleResponses];
+
+export type ListPeopleData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/circles/people";
+};
+
+export type ListPeopleResponses = {
+  /**
+   * Response Circles-List People
+   *
+   * Successful Response
+   */
+  200: Array<Person>;
+};
+
+export type ListPeopleResponse = ListPeopleResponses[keyof ListPeopleResponses];
+
+export type ListShares2Data = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Direction
+     */
+    direction?: "received" | "sent";
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/circles/shares";
+};
+
+export type ListShares2Errors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListShares2Error = ListShares2Errors[keyof ListShares2Errors];
+
+export type ListShares2Responses = {
+  /**
+   * Response Circles-List Shares
+   *
+   * Successful Response
+   */
+  200: Array<AppSchemasCirclesShare>;
+};
+
+export type ListShares2Response = ListShares2Responses[keyof ListShares2Responses];
+
+export type ShareData = {
+  body: ShareIn;
+  path?: never;
+  query?: never;
+  url: "/api/v1/circles/shares";
+};
+
+export type ShareErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ShareError = ShareErrors[keyof ShareErrors];
+
+export type ShareResponses = {
+  /**
+   * Successful Response
+   */
+  201: Shared;
+};
+
+export type ShareResponse = ShareResponses[keyof ShareResponses];
+
+export type UndoShareData = {
+  body?: never;
+  path: {
+    /**
+     * Sid
+     */
+    sid: number;
+  };
+  query?: never;
+  url: "/api/v1/circles/shares/{sid}";
+};
+
+export type UndoShareErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UndoShareError = UndoShareErrors[keyof UndoShareErrors];
+
+export type UndoShareResponses = {
+  /**
+   * Successful Response
+   */
+  200: AppSchemasCirclesUndone;
+};
+
+export type UndoShareResponse = UndoShareResponses[keyof UndoShareResponses];
+
+export type DeleteCircleData = {
+  body?: never;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/circles/{cid}";
+};
+
+export type DeleteCircleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteCircleError = DeleteCircleErrors[keyof DeleteCircleErrors];
+
+export type DeleteCircleResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteCircleResponse = DeleteCircleResponses[keyof DeleteCircleResponses];
+
+export type GetCircleData = {
+  body?: never;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/circles/{cid}";
+};
+
+export type GetCircleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetCircleError = GetCircleErrors[keyof GetCircleErrors];
+
+export type GetCircleResponses = {
+  /**
+   * Successful Response
+   */
+  200: Circle;
+};
+
+export type GetCircleResponse = GetCircleResponses[keyof GetCircleResponses];
+
+export type UpdateCircleData = {
+  body: CircleUpdate;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/circles/{cid}";
+};
+
+export type UpdateCircleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateCircleError = UpdateCircleErrors[keyof UpdateCircleErrors];
+
+export type UpdateCircleResponses = {
+  /**
+   * Successful Response
+   */
+  200: Circle;
+};
+
+export type UpdateCircleResponse = UpdateCircleResponses[keyof UpdateCircleResponses];

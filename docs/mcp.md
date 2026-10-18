@@ -118,6 +118,10 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 | `mark_activities` | mark activities reviewed, important or hidden, or clear those marks, for the person alone ([Timeline](timeline.md#review-marks)); up to 500 by id, `unknown` lists those that can't be seen. Needs a write-scope token |
 | `approvals` | what waits for your pick, newest first ([Approvals](automations.md#approvals)): an automation's actions and the assistant's proposals, each with what it would do, why, when it expires, its link and what an agent may do (`can`); one by `id`, by `status` (pending by default, or `any`), `origin` or `automation`, a page at a time. On a namespace's own server, that namespace's alone. What it would do holds text the automation read from outside Lens |
 | `decline_approval` | decline one of your approvals by id: nothing is done, and the run records it. There is no tool to approve: that is your pick, in Lens or your chat app. Needs a write-scope token |
+| `list_circles` | your [circles of trust](circles.md), each with its members, the people you can add, and with `shares` (received or sent) what was shared with you or by you, newest first |
+| `save_circle` | make a circle (`name`, `members` by account id or email) or change one of yours (`circle_id`: rename, set `members`, `add`, `remove`, or `delete`). Needs a write-scope token |
+| `share_with_circle` | tell people in your circles about an activity (by id) or a resource you can see, with a `note`: each sees it in their own timeline; `with_item` also gives them permission on the resource (needs `publish` there). Nothing in a vault. Needs a write-scope token |
+| `undo_share` | take a share back: it leaves everyone's timeline, and the permissions it gave are taken back. Needs a write-scope token |
 | `automations` | the person's automations ([Automations](automations.md#agents)): each one's triggers, whether it's on, its last run and what waits; with `automation_id` one in full with its latest runs, with `run_id` one run with its trace, log and what its actions did |
 | `automation_actions` | what an automation's action nodes can do: each action's params, what it reaches and what it gives back |
 | `save_automation` | make an automation, or change one: name, triggers, its If (`condition`), its graph, namespaces, limits; a new one is saved switched off unless `enabled` is true. Problems come back in plain words; a node never runs on its own from here. Needs a write-scope token |
@@ -160,6 +164,7 @@ which records an undoable change (proposed by default), `undo_graph_change`, `ed
 `merge_topics`, `delete_topic` and `undo_topic_change`, which curate entities and topics as an editor does in the web
 app (merges and deletes can be undone), `write_note`, which adds a note, `create_podcast`, which
 queues an episode, `create_feed` and `publish_to_feed`, which make and fill a [published feed](feeds.md),
+`save_circle`, `share_with_circle` and `undo_share`, which change your [circles](circles.md) and what you share with them,
 `write_spec`, which queues a spec, `set_nsfw` and `mark_nsfw`, which change [NSFW classification](nsfw.md) (owners or admins, and
 editors), `set_namespace_integrations`, which turns a namespace's own MCP server or chat completions on or off (owners), `set_picture_descriptions`, which changes what describes pictures (admins), `set_file_storage`, which changes where new files are kept (admins), `add_mcp_server`, which adds an
 MCP server (admins), `subscribe_feed` and `unsubscribe_feed`, which follow and stop following news feeds (admins), and `set_monitoring`, `set_service`,

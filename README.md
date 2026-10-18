@@ -166,6 +166,12 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   in the web app is planned. ([Processing](docs/processing.md#workflows-and-the-canvas),
   [notifications](docs/notifications.md), [automations](docs/automations.md),
   [approvals](docs/automations.md#approvals), [timeline](docs/timeline.md); [checks](docs/requirements.md#automate-it))
+- **Share with the people close to you.** Make circles of trust (your family, close family, friends, colleagues) of
+  people on the same Lens, and share an activity from your timeline or a resource with a circle and a note: each of
+  them sees it in their own timeline, and you see it in yours, so nothing is shared behind anyone's back. Share with the
+  item to also let them open the resource; undo takes it all back, and nothing leaves a vault. Agents do the same over
+  MCP, and the assistant asks you first. ([Circles of trust](docs/circles.md);
+  [checks](docs/requirements.md#share-with-the-people-close-to-you))
 - **See what it costs.** An activity ledger of every model call, with reports, charts and budgets that cap spending.
   Setup asks for one overall budget after a cloud model, with a soft limit that warns and a hard limit that stops paid
   calls. A meter in the top bar shows spend against the budget, and the Costs page breaks it down by day, model and
@@ -241,6 +247,9 @@ These are open pull requests, not yet part of Lens:
 Next, and not in a pull request yet; each links to where it is tracked:
 
 - **The automations studio:** drawing automations in the web app ([automations](docs/automations.md)).
+- **Circles of trust:** circles and a Share action in the web app, rules for what your agent shares without asking,
+  asking someone's agent (when they're free, what a trip needs) answered from what they let you see, and circles
+  across Lens servers over ActivityPub ([circles of trust](docs/circles.md)).
 - **Timeline:** what each item caused, and Approve and Decline on waiting approvals ([timeline](docs/timeline.md)).
 - **Notes:** nesting a note under its project or area without a click, pages in the graph, and wiki addresses for
   topics, recordings and the other things that have pages ([notes](docs/notes.md)).

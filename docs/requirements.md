@@ -194,6 +194,15 @@ request, to another check that proves the same thing; loosening a requirement or
 | Each automation has limits and budgets | [test_automation_runs.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/domain/test_automation_runs.py) `test_the_if_limits_and_dry_runs`, `test_a_run_over_budget_is_held_for_the_persons_pick` |
 | Agents make, try and run automations over MCP and in the assistant, or draft one from a sentence | [test_automation_tools.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_automation_tools.py) `test_agents_save_try_and_run_automations_over_mcp`, `test_the_assistant_saves_at_once_and_asks_to_switch_on_or_run`; [test_automations.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_automations.py) `test_an_automation_is_drafted_from_a_sentence` |
 
+## Share with the people close to you
+
+| Requirement | Checks |
+| --- | --- |
+| Circles of people on the same Lens are each person's own, and hold only people they may add | [test_circles.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_circles.py) `test_circles_are_your_own` |
+| Sharing an activity or a resource with a circle and a note shows it in each member's own timeline and the sharer's, with the item or without, undone with its permissions, never from a vault | [test_circles.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_circles.py) `test_sharing_with_a_circle` |
+| Automations follow what was shared with the person; removing someone takes their circles and what was shared with them | [test_circles.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_circles.py) `test_automations_follow_shares` |
+| Agents make circles and share over MCP; the assistant shares only after the person's yes | [test_circles.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_circles.py) `test_agents_share_too` |
+
 ## See what it costs
 
 | Requirement | Checks |

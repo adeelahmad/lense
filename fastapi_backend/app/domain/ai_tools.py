@@ -172,6 +172,30 @@ TOOLS = [
         False,
     ),
     (
+        "circles",
+        "The person's circles of trust (Immediate family, Friends, ...): the people on this Lens they share with, each "
+        "circle with its members, and with shares (received or sent) what was shared with them or by them, newest first.",
+        {"shares": {"type": "string", "enum": ["received", "sent"]}, "limit": _I},
+        [],
+        False,
+    ),
+    (
+        "share_with_circle",
+        "Tell people in the person's circles about something, when the person asks you to: an activity (its id, from "
+        "timeline) or an asset (recording_id), with a short note in the person's words. Each of them sees it in their "
+        "own timeline. with_item also lets them open the asset. Needs the person's approval.",
+        {
+            "activity": _S,
+            "recording_id": _I,
+            "circles": {"type": "array", "items": _I},
+            "people": {"type": "array", "items": _S},
+            "note": _S,
+            "with_item": {"type": "boolean"},
+        },
+        [],
+        True,
+    ),
+    (
         "approvals",
         "What waits for the person's pick, newest first: automations' actions that ask first and your own proposals in "
         "this conversation, each with what it would do, why (the activity that caused it), when it expires and where "
@@ -638,7 +662,16 @@ GROUPS = {
     "memory": {"label": "Namespace memory", "tools": [t[0] for t in MEMORY_TOOLS]},
     "activity": {
         "label": "Timeline and automations",
-        "tools": ["timeline", "mark_activities", "approvals", "decline_approval", "automations", "test_automation"]
+        "tools": [
+            "timeline",
+            "mark_activities",
+            "circles",
+            "share_with_circle",
+            "approvals",
+            "decline_approval",
+            "automations",
+            "test_automation",
+        ]
         + [t[0] for t in AUTOMATION_TOOLS],
     },
     "changes": {
@@ -1533,6 +1566,56 @@ class Toolbox(ops_tools.OpsTools, connection_tools.ConnectionTools):
         marks = event_marks.mark(self.db, self.account, known, flags)
         return {"marks": marks, "unknown": unknown}, f"Marked {what}"
 
+    # ---- circles of trust (circles.py): reading them is routine; telling other people waits for the person's yes ----
+    def _me(self):
+        return {"id": self.account, "email": self.user.get("email"), "name": self.user.get("name"), "admin": bool(self.admin)}
+
+    def t_circles(self, shares=None, limit=20):
+        from . import circles
+
+        me = self._me()
+        out = {"circles": circles.circles(self.db, me["id"]), "people": circles.people(self.db, me)}
+        if shares in ("received", "sent"):
+            out["shares"] = circles.shares(self.db, me, shares, min(int(limit or 20), 50))
+        n = len(out["circles"])
+        return out, f"Read {n} circle{'' if n == 1 else 's'}" + (f" and the shares {shares}" if out.get("shares") is not None else "")
+
+    def t_share_with_circle(self, activity=None, recording_id=None, circles=None, people=None, note=None, with_item=False):
+        from . import circles as circlemod
+
+        if recording_id is not None and self.allowed is not None and int(recording_id) not in self.allowed:
+            raise ValueError(f"asset {recording_id} isn't in this conversation")
+        args = store.clean(
+            {
+                "activity": str(activity) if activity is not None else None,
+                "recording_id": int(recording_id) if recording_id is not None else None,
+                "circles": [int(c) for c in circles or []] or None,
+                "people": [str(p) for p in people or []] or None,
+                "note": note or None,
+                "with_item": bool(with_item) or None,
+            }
+        )
+        try:
+            got = circlemod.preview(
+                self.db,
+                self.cfg,
+                self._me(),
+                activity=args.get("activity"),
+                recording=args.get("recording_id"),
+                circles_=args.get("circles") or (),
+                people_=args.get("people") or (),
+                note=args.get("note"),
+                with_item=bool(with_item),
+                who=self._viewer(),
+            )
+        except KeyError:
+            raise ValueError("that isn't something the person can see here, or no circle of theirs has that id") from None
+        except PermissionError as e:
+            raise ValueError(str(e)) from None
+        whom = ", ".join(got["circles"]) or ", ".join(circlemod._label(p) for p in got["people"])
+        what = circlemod._quoted(got["object"])
+        return self._approval("share_with_circle", args, f"Share {what} with {whom}")
+
     # ---- approvals (approvals.py): the person's own, read and declined; approving is theirs ----
     def _approval_seen(self, a):
         """An approval of the person's this conversation may see: an automation's about a namespace it reads (or none),
@@ -2309,6 +2392,27 @@ def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable):
             result = {"approval": b["id"], "status": b["status"]}  # decided meanwhile: nothing to decline
         else:
             result = {"approval": b["id"], **approve(db, cfg, b["id"], user, editable, "decline", via="agent")}
+    elif a["tool"] == "share_with_circle":  # the person's yes to telling people in their circles
+        from . import circles
+
+        acct = auth.get_account(db, a.get("account") or user["id"]) or {}
+        me = {"id": acct.get("id", user["id"]), "email": acct.get("email"), "name": acct.get("name"), "admin": bool(acct.get("admin"))}
+        try:
+            result = circles.share(
+                db,
+                cfg,
+                me,
+                activity=args.get("activity"),
+                recording=args.get("recording_id"),
+                circles_=args.get("circles") or (),
+                people_=args.get("people") or (),
+                note=args.get("note"),
+                with_item=bool(args.get("with_item")),
+                via="assistant",
+            )
+        except KeyError:
+            raise ValueError("what was to be shared is gone, or no longer one you can see") from None
+        auth.audit(db, {"id": me["id"], "email": me["email"]}, "circle.share", f"circle_share:{result['id']}", {"via": "assistant"})
     elif a["tool"] == "mark_activities":  # the person's own marks, on activities they could see when it was asked
         flags = {k: v for k, v in args.items() if k in event_marks.FLAGS}
         result = {"marked": len(event_marks.mark(db, user["id"], args["ids"], flags))}

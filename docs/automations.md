@@ -137,6 +137,8 @@ and the paths holding outside text are in `GET /api/v1/activities/kinds` (`event
 | `webhook.received` | | `log` | `{type: Note, hook: the webhook's id, payload: what was sent (JSON, a form's fields or text), content_type, query}`; the actor is the webhook (`Service`, `lens:automation_hook/<id>`, "Webhook for <automation>") | Webhook for Front door was called |
 | `approval.waiting` | | `approvals` | `{type: Question, id: lens:approval/<id>, name: what it would do, url: /approvals?id=<id>}`, `status`, `action`, `effect`, `automation`, `automation_name`, `run`, `node`, `about` (the activity that caused it), `expires_at`; its person alone sees it | School emails asks for your pick: Post in the Matterbridge gateway family: “Trip on Friday, bring a packed lunch” |
 | `approval.decided` | | `approval_decisions` | as `approval.waiting`, with `status` (done, failed, declined, expired) and `error`; `Accept` when approved, `Reject` when declined or expired | Sam approved: Post in the Matterbridge gateway family: “Trip on Friday, bring a packed lunch” |
+| `share.sent` | | `shares_sent` | what was [shared with a circle](circles.md) as it read then (`type`, `id`, `name`, `url`, `summary`: the timeline's line, `media`, `kind` and `about`: the activity shared, `published`), `content` (the note), `share`, `circles`, `people`, `with_item`; tagged with its entities; the sharer alone sees it | Adeel shared “School trip on Friday” with Immediate family |
+| `share.received` | | `shares_received` | as `share.sent`, without `circles` and `people`; `url` only when the person can open it; in no namespace; that person alone sees it | Adeel shared “School trip on Friday” with you |
 
 A new asset is one activity, of the most specific kind its row tells, decided by its content type and where it came
 from, never by reading its file: an email (content type email, or from an IMAP or Gmail mailbox), a calendar event
@@ -271,6 +273,9 @@ A kind belongs to the source named in its `source`, and a source may list more i
 - `approvals` (`app/domain/events_approvals.py`) reads `approval` by `created_at`, the id breaking ties, as
   `approval.waiting`; `approval_decisions` reads the decided ones by `decided_at`, as `approval.decided`. Both page
   only the viewer's own approvals.
+- `shares_sent` (`app/domain/circles.py`) reads `circle_share` by `at`, the id breaking ties, as `share.sent`;
+  `shares_received` reads `circle_share_to` (one row for each person a share went to) the same way, as
+  `share.received`. Both page only the viewer's own; a follower of some namespaces doesn't read `shares_received`.
 - `log` reads `event_log`: activities no row of their own records (a deletion, a webhook call), written by
   `events.emit(db, kind, *, actor, obj, space, summary, target=None, tag=None, key=None, published=None, spaces=None,
   audience=None, owner=None, untrusted=None)`, which gives the id (`log-<n>`). Emitting a `key` again changes

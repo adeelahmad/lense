@@ -168,6 +168,9 @@ import type {
   CreateChatData,
   CreateChatErrors,
   CreateChatResponses,
+  CreateCircleData,
+  CreateCircleErrors,
+  CreateCircleResponses,
   CreateCollectionData,
   CreateCollectionErrors,
   CreateCollectionResponses,
@@ -311,6 +314,9 @@ import type {
   DeleteChatData,
   DeleteChatErrors,
   DeleteChatResponses,
+  DeleteCircleData,
+  DeleteCircleErrors,
+  DeleteCircleResponses,
   DeleteCollectionData,
   DeleteCollectionErrors,
   DeleteCollectionResponses,
@@ -548,6 +554,9 @@ import type {
   GetChatData,
   GetChatErrors,
   GetChatResponses,
+  GetCircleData,
+  GetCircleErrors,
+  GetCircleResponses,
   GetCollectionData,
   GetCollectionErrors,
   GetCollectionFieldsData,
@@ -881,6 +890,8 @@ import type {
   ListBudgetsResponses,
   ListChatsData,
   ListChatsResponses,
+  ListCirclesData,
+  ListCirclesResponses,
   ListCollectionMembersData,
   ListCollectionMembersErrors,
   ListCollectionMembersResponses,
@@ -1007,6 +1018,8 @@ import type {
   ListPatternsResponses,
   ListPendingAccessRequestsData,
   ListPendingAccessRequestsResponses,
+  ListPeopleData,
+  ListPeopleResponses,
   ListPipelinesData,
   ListPipelinesResponses,
   ListPodcastsData,
@@ -1051,6 +1064,9 @@ import type {
   ListServicesResponses,
   ListSessionsData,
   ListSessionsResponses,
+  ListShares2Data,
+  ListShares2Errors,
+  ListShares2Responses,
   ListSharesData,
   ListSharesErrors,
   ListSharesResponses,
@@ -1576,6 +1592,9 @@ import type {
   SetupWithoutPasskeyData,
   SetupWithoutPasskeyErrors,
   SetupWithoutPasskeyResponses,
+  ShareData,
+  ShareErrors,
+  ShareResponses,
   SigninLinkData,
   SigninLinkErrors,
   SigninLinkInfoData,
@@ -1736,6 +1755,9 @@ import type {
   UndoRunData,
   UndoRunErrors,
   UndoRunResponses,
+  UndoShareData,
+  UndoShareErrors,
+  UndoShareResponses,
   UndoSpeakerMergeData,
   UndoSpeakerMergeErrors,
   UndoSpeakerMergeResponses,
@@ -1769,6 +1791,9 @@ import type {
   UpdateChatData,
   UpdateChatErrors,
   UpdateChatResponses,
+  UpdateCircleData,
+  UpdateCircleErrors,
+  UpdateCircleResponses,
   UpdateCollectionData,
   UpdateCollectionErrors,
   UpdateCollectionResponses,
@@ -12833,6 +12858,147 @@ export class Mesh {
   ): RequestResult<NodeBeatResponses, NodeBeatErrors, ThrowOnError> {
     return (options.client ?? client).post<NodeBeatResponses, NodeBeatErrors, ThrowOnError>({
       url: "/api/v1/mesh/node/beat",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class Circles {
+  /**
+   * List Circles
+   *
+   * Your circles, each with its members, and the usual circles you haven't made yet.
+   */
+  public static listCircles<ThrowOnError extends boolean = false>(
+    options?: Options<ListCirclesData, ThrowOnError>,
+  ): RequestResult<ListCirclesResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListCirclesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/circles",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Circle
+   *
+   * A new circle of yours. Audited as `circle.create`.
+   */
+  public static createCircle<ThrowOnError extends boolean = false>(
+    options: Options<CreateCircleData, ThrowOnError>,
+  ): RequestResult<CreateCircleResponses, CreateCircleErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateCircleResponses, CreateCircleErrors, ThrowOnError>({
+      url: "/api/v1/circles",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List People
+   *
+   * The people you can put in a circle: those you share a namespace with, and those who have you in a circle of
+   * theirs (everyone, for an admin).
+   */
+  public static listPeople<ThrowOnError extends boolean = false>(
+    options?: Options<ListPeopleData, ThrowOnError>,
+  ): RequestResult<ListPeopleResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListPeopleResponses, unknown, ThrowOnError>({
+      url: "/api/v1/circles/people",
+      ...options,
+    });
+  }
+
+  /**
+   * List Shares
+   *
+   * What was shared with you (received), or what you shared (sent), newest first.
+   */
+  public static listShares<ThrowOnError extends boolean = false>(
+    options?: Options<ListShares2Data, ThrowOnError>,
+  ): RequestResult<ListShares2Responses, ListShares2Errors, ThrowOnError> {
+    return (options?.client ?? client).get<ListShares2Responses, ListShares2Errors, ThrowOnError>({
+      url: "/api/v1/circles/shares",
+      ...options,
+    });
+  }
+
+  /**
+   * Share
+   *
+   * Share an activity or a resource you can see with your circles, or people in them, and a note: each of them
+   * sees it in their own timeline (share.received), and you see it in yours (share.sent). `with_item` also gives those
+   * who can't open the resource permission on it. Audited as `circle.share`.
+   */
+  public static share<ThrowOnError extends boolean = false>(
+    options: Options<ShareData, ThrowOnError>,
+  ): RequestResult<ShareResponses, ShareErrors, ThrowOnError> {
+    return (options.client ?? client).post<ShareResponses, ShareErrors, ThrowOnError>({
+      url: "/api/v1/circles/shares",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Undo Share
+   *
+   * Take back a share of yours: it leaves everyone's timeline, and the permissions it gave are taken back.
+   */
+  public static undoShare<ThrowOnError extends boolean = false>(
+    options: Options<UndoShareData, ThrowOnError>,
+  ): RequestResult<UndoShareResponses, UndoShareErrors, ThrowOnError> {
+    return (options.client ?? client).delete<UndoShareResponses, UndoShareErrors, ThrowOnError>({
+      url: "/api/v1/circles/shares/{sid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Delete Circle
+   *
+   * Delete a circle of yours. What you shared with it stays shared; take a share back with DELETE /circles/shares/{id}.
+   */
+  public static deleteCircle<ThrowOnError extends boolean = false>(
+    options: Options<DeleteCircleData, ThrowOnError>,
+  ): RequestResult<DeleteCircleResponses, DeleteCircleErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteCircleResponses, DeleteCircleErrors, ThrowOnError>({
+      url: "/api/v1/circles/{cid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Circle
+   */
+  public static getCircle<ThrowOnError extends boolean = false>(
+    options: Options<GetCircleData, ThrowOnError>,
+  ): RequestResult<GetCircleResponses, GetCircleErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetCircleResponses, GetCircleErrors, ThrowOnError>({
+      url: "/api/v1/circles/{cid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Circle
+   *
+   * Rename a circle of yours, set who is in it, or add and take people out.
+   */
+  public static updateCircle<ThrowOnError extends boolean = false>(
+    options: Options<UpdateCircleData, ThrowOnError>,
+  ): RequestResult<UpdateCircleResponses, UpdateCircleErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateCircleResponses, UpdateCircleErrors, ThrowOnError>({
+      url: "/api/v1/circles/{cid}",
       ...options,
       headers: {
         "Content-Type": "application/json",

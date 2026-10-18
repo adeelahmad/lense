@@ -6,7 +6,7 @@
   "scope_subpath": null,
   "description": "Lens is a self-hosted archive for documents, recordings, photos and messages: it reads, transcribes, indexes and publishes them, and people search and chat over them. One operator (the instance admin) runs an instance for their own people: a FastAPI API, a Next.js web app that proxies the API and holds the sign-in session, and background workers, around one SurrealDB database, with content split into namespaces and per-namespace roles. Exposing an instance to the internet behind HTTPS (reverse proxy or Cloudflare tunnel) is supported. Only the instance admin (equivalent to host code execution) and the host operator are trusted; everyone else is trusted only as far as their role.",
   "confidence": {
-    "documented": 255,
+    "documented": 258,
     "inferred": 99
   },
   "components": [
@@ -56,7 +56,8 @@
         "admin optional container requests",
         "entity and topic curation tools",
         "lens help tool",
-        "microsandbox program requests"
+        "microsandbox program requests",
+        "POST /circles and /circles/shares, MCP save_circle and share_with_circle, the assistant's share_with_circle (circles and sharing with them)"
       ],
       "touches": [
         "filesystem"
@@ -574,6 +575,15 @@
       "source": "docs/feeds.md \"Private by default\""
     },
     {
+      "entry_point": "POST /circles and /circles/shares, MCP save_circle and share_with_circle, the assistant's share_with_circle (circles and sharing with them)",
+      "parameter": "circle members, an activity or resource id, a note, with_item",
+      "attacker_controllable": "yes",
+      "component": "authz",
+      "caller_must_enforce": "members must be people the sharer may add; Lens checks the sharer can read the item, refuses vaults, caps the note, and needs publish to give the item; the assistant asks first",
+      "provenance": "documented",
+      "source": "docs/circles.md \"What keeps it safe\""
+    },
+    {
       "entry_point": "automations' params and prompts, POST /automations/preview and /automations/variables",
       "parameter": "template text, a draft automation, an activity id",
       "attacker_controllable": "yes",
@@ -1083,6 +1093,14 @@
       "conditions": "a published feed's address opens that feed alone, read-only, with no session; only an editor of the namespace makes one; it lists only items whose resource or activity the readers of the feed's namespace can read, never a vault's, and a namespace made a vault stops its feeds; the token is found by its hash, and rotating or deleting the feed stops the old address at once; text in an item cannot add markup to a reader",
       "provenance": "documented",
       "source": "docs/feeds.md \"Private by default\""
+    },
+    {
+      "property": "P-CIRCLES",
+      "violation_symptom": "info-leak",
+      "severity_tier": "security",
+      "conditions": "a share goes only to people in the sharer's circles, who are people they share a namespace with, who have them in a circle, or anyone for an admin; it carries only an activity or resource the sharer can read, never one in a vault; with the item, it gives each recipient permission on that one resource only when the sharer holds publish in its namespace; undo deletes the share from every timeline and takes back the permissions it gave; a received share is seen only by its recipient and belongs to no namespace; the assistant always asks before sharing; read-only tokens can't share",
+      "provenance": "documented",
+      "source": "docs/circles.md \"What keeps it safe\""
     },
     {
       "property": "P-AUTH-REQ",
