@@ -306,10 +306,7 @@ still loading. ([Components](docs/components.md),
 
 ## In progress
 
-These are open pull requests, not yet part of Lens:
-
-- **Voice:** answers and podcasts read aloud with Kokoro on this machine
-  ([#538](https://github.com/adeelahmad/lense/pull/538)).
+Open pull requests, not yet part of Lens, are listed here; none right now.
 
 ## Planned
 
