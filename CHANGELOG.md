@@ -73,6 +73,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   rclone keeps files being written in a cache on Lens's disk and puts them to Lens once they're closed; a file Lens
   can't take shows in the share's log. **Import files people add** in Settings, NFS share (`nfs.add_files`, on) turns it
   off and serves the share read-only again ([Adding files](docs/file-shares.md#adding-files)).
+- **A private network between Lens's machines** (in progress). Lens is the certificate authority of a Nebula mesh
+  between the machines it runs on: an admin adds a node with a join token (`POST /api/v1/mesh/tokens`), the machine
+  joins without ever sending the token (`POST /api/v1/mesh/join`: an HMAC proves it, the answer comes back sealed with
+  a key derived from it) and gets an address, a certificate naming its role and namespaces, and its Nebula config,
+  whose firewall lets worker nodes reach the database and every node the API, and nothing else; a node renews, reports
+  and refreshes its config with its own node token, and removing one blocklists its certificates on every machine.
+  Off until a node is added; settings in `mesh`. Nebula running on the primary, the install line that joins a machine
+  and the Settings pages follow in their own pull requests ([Nodes and the mesh](docs/mesh.md)).
 - **Export a conversation.** `GET /api/v1/chats/<id>/export.md`, `.pdf` or `.json` gives the version showing, one
   message (`?message=`) or, as JSON, every version (`?all=true`). The Markdown has each question and answer, its
   citations as footnotes linking back to the moment in Lens and the tools it used; the PDF is that Markdown printed by
