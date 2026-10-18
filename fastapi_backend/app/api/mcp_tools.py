@@ -3712,7 +3712,7 @@ def run_schedule(ctx: Context, schedule_id: str) -> dict[str, Any]:
 )
 def runs(ctx: Context, status: str | None, namespace: str | None, limit: int) -> dict[str, Any]:
     status = status or "queued"
-    order = "queue" if status == "queued" else "newest"
+    order: Literal["newest", "queue"] = "queue" if status == "queued" else "newest"
     out = job_routes.list_jobs(ctx.acl, ctx.user, ctx.db, status, None, None, namespace, limit, order)
     rows = [
         {
@@ -3782,7 +3782,7 @@ def move_run(ctx: Context, job_id: int, to: str | None, before: int | None, afte
     _writer(ctx, "reorder the queue")
     if sum(x is not None for x in (to, before, after)) != 1:
         raise ToolError("give exactly one of to, before and after")
-    body = JobMove(to=to, before=before, after=after)  # type: ignore[arg-type]
+    body = JobMove(to=to, before=before, after=after)
     return job_routes.move_job(job_id, body, ctx.acl, ctx.user, ctx.db).model_dump()
 
 
