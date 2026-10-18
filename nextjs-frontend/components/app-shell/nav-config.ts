@@ -112,6 +112,8 @@ export function isActive(pathname: string, href: string): boolean {
   if (href === "/sensors" && (pathname === "/sources" || pathname.startsWith("/sources/"))) return true;
   // Members opening /sensors see their Sources page.
   if (href === "/sources" && pathname === "/sensors") return true;
+  // Projects are conversations working toward a goal, under Chat.
+  if (href === "/chat" && (pathname === "/projects" || pathname.startsWith("/projects/"))) return true;
   // An entity's page is under /wiki, by name.
   if (href === "/entities" && pathname.startsWith("/wiki/")) return true;
   // Schedules is a tab of Automations, and the Routines page (its list, proposed graph changes, history) opens from it.

@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, Clock, LibraryBig, Plus, X } from "lucide-react";
+import { ChevronLeft, Clock, FolderKanban, LibraryBig, Loader2, Plus, X } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -99,7 +99,6 @@ export function ChatApp() {
   const activeId = params?.id && /^\d+$/.test(params.id) ? Number(params.id) : null;
 
   const chats = useChats();
-  const chat = useChat(activeId);
   const approvals = useApprovals(activeId);
   const llm = useLlmStatus();
   const index = useRecordingIndex();
@@ -121,6 +120,8 @@ export function ChatApp() {
     ),
   );
   const [live, setLive] = useState<Live | null>(null);
+  // an answer written elsewhere (a project's brief, in the background) shows here once it's saved
+  const chat = useChat(activeId, { poll: !live || live.chatId !== activeId });
   const [extras, setExtras] = useState<Record<number, Extra>>({});
   const [partials, setPartials] = useState<Record<string, TurnState>>({});
   const [checks, setChecks] = useState<Record<number, AnswerCheck>>({});
@@ -715,6 +716,15 @@ export function ChatApp() {
             <ChevronLeft />
           </IconButton>
           <span className="min-w-0 flex-1 truncate text-[15.5px] font-bold text-fg">{title}</span>
+          {chat.data?.project != null && (
+            <Link
+              href={`/projects/${chat.data.project}`}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px] text-fg-secondary hover:bg-surface-neutral print:hidden"
+            >
+              <FolderKanban aria-hidden className="size-3.5" />
+              Project
+            </Link>
+          )}
           {activeId != null && (
             <ExportMenu
               label="Export conversation"
@@ -870,11 +880,17 @@ export function ChatApp() {
                     />
                   ) : (
                     it.q &&
-                    !liveHere && (
+                    !liveHere &&
+                    (chat.data?.answering && it === items[items.length - 1] ? (
+                      <p role="status" className="m-0 flex items-center gap-2 text-[13px] text-fg-secondary">
+                        <Loader2 aria-hidden className="size-3.5 animate-spin" />
+                        Working on it. The answer shows here once it’s written.
+                      </p>
+                    ) : (
                       <p className="m-0 text-[13px] text-fg-muted">
                         No answer was saved for this question. Ask it again to get one.
                       </p>
-                    )
+                    ))
                   )}
                   {memory && (it.a ? memory.upto === it.a.id : memory.upto === it.q?.id) && (
                     <SummaryMark summary={memory} />

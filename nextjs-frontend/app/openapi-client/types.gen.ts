@@ -3450,6 +3450,12 @@ export type Chat = {
    */
   account: number;
   /**
+   * Answering
+   *
+   * an answer is being written in it now: streamed, or a brief's in the background
+   */
+  answering?: boolean;
+  /**
    * Head
    *
    * the last message of the version showing, which the next question follows
