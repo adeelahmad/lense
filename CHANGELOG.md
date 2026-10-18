@@ -4,12 +4,15 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
-- **A new conversation's first answer no longer goes missing.** A quick answer in a new conversation sometimes showed
-  "No answer was saved for this question" though it was saved: the conversation's first read, made before the answer
-  was saved, was used in place of reading it again. The web app (Chat, the page assistant and a recording's Chat tab)
-  now drops a read under way and reads the conversation afresh once the answer is saved. And an answer is now written
-  on a thread of its own, so closing the tab, losing the connection or moving to another page no longer drops it: it's
-  finished and saved all the same, and only Stop ends it early ([Chat](docs/assistant.md#chat)).
+## 0.16.0 <small>October 18, 2026</small> {id="0.16.0"}
+
+### Features
+
+- **web:** SchemaForm, a form generated from a JSON Schema with a variable picker ([#566](https://github.com/adeelahmad/lense/pull/566))
+- **chat:** recover when the model's context is full, and show what a summary covers ([#558](https://github.com/adeelahmad/lense/pull/558))
+- **pipelines:** convert steps that make a video's soundtrack an audio asset and a document's pages image assets ([#568](https://github.com/adeelahmad/lense/pull/568))
+- **scaling:** DigitalOcean and Hetzner Cloud providers ([#573](https://github.com/adeelahmad/lense/pull/573))
+- **workflows:** draw an automation's workflow on the canvas, with action and decide nodes ([#576](https://github.com/adeelahmad/lense/pull/576))
 
 ## 0.15.0 <small>October 18, 2026</small> {id="0.15.0"}
 

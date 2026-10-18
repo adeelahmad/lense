@@ -1,0 +1,16 @@
+# Lens's prebuilt images instead of building them (docs/deployment.md#prebuilt-images), on top of
+# docker-compose.prod.yml:
+#
+#   docker compose -f docker-compose.prod.yml -f docker-compose.images.yml pull backend frontend
+#   docker compose -f docker-compose.prod.yml -f docker-compose.images.yml up -d
+#
+# with LENS_BACKEND_IMAGE and LENS_FRONTEND_IMAGE naming a release's images in .env, as install.sh writes them with
+# LENS_IMAGES=pull (ghcr.io/<owner>/lens-backend:X.Y.Z-full or -lean, ghcr.io/<owner>/lens-frontend:X.Y.Z). Without
+# their build, `up --build` builds only the optional containers that have one (the MCP runner, Matterbridge).
+services:
+  backend:
+    build: !reset null
+  worker:
+    build: !reset null
+  frontend:
+    build: !reset null

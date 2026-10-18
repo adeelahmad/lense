@@ -313,7 +313,8 @@ export const JOURNEYS = [
     from: "/",
     async run(ctx) {
       const { page, meter } = ctx;
-      await go(ctx, "Routines");
+      // routines are on the Schedules page (everything on a clock), which has New routine for admins
+      await go(ctx, "Schedules");
       await meter.click(page.getByRole("main").getByRole("link", { name: "New routine" }), "New routine");
       await page.getByRole("textbox", { name: "Name" }).waitFor(); // named for you
       await page.waitForFunction(() => document.activeElement?.tagName === "INPUT");
