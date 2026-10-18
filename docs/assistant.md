@@ -912,7 +912,8 @@ switch shows the line to run on the machine instead. Agents use the same switche
 
 Admins also get the server tools: `server_status` (what's set up and what's missing), `find_model_servers`,
 `read_settings` and `change_settings` (the processing and AI sections, not the server's hosts, cookies or tokens),
-`create_namespace`, the news feed tools: `news_feeds`, `subscribe_feed` (follow a feed into a namespace in one step,
+`create_namespace`, `list_secrets` and `vault_items` (which secret fields refer to a [password manager](secrets.md),
+and the items they can refer to, never a value), the news feed tools: `news_feeds`, `subscribe_feed` (follow a feed into a namespace in one step,
 [News feeds](processing.md#news-feeds-rss-and-atom)) and `unsubscribe_feed`, and the people tools: `list_people`, `invite_person` (an account, optionally with a role in one
 namespace; Lens emails the sign-in link when mail is set up) and `change_person` (a role in a namespace, or disabling
 and enabling an account). Removing an account for good stays in the web app and the API. In an ordinary conversation
@@ -920,7 +921,7 @@ their changes are approval cards. In a **setup conversation**
 (`POST /api/v1/chats` with `"kind": "setup"`, or **Finish with the assistant** in the setup wizard once a model is
 connected) the admin has asked the assistant to set the server up, so it makes the changes itself and says what it
 changed. Every change is audited with `assistant` in its detail, and all of them stay changeable in Settings.
-Turning telemetry on or off, inviting people and changing their access always ask first, and so does every change once the answer has read text from outside
+Turning telemetry on or off, changing the Secrets section, inviting people and changing their access always ask first, and so does every change once the answer has read text from outside
 Lens ([third-party content](#third-party-content-and-prompt-injection)).
 
 ### Routine choices
