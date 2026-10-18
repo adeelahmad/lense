@@ -102,10 +102,14 @@ class SchedulePreview(ResponseModel):
 
 class GraphChange(ResponseModel):
     id: int
-    kind: Literal["merge", "link", "retype", "hide"]
-    a: dict[str, Any] = Field(description="the entity changed, or the first of a pair")
+    kind: Literal["merge", "link", "retype", "hide", "cluster"]
+    a: dict[str, Any] = Field(description="the entity changed, the first of a pair, or a group's broader topic (no id when new)")
     b: dict[str, Any] | None = Field(None, description="a merge's or link's other entity")
     to: str | None = Field(None, description="a retype's new type")
+    topics: list[dict[str, Any]] | None = Field(None, description="a group's topics, to put under its broader topic")
+    parent: int | None = Field(None, description="an applied group's broader topic")
+    created: int | None = Field(None, description="the broader topic an applied group made")
+    grouped: list[int] | None = Field(None, description="the topics an applied group put under its broader topic")
     spaces: list[int]
     reason: str | None = None
     confidence: float | None = None
@@ -123,6 +127,7 @@ class GraphChange(ResponseModel):
 class GraphChangeAccept(RequestModel):
     keep: int | None = Field(None, description="for a merge: the entity to keep (default: the one proposed)")
     to: str | None = Field(None, description="for a retype: the type to give (default: the one proposed)", max_length=40)
+    label: str | None = Field(None, description="for a group under a new topic: its label (default: the one proposed)", max_length=200)
 
 
 class Undone(ResponseModel):

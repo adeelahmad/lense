@@ -62,6 +62,23 @@ describe("graph changes about one entity", () => {
     expect(screen.getByRole("button", { name: /Undo/ })).toBeInTheDocument();
   });
 
+  it("show a group of topics under a new broader one", () => {
+    card({
+      kind: "cluster",
+      a: { id: null, name: "Calls", type: "TOPIC", namespace: "pods", space: 1 },
+      topics: [
+        { id: 3, name: "Sales calls", recordings: 2 },
+        { id: 4, name: "Judgement calls", recordings: 1 },
+      ],
+      reason: "2 topics end in “calls”",
+      verdict: { agree: true, confidence: 0.9, leave: [4] },
+    });
+    expect(screen.getByText("Group under a new topic, “Calls”?")).toBeInTheDocument();
+    expect(screen.getByText("Judgement calls")).toHaveClass("line-through");
+    expect(screen.getByRole("button", { name: "Group them" })).toBeInTheDocument();
+    expect(screen.getByText("Leave them")).toBeInTheDocument();
+  });
+
   it("name a namespace's own types", () => {
     expect(typeName("CLIENT_TEAM")).toBe("Client team");
     expect(typeName("PERSON")).toBe("Person");
