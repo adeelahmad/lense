@@ -40,6 +40,7 @@ export const STEP_LABEL: Record<string, string> = {
   objects: "Objects",
   nsfw: "NSFW",
   describe: "Describe",
+  convert: "Convert",
   clean: "Clean up",
   analyze: "Analyze",
   embed: "Index for meaning",

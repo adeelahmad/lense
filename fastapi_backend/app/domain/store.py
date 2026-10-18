@@ -283,6 +283,7 @@ DEFAULTS = {
             "objects",
             "nsfw",
             "describe",
+            "convert",
             "clean",
             "analyze",
             "embed",

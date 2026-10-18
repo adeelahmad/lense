@@ -207,6 +207,13 @@ def _nsfw(db, cfg, rid, say, spec=None):
     nsfw.step(db, cfg, rid, say)
 
 
+def _convert(db, cfg, rid, say, spec=None):
+    """New assets made from this one: a video's soundtrack as audio, a document's pages as images (conversions.py)."""
+    from . import conversions
+
+    conversions.step(db, cfg, rid, say, spec)
+
+
 def _describe(db, cfg, rid, say, spec=None):
     from . import descriptions
 
@@ -224,6 +231,7 @@ STEPS = {
     "objects": _objects,
     "nsfw": _nsfw,
     "describe": _describe,
+    "convert": _convert,
     "clean": _clean,
     "analyze": _analyze,
     "embed": _embed,
@@ -950,6 +958,8 @@ class Worker:
             self.can.add("embed")
         if "analyze" in self.can:  # cleaning up a transcript needs no more than analysing it; older lists run it too
             self.can.add("clean")
+        if not steps and self.can & {"transcribe", "read"}:  # converting needs what they need; older lists run it too
+            self.can.add("convert")
         if not steps and "objects" in self.can:  # NSFW classification runs on ONNX Runtime too; older lists run it as well
             self.can.add("nsfw")
         if not steps and log and (missing := sorted(set(STEPS) - self.can)):

@@ -20,7 +20,7 @@ import logging
 import pathlib
 import shutil
 
-from . import access as acc, files as filemod, notebook, render, store, video
+from . import access as acc, files as filemod, keyring, notebook, render, store, video
 
 R = store.R
 log = logging.getLogger("lens")
@@ -84,11 +84,14 @@ def stop_jobs(db, rid, verb="delete"):
 
 def _files(db, cfg, rec, rid, ns):
     """The files Lens made from the recording: its frames, its report pages, the PDF made of a document, the exports
-    only it wrote, and a cached copy of a remote file that no other recording uses. Never the media file."""
+    only it wrote, and a cached copy of a remote file that no other recording uses. Never the media file, unless a
+    convert step made it (conversions.py)."""
     data = pathlib.Path(cfg["data_dir"])
     reports = data / "reports" / (ns or "_")
     name = f"{render.slug(rec.get('title'))}-{rid}"
     out = [reports / f"{name}.html", *reports.glob(f"{name}--*.html"), data / "renditions" / f"{int(rid)}.pdf"]
+    if rec.get("converted_from") and rec.get("path") and keyring.owned(cfg, rec["path"]):
+        out.append(pathlib.Path(rec["path"]))
     exports = data / "exports" / (ns or "_")
     mine = {
         (o.get("value") or {}).get("file")
@@ -153,7 +156,7 @@ def orphans(db, speakers, faces):
 def delete(db, cfg, rid, by=None):
     """Delete a recording (see the module docstring). Returns what the audit log keeps of it. Raises KeyError when there
     is no such recording and Running when a job is working on it."""
-    rec = db.one("SELECT title, space, path, fingerprint, remote, source, media FROM $r", r=R("recording", rid))
+    rec = db.one("SELECT title, space, path, fingerprint, remote, source, media, converted_from FROM $r", r=R("recording", rid))
     if not rec:
         raise KeyError(rid)
     stop_jobs(db, rid)

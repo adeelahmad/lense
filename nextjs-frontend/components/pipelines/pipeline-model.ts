@@ -22,7 +22,23 @@ export type StepSpec = {
   model?: string;
   force?: boolean;
   workflow?: number;
+  /** A convert step: what the new assets are, their audio format, and the pipeline they run ("none": kept as they are). */
+  to?: "audio" | "images";
+  format?: string;
+  pipeline?: number | "none";
 };
+
+/** The audio formats a convert step makes (the first is the default). */
+export const AUDIO_FORMATS = ["m4a", "mp3", "opus", "flac"];
+
+/** A new step from the library: "llm", "convert", "workflow:3" (that workflow). */
+export function newStep(payload: string): StepSpec {
+  const [type, arg] = payload.split(":");
+  if (type === "llm") return { type, key: "" };
+  if (type === "convert") return { type, to: arg === "images" ? "images" : "audio" };
+  if (type === "workflow" && arg) return { type, workflow: Number(arg) };
+  return { type };
+}
 
 /** A name for a pipeline nobody named, from its steps ("Transcribe to report", "Analyze and summarize"), told apart
  * from the pipelines there are. */
@@ -65,6 +81,11 @@ export function cleanSpec(s: StepSpec): StepSpec | string {
     };
   if (s.model?.trim()) out.model = s.model.trim();
   if (s.force) out.force = true;
+  if (s.type === "convert") {
+    if (s.to) out.to = s.to;
+    if (s.to === "audio" && s.format) out.format = s.format;
+    if (s.pipeline != null) out.pipeline = s.pipeline;
+  }
   return Object.keys(out).length === 1 ? s.type : (out as StepSpec);
 }
 
@@ -76,6 +97,7 @@ export const NEEDS: Record<string, string[]> = {
   objects: ["shots"],
   nsfw: ["read", "shots"],
   describe: ["shots"],
+  convert: ["transcribe", "read"],
   clean: ["transcribe", "diarize"],
   analyze: ["transcribe", "read", "diarize", "clean"],
   embed: ["transcribe", "read", "describe", "clean"],
@@ -99,6 +121,7 @@ export const PROVIDES: Record<string, string> = {
   objects: "objects[]",
   nsfw: "nsfw (flagged · score)",
   describe: "descriptions[]",
+  convert: "new assets: the soundtrack as audio, or each page as an image",
   clean: "tidied transcript lines",
   analyze: "sections[] · entities[] · keywords[] · stats",
   embed: "passages searchable by meaning",
@@ -121,6 +144,8 @@ export const DESCRIBE: Record<string, string> = {
   objects: "Finds objects (people, cars, animals …) in keyframes and pages (Settings → Video)",
   nsfw: "Flags NSFW pictures in keyframes, pages and images with a local model, where it’s on (Settings → NSFW)",
   describe: "Describes each shot and page with a model that can see images (Settings → LLM provider)",
+  convert:
+    "Makes new assets from this one: a video’s soundtrack as audio, or a document’s pages as images, each run through its own pipeline",
   clean:
     "Tidies a transcript before analysis: fillers, repeated words, spacing and capitals, where it’s on (Settings → Analysis)",
   analyze: "Chapters, entities, keywords and talk-time stats",
@@ -188,6 +213,10 @@ export function stepSummary(s: StepSpec, templateName?: (id: number) => string |
   else if (s.type === "reply") parts.push("Reply to an email");
   if (s.type === "llm" && s.key) parts.push(`outputs.${s.key}`);
   if (s.type === "export" && s.filename) parts.push(s.filename);
+  if (s.type === "convert") {
+    parts.push(s.to === "images" ? "pages to images" : `to audio · ${s.format ?? AUDIO_FORMATS[0]}`);
+    if (s.pipeline === "none") parts.push("not processed");
+  }
   if (s.model) parts.push(s.model);
   if (s.force) parts.push("forced");
   const w = whenText(s.when);
@@ -206,6 +235,7 @@ export function specProblems(
     if (s.type === "workflow" && s.workflow == null) out[i] = "Choose a workflow.";
     else if (s.type === "llm" && s.template == null) out[i] = "Choose a prompt template.";
     else if (s.type === "export" && s.template == null) out[i] = "Choose an export template.";
+    else if (s.type === "convert" && !s.to) out[i] = "Choose what to convert to: audio or images.";
     else if (need && s.template != null && templateKind(s.template) && templateKind(s.template) !== need)
       out[i] = `Needs a ${need} template.`;
     else if (s.type === "llm" && !/^[a-z][a-z0-9_]{0,40}$/.test(s.key ?? ""))
