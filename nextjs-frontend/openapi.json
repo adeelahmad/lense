@@ -54393,6 +54393,49 @@
         ],
         "title": "MeshNodeConfig"
       },
+      "MeshRelay": {
+        "properties": {
+          "port": {
+            "type": "integer",
+            "title": "Port",
+            "description": "the port on this machine's mesh address"
+          },
+          "to": {
+            "type": "string",
+            "title": "To",
+            "description": "the container it passes connections to"
+          },
+          "listening": {
+            "type": "boolean",
+            "title": "Listening"
+          },
+          "open": {
+            "type": "integer",
+            "title": "Open",
+            "description": "connections through it now",
+            "default": 0
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "port",
+          "to",
+          "listening"
+        ],
+        "title": "MeshRelay"
+      },
       "MeshRenew": {
         "properties": {
           "public_key": {
@@ -54409,6 +54452,101 @@
         ],
         "title": "MeshRenew"
       },
+      "MeshService": {
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "title": "Available",
+            "description": "this install runs the primary's Nebula in the `mesh` container (Docker installs)"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State",
+            "description": "off, waiting (for its key to be signed), starting, running or error"
+          },
+          "nebula": {
+            "type": "boolean",
+            "title": "Nebula",
+            "description": "Nebula runs on this machine now",
+            "default": false
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since",
+            "description": "when Nebula last started"
+          },
+          "restarts": {
+            "type": "integer",
+            "title": "Restarts",
+            "default": 0
+          },
+          "relays": {
+            "items": {
+              "$ref": "#/components/schemas/MeshRelay"
+            },
+            "type": "array",
+            "title": "Relays",
+            "description": "what the mesh reaches on this machine"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "log": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Log",
+            "description": "Nebula's last lines"
+          },
+          "seen_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seen At",
+            "description": "when the container last said how it runs"
+          },
+          "manual": {
+            "type": "string",
+            "title": "Manual",
+            "description": "the line that starts the container on this machine, where there's no upgrade agent"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "available",
+          "manual"
+        ],
+        "title": "MeshService"
+      },
       "MeshStatus": {
         "properties": {
           "enabled": {
@@ -54424,7 +54562,7 @@
           "port": {
             "type": "integer",
             "title": "Port",
-            "description": "the UDP port the primary listens on (mesh.port)"
+            "description": "the UDP port other machines reach the primary at (mesh.port)"
           },
           "hosts": {
             "items": {
@@ -54474,6 +54612,10 @@
             "type": "boolean",
             "title": "Tools",
             "description": "Nebula's programs are on this server (else they're fetched when first needed)"
+          },
+          "service": {
+            "$ref": "#/components/schemas/MeshService",
+            "description": "Nebula on this machine, in the `mesh` container"
           }
         },
         "additionalProperties": true,
@@ -54488,7 +54630,8 @@
           "removed",
           "tokens",
           "nebula",
-          "tools"
+          "tools",
+          "service"
         ],
         "title": "MeshStatus"
       },

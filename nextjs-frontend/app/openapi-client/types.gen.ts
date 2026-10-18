@@ -12415,6 +12415,39 @@ export type MeshNodeConfig = {
 };
 
 /**
+ * MeshRelay
+ */
+export type MeshRelay = {
+  /**
+   * Port
+   *
+   * the port on this machine's mesh address
+   */
+  port: number;
+  /**
+   * To
+   *
+   * the container it passes connections to
+   */
+  to: string;
+  /**
+   * Listening
+   */
+  listening: boolean;
+  /**
+   * Open
+   *
+   * connections through it now
+   */
+  open?: number;
+  /**
+   * Error
+   */
+  error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * MeshRenew
  */
 export type MeshRenew = {
@@ -12424,6 +12457,69 @@ export type MeshRenew = {
    * its Nebula public key, the same or a new one
    */
   public_key: string;
+};
+
+/**
+ * MeshService
+ */
+export type MeshService = {
+  /**
+   * Available
+   *
+   * this install runs the primary's Nebula in the `mesh` container (Docker installs)
+   */
+  available: boolean;
+  /**
+   * State
+   *
+   * off, waiting (for its key to be signed), starting, running or error
+   */
+  state?: string | null;
+  /**
+   * Nebula
+   *
+   * Nebula runs on this machine now
+   */
+  nebula?: boolean;
+  /**
+   * Since
+   *
+   * when Nebula last started
+   */
+  since?: string | null;
+  /**
+   * Restarts
+   */
+  restarts?: number;
+  /**
+   * Relays
+   *
+   * what the mesh reaches on this machine
+   */
+  relays?: Array<MeshRelay>;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Log
+   *
+   * Nebula's last lines
+   */
+  log?: Array<string>;
+  /**
+   * Seen At
+   *
+   * when the container last said how it runs
+   */
+  seen_at?: string | null;
+  /**
+   * Manual
+   *
+   * the line that starts the container on this machine, where there's no upgrade agent
+   */
+  manual: string;
+  [key: string]: unknown;
 };
 
 /**
@@ -12445,7 +12541,7 @@ export type MeshStatus = {
   /**
    * Port
    *
-   * the UDP port the primary listens on (mesh.port)
+   * the UDP port other machines reach the primary at (mesh.port)
    */
   port: number;
   /**
@@ -12494,6 +12590,10 @@ export type MeshStatus = {
    * Nebula's programs are on this server (else they're fetched when first needed)
    */
   tools: boolean;
+  /**
+   * Nebula on this machine, in the `mesh` container
+   */
+  service: MeshService;
   [key: string]: unknown;
 };
 
