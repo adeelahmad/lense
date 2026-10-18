@@ -167,8 +167,9 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   content types or topics, acting only on a sure answer, and an Entity filter node keeps the entities you want. Anything that reaches outside Lens or changes more than what
   set it off asks first, until you let it run on its own: on the Approvals page or, for a change inside Lens, with a yes
   in the chat it told you in; agents can decline an approval but never give one. Each automation has limits and budgets,
-  and agents make, try and run them over MCP and in the assistant, or draft one from a sentence; the studio to draw them
-  in the web app is planned. ([Processing](docs/processing.md#workflows-and-the-canvas),
+  and agents make, try and run them over MCP and in the assistant, or draft one from a sentence. An automation's
+  workflow is drawn and tried on the workflow canvas, with its actions in the palette; the studio's builder is
+  planned. ([Processing](docs/processing.md#workflows-and-the-canvas),
   [converting assets](docs/processing.md#converting-assets), [notifications](docs/notifications.md),
   [automations](docs/automations.md),
   [approvals](docs/automations.md#approvals), [timeline](docs/timeline.md); [checks](docs/requirements.md#automate-it))
@@ -252,7 +253,8 @@ These are open pull requests, not yet part of Lens:
 
 Next, and not in a pull request yet; each links to where it is tracked:
 
-- **The automations studio:** drawing automations in the web app ([automations](docs/automations.md)).
+- **The automations studio:** a When, If and Then builder for automations, with their runs and costs, in the web app
+  ([automations](docs/automations.md)).
 - **Timeline:** what each item caused, and Approve and Decline on waiting approvals ([timeline](docs/timeline.md)).
 - **Notes:** nesting a note under its project or area without a click, pages in the graph, and wiki addresses for
   topics, recordings and the other things that have pages ([notes](docs/notes.md)).
