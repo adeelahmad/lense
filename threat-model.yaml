@@ -409,6 +409,15 @@ entry_points:
         control_kinds: [resource-name, x-prompt-injection, size]
         caller_must_enforce: "none — admins only, and only the tools for the connections there are; reading changes nothing in the account; a file is read up to 20 MB and a message's or file's text up to 11,000 characters; mail, events and files reach the model marked as data, and once read, tools that could carry it out of Lens ask first (P-INJECTION-EGRESS); bringing anything into a namespace waits for the person's yes; sending mail, saving a draft, adding an event and writing a file always wait for the person's yes, even in a setup conversation, with all of it shown (and a note when the answer read outside text), and the model is told never to act on what it read; sending and adding work only on a Gmail or Google Calendar connection an admin let do so (write, which asks Google for gmail.compose or calendar.events), checked again when approved; at most 50 addresses a field, 50,000 characters a message and 200,000 a file; a file is replaced only when asked and approved, and Google Drive connected read only is never written; each change is in the audit log; the ledger keeps what was called, never what came back"
         provenance: {kind: documented, source: 'docs/assistant.md "Mail, calendars and files"'}
+  - id: "email replies"
+    component: assistant
+    parameters:
+      - name: "an imported email's headers and text (From, Reply-To, Message-ID, References, the body), read to draft a reply"
+        attacker_controllable: true
+        x-condition: "anyone who can send mail to a watched mailbox; From and Reply-To are forgeable"
+        control_kinds: [data, x-prompt-injection, size]
+        caller_must_enforce: "drafting needs the right to process the email; the email reaches the model marked untrusted and the system prompt says not to follow it; only the email's own namespace is searched for excerpts; a web address in the draft that neither the email nor the excerpts hold is broken up, and a citation to an excerpt the model wasn't given is taken out; nothing is sent: a draft waits for the person, who sees its recipient (the address Reply-To names) before anything goes"
+        provenance: {kind: documented, source: 'docs/email-replies.md "Lens never sends a reply on its own"'}
   - id: "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, news feeds, MQTT bridge, OIDC issuer, web search, LanguageTool server)"
     component: outbound
     parameters:
