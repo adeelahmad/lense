@@ -107,8 +107,9 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [adding an MCP server](docs/assistant.md#adding-an-mcp-server), [the MCP runner](docs/assistant.md#the-mcp-runner);
   [checks](docs/requirements.md#extend-the-assistant))
 - **Bring in everything.** Watched folders on S3, Dropbox, Google Drive, OneDrive, SFTP, SMB, WebDAV or local disks (a
-  local folder in four clicks); IMAP mail, Gmail and Google Workspace, iCal calendars, Google Calendar and RSS and Atom
-  news feeds; a built-in MQTT broker, syslog and webhook streams; import webhooks for scanners and phone shortcuts.
+  local folder in four clicks); IMAP mail, Gmail and Google Workspace (routing rules send a shared inbox's mail to the
+  right namespaces), iCal calendars, Google Calendar and RSS and Atom news feeds; a built-in MQTT broker, syslog and
+  webhook streams; import webhooks for scanners and phone shortcuts.
   Google accounts connect with Connect with Google once Lens has a Google client, and Dropbox, OneDrive and Google
   Drive can sign in through rclone on the Lens server, with no app of your own to register. Upload audio, video, PDFs,
   Office files, photos, JSON and zip or tar archives, and, with an Apache Tika server (an opt-in extra), documents

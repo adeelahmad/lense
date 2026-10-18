@@ -147,6 +147,8 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 | `news_feeds` | the news feeds (RSS or Atom) Lens follows, the namespaces each brings posts into and how the last scan went; addresses stay sealed. Admins only |
 | `subscribe_feed` | follow a news feed into a namespace in one step: its address or a page of the site, read first and kept only if it works; `backfill` also brings in the posts it lists now ([News feeds](processing.md#news-feeds-rss-and-atom)). Admins only, with a write-scope token |
 | `unsubscribe_feed` | stop following a news feed; the posts it brought in stay. Admins only, with a write-scope token |
+| `mail_routing` | each email account's shared routing rules and each watch's own, as lines like `from: *@acme.com = finance` ([Email](processing.md#email-imap-calendar-feeds-ical-and-google-calendar)). Admins only |
+| `set_mail_routing` | replace an email account's shared routing rules, or one watch's own; they apply to messages that arrive afterwards. Admins only, with a write-scope token |
 | `propose_graph_change` | ask for two entities to be merged or linked; it waits in Proposed changes unless `apply` makes it at once (it can be undone). Needs a write-scope token and editor access |
 | `undo_graph_change` | take back a merge or link `propose_graph_change` made. Needs a write-scope token and editor access |
 | `edit_entity` | rename an entity, change its type, describe it, set the other ways it's said, or hide or show it. Needs a write-scope token and editor access |
@@ -168,7 +170,7 @@ app (merges and deletes can be undone), `write_note`, which adds a note, `create
 queues an episode, `create_feed` and `publish_to_feed`, which make and fill a [published feed](feeds.md),
 `write_spec`, which queues a spec, `set_nsfw` and `mark_nsfw`, which change [NSFW classification](nsfw.md) (owners or admins, and
 editors), `set_namespace_integrations`, which turns a namespace's own MCP server or chat completions on or off (owners), `set_picture_descriptions`, which changes what describes pictures (admins), `set_file_storage`, which changes where new files are kept (admins), `set_secret_reference`, which points a secret field at a password manager's item (admins), `add_mcp_server`, which adds an
-MCP server (admins), `subscribe_feed` and `unsubscribe_feed`, which follow and stop following news feeds (admins), and `set_monitoring`, `set_service`,
+MCP server (admins), `subscribe_feed` and `unsubscribe_feed`, which follow and stop following news feeds (admins), `set_mail_routing`, which changes where an email account's messages go (admins), and `set_monitoring`, `set_service`,
 `set_sandbox_gateway` (the [code sandbox](assistant.md#code-sandbox)'s gateway) and `set_install_settings`, which have the machine change how Lens runs (admins).
 Importing stays in the web app and the API.
 

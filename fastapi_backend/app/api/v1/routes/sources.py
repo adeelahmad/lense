@@ -25,6 +25,8 @@ from app.schemas.sources import (
     RcloneSignInState,
     RoutedMessage,
     RoutePreviewRequest,
+    RouteView,
+    SharedRoutes,
     Source,
     SourceCreate,
     SourceCreated,
@@ -86,6 +88,19 @@ def update_source(sid: int, body: SourceUpdate, user: AdminWriter, db: Db, cfg: 
         raise HTTPException(400, str(e)) from None
     auth.audit(db, user.as_audit(), "source.update", f"storage_source:{sid}")
     return SourceUpdated(health=sources.test(db, cfg, sid))
+
+
+@router.put("/sources/{sid}/routes")
+def set_shared_routes(sid: int, body: SharedRoutes, user: AdminWriter, db: Db) -> list[RouteView]:
+    """Save an email account's shared routing rules, which every watch on it tries after its own (none: unchanged
+    behaviour). They apply to messages that arrive after they're saved."""
+    _source(db, sid)
+    try:
+        rules = sources.set_shared_routes(db, sid, [r.model_dump() for r in body.routes])
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    auth.audit(db, user.as_audit(), "source.routes", f"storage_source:{sid}")
+    return [RouteView(**r) for r in rules]
 
 
 @router.post("/sources/rclone-signin")
@@ -247,7 +262,8 @@ def preview_watch(body: WatchPreviewRequest, user: AdminWriter, db: Db, cfg: Cfg
 def preview_routes(body: RoutePreviewRequest, user: AdminWriter, db: Db, cfg: Cfg) -> list[RoutedMessage]:
     """Where the latest messages of an email account would go under these routing rules, before saving them."""
     try:
-        rows = sources.preview_routes(db, cfg, body.source, body.path, [r.model_dump() for r in body.routes], body.namespace)
+        shared = None if body.shared_routes is None else [r.model_dump() for r in body.shared_routes]
+        rows = sources.preview_routes(db, cfg, body.source, body.path, [r.model_dump() for r in body.routes], body.namespace, shared=shared)
     except KeyError:
         raise HTTPException(400, "no such source") from None
     except (ValueError, RuntimeError) as e:

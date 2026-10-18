@@ -59,6 +59,7 @@ from app.domain import (
     graph_history,
     integrations,
     library,
+    mail_routes,
     manual,
     mcp_servers,
     monitoring,
@@ -3099,6 +3100,89 @@ def unsubscribe_feed(ctx: Context, feed: int) -> dict[str, Any]:
     rss.unsubscribe(ctx.db, feed)
     auth.audit(ctx.db, ctx.user.as_audit(), "source.delete", f"storage_source:{feed}", ["mcp"])
     return {"unsubscribed": feed}
+
+
+# ---------- mail routing rules (admins) ----------
+def _routing_admin(ctx: Context, write: bool = False) -> None:
+    if not ctx.user.admin:
+        raise ToolError("only admins see or change where email accounts' messages go")
+    if write and not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to change mail routing rules")
+
+
+def _lines(rules: list[dict[str, Any]]) -> list[str]:
+    return [mail_routes.line({**r, "namespace": r["namespace"] or "(deleted namespace)"}) for r in rules]
+
+
+@tool(
+    "mail_routing",
+    "Mail routing rules",
+    "Where the messages of each email account (IMAP or Gmail) go: the account's shared routing rules, which every "
+    "watch on it uses, and each watch's own rules and namespace. A new message is sent by the first of the watch's "
+    "rules that matches, else the first of the account's, else it goes to the watch's namespace. Rules are lines like "
+    "from: *@acme.com, *@acme.org; subject: invoice = finance (conditions on from, to, subject, list or mailbox joined "
+    "by ;, patterns by a comma, then = a namespace or = skip). Admins only.",
+    admin=True,
+)
+def mail_routing(ctx: Context) -> dict[str, Any]:
+    _routing_admin(ctx)
+    watches = sources.list_watches(ctx.db)
+    accounts = [
+        {
+            "account": s["id"],
+            "name": s["name"],
+            "type": s["type"],
+            "shared_rules": _lines(s["routes"]),
+            "watches": [
+                {"watch": w["id"], "path": w["path"] or "(every mailbox)", "namespace": w["namespace"], "rules": _lines(w["routes"])}
+                for w in watches
+                if w["source"] == s["id"]
+            ],
+        }
+        for s in sources.list_sources(ctx.db)
+        if feeds.is_email(s)
+    ]
+    return {"accounts": accounts, "settings": f"{ctx.web}/sources"}
+
+
+@tool(
+    "set_mail_routing",
+    "Change mail routing rules",
+    "Replace an email account's shared routing rules (account, from mail_routing), or with watch one watch's own "
+    "rules, by rules: lines as mail_routing shows them, tried in order; an empty list removes them. A rule names a "
+    "namespace that exists. They apply to messages that arrive afterwards. Admins only, with a token that has the "
+    "write scope.",
+    Arg("account", "integer", "the email account's id, from mail_routing", required=True),
+    Arg("rules", "string[]", "the rules, like from: *@acme.com = finance or list: * = skip; [] for none", required=True, default=[]),
+    Arg("watch", "integer", "a watch on that account whose own rules to replace (else the account's shared ones)"),
+    writes=True,
+    admin=True,
+)
+def set_mail_routing(ctx: Context, account: int, rules: list[str], watch: int | None = None) -> dict[str, Any]:
+    _routing_admin(ctx, write=True)
+    try:
+        src = sources.get(ctx.db, int(account))
+    except KeyError:
+        raise ToolError(f"there's no source {account}") from None
+    if not feeds.is_email(src):
+        raise ToolError("that source isn't an email account")
+    if not isinstance(rules, list) or len(rules) > mail_routes.MAX_RULES or not all(isinstance(r, str) for r in rules):
+        raise ToolError(f"rules is a list of up to {mail_routes.MAX_RULES} lines, like from: *@acme.com = finance")
+    try:
+        parsed = [mail_routes.parse_line(r) for r in rules if r.strip()]
+        if watch is None:
+            saved = sources.set_shared_routes(ctx.db, src["id"], parsed)
+            auth.audit(ctx.db, ctx.user.as_audit(), "source.routes", f"storage_source:{src['id']}", ["mcp"])
+            return {"account": src["id"], "shared_rules": _lines(saved)}
+        w = ctx.db.one("SELECT source FROM $r", r=R("watch_path", int(watch)))
+        if not w or w["source"] != src["id"]:
+            raise ToolError(f"account {src['id']} has no watch {watch}")
+        sources.update_watch(ctx.db, int(watch), routes=parsed)
+        auth.audit(ctx.db, ctx.user.as_audit(), "watch.update", f"watch_path:{watch}", ["mcp"])
+    except ValueError as e:
+        raise ToolError(str(e)) from None
+    w = next(x for x in sources.list_watches(ctx.db) if x["id"] == int(watch))
+    return {"account": src["id"], "watch": w["id"], "rules": _lines(w["routes"])}
 
 
 # ---------- the stream of activities ----------

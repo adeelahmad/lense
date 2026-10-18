@@ -1642,6 +1642,9 @@ import type {
   SetServiceData,
   SetServiceErrors,
   SetServiceResponses,
+  SetSharedRoutesData,
+  SetSharedRoutesErrors,
+  SetSharedRoutesResponses,
   SetupData,
   SetupErrors,
   SetupResponses,
@@ -9391,6 +9394,25 @@ export class Sources {
   ): RequestResult<UpdateSourceResponses, UpdateSourceErrors, ThrowOnError> {
     return (options.client ?? client).patch<UpdateSourceResponses, UpdateSourceErrors, ThrowOnError>({
       url: "/api/v1/sources/{sid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Set Shared Routes
+   *
+   * Save an email account's shared routing rules, which every watch on it tries after its own (none: unchanged
+   * behaviour). They apply to messages that arrive after they're saved.
+   */
+  public static setSharedRoutes<ThrowOnError extends boolean = false>(
+    options: Options<SetSharedRoutesData, ThrowOnError>,
+  ): RequestResult<SetSharedRoutesResponses, SetSharedRoutesErrors, ThrowOnError> {
+    return (options.client ?? client).put<SetSharedRoutesResponses, SetSharedRoutesErrors, ThrowOnError>({
+      url: "/api/v1/sources/{sid}/routes",
       ...options,
       headers: {
         "Content-Type": "application/json",
