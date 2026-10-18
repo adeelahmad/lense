@@ -4,12 +4,15 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
-- **Projects.** A project is a goal you work toward with the assistant: a name, the goal in your words, instructions
-  and the namespaces it draws on. It comes with a coordinator conversation about the project as a whole, which is told
-  about every thread, and its threads are conversations scoped to its namespaces, marked done when finished; your own
-  conversations can be brought in or taken out, and deleting a project keeps them. Every answer in a project reads its
-  goal and instructions. `/api/v1/projects` and the MCP tools `list_projects`, `read_project`, `create_project` and
-  `update_project` do it all for agents ([Projects](docs/projects.md)).
+## 0.16.0 <small>October 18, 2026</small> {id="0.16.0"}
+
+### Features
+
+- **web:** SchemaForm, a form generated from a JSON Schema with a variable picker ([#566](https://github.com/adeelahmad/lense/pull/566))
+- **chat:** recover when the model's context is full, and show what a summary covers ([#558](https://github.com/adeelahmad/lense/pull/558))
+- **pipelines:** convert steps that make a video's soundtrack an audio asset and a document's pages image assets ([#568](https://github.com/adeelahmad/lense/pull/568))
+- **scaling:** DigitalOcean and Hetzner Cloud providers ([#573](https://github.com/adeelahmad/lense/pull/573))
+- **workflows:** draw an automation's workflow on the canvas, with action and decide nodes ([#576](https://github.com/adeelahmad/lense/pull/576))
 
 ## 0.15.0 <small>October 18, 2026</small> {id="0.15.0"}
 

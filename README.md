@@ -169,16 +169,18 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   numbers, lists, times, days, whether a value changed and whether something like it happened before in their
   namespaces) and let a decision model pick the branch, then tell you in
   your own chat app, ask the model or the agent, use a tool, call a web address (its credentials kept sealed), run a
-  workflow, pipeline or routine, or change assets and notes. A Classify node in a workflow sorts an asset into labels,
-  content types or topics, acting only on a sure answer, and an Entity filter node keeps the entities you want. Anything that reaches outside Lens or changes more than what
-  set it off asks first, until you let it run on its own: on the Approvals page or, for a change inside Lens, with a yes
-  in the chat it told you in; agents can decline an approval but never give one. Each automation has limits and budgets,
-  and agents make, try and run them over MCP and in the assistant, or draft one from a sentence. An automation's
-  workflow is drawn and tried on the workflow canvas, with its actions in the palette; the studio's builder is
-  planned. ([Processing](docs/processing.md#workflows-and-the-canvas),
+  workflow, pipeline or routine, or change assets and notes. The Schedules page is Lens's crontab: every routine,
+  automation schedule and the backup in one list with when each runs next and last, to switch, re-time or run now, and
+  agents do the same over the API and MCP. A Classify node in a workflow sorts an asset into labels, content types or
+  topics, acting only on a sure answer, and an Entity filter node keeps the entities you want. Anything that reaches
+  outside Lens or changes more than what set it off asks first, until you let it run on its own: on the Approvals page
+  or, for a change inside Lens, with a yes in the chat it told you in; agents can decline an approval but never give
+  one. Each automation has limits and budgets, and agents make, try and run them over MCP and in the assistant, or
+  draft one from a sentence. An automation's workflow is drawn and tried on the workflow canvas, with its actions in
+  the palette; the studio's builder is planned. ([Processing](docs/processing.md#workflows-and-the-canvas),
   [converting assets](docs/processing.md#converting-assets), [notifications](docs/notifications.md),
-  [automations](docs/automations.md),
-  [approvals](docs/automations.md#approvals), [timeline](docs/timeline.md); [checks](docs/requirements.md#automate-it))
+  [automations](docs/automations.md), [approvals](docs/automations.md#approvals), [schedules](docs/schedules.md),
+  [timeline](docs/timeline.md); [checks](docs/requirements.md#automate-it))
 - **See what it costs.** An activity ledger of every model call, with reports, charts and budgets that cap spending.
   Setup asks for one overall budget after a cloud model, with a soft limit that warns and a hard limit that stops paid
   calls. A meter in the top bar shows spend against the budget, and the Costs page breaks it down by day, model and
