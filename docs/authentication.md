@@ -30,7 +30,17 @@ no passwords on a fresh install (`auth.passwords` is off), so there is nothing t
 A passkey belongs to the address it was made at (its host name): one made at `https://lens.example.com` doesn't work at
 `http://localhost:3000`. Browsers only use passkeys on `https://` addresses and on `localhost`. The API learns the
 address from the web app (`X-Forwarded-Host`), accepted only for host names Lens is served at (`FRONTEND_URL`,
-`localhost`, `server.allowed_hosts`) or from `server.trusted_proxies`; anything else falls back to `FRONTEND_URL`.
+`localhost`, `server.allowed_hosts`, the [Remote access](remote-access.md) and [HTTPS](https.md) addresses) or from
+`server.trusted_proxies`; anything else falls back to `FRONTEND_URL`.
+
+When Lens opens at another address too (Remote access, HTTPS), Profile and sign-in › Passkeys lists it, with **Open
+signed in** for one you have no passkey for yet: it opens that address with a sign-in link of your own, where one
+fingerprint adds a passkey for it and signs you in. No email, admin or copied link is needed. The link lasts 15 minutes,
+works once and leaves other links alone; only someone signed in themselves can make one, not an API token or app
+(`GET` · `POST /api/v1/auth/passkeys/elsewhere`, audited as `passkey.elsewhere`). Remote access's quick address changes
+each time the tunnel starts, and a passkey made there stops working with it: use your own domain to keep one. When a
+passkey sign-in is cancelled or finds nothing, the sign-in page says that a passkey works only where it was made and
+points to **Open signed in**.
 
 Passkeys must verify the person (fingerprint, face or PIN, not just a tap), and a key whose signature counter goes
 backwards (a clone) is refused. Failed passkey sign-ins are throttled per visitor address like passwords.
@@ -121,6 +131,7 @@ Sign out ──► POST /api/v1/auth/logout (ends the session on the API too)
 | `POST /api/v1/auth/signin-link/use` | sign in with a sign-in link alone, without adding a passkey |
 | `POST /api/v1/auth/signin-link/lost` | email a sign-in link; answers the same for unknown addresses |
 | `GET` · `POST /api/v1/auth/passkeys` (and `/options`) · `PATCH` · `DELETE /api/v1/auth/passkeys/{id}` | your passkeys: list, add, rename, remove (not the last); audited as `passkey.add` and `passkey.remove` |
+| `GET` · `POST /api/v1/auth/passkeys/elsewhere` | the other addresses Lens opens at, and whether you have a passkey for each; a 15-minute sign-in link of your own at one, to add a passkey there; audited as `passkey.elsewhere` |
 | `POST /api/v1/users/{id}/signin-link` · `DELETE /api/v1/users/{id}/passkeys` | admins: a sign-in link for someone (`?email=true` emails it to them when mail is set up); remove all their passkeys |
 | `DELETE /api/v1/users/{id}` | admins: [remove someone for good](#removing-someone) |
 | `GET /api/v1/auth/external` | the outside accounts people can sign in with (for the sign-in page) |

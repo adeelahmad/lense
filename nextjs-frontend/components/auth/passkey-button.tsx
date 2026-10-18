@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { AuthAlert } from "@/components/auth/auth-card";
 import { finishSignIn, passkeyTicket } from "@/components/auth/passkey-flows";
 import { Button } from "@/components/ui/button";
-import { passkeyErrorMessage, passkeysUnavailableReason } from "@/lib/auth/webauthn";
+import { passkeySignInMessage, passkeysUnavailableReason } from "@/lib/auth/webauthn";
 
 /**
  * "Sign in with a passkey": the browser lists the passkeys made for this site (or offers a phone nearby), and a
@@ -35,7 +35,7 @@ export function PasskeySignIn({
     try {
       await finishSignIn(await passkeyTicket(), callbackUrl);
     } catch (err) {
-      setError(passkeyErrorMessage(err));
+      setError(passkeySignInMessage(err));
       setBusy(false);
     }
   }

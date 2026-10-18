@@ -86,7 +86,8 @@ describe("routing rules editor", () => {
     expect(screen.getByLabelText("Send to")).toHaveValue("finance"); // another namespace than the watch's
     fireEvent.change(screen.getByLabelText("Patterns"), { target: { value: "*@acme.com" } });
     expect(rulesToApi(seen.mock.calls.at(-1)[0])).toEqual([{ match: { from: ["*@acme.com"] }, namespace: "finance" }]);
-    expect(await screen.findByText("→ finance")).toBeInTheDocument();
+    // the preview waits 600 ms after the last keystroke, so a busy machine can take longer than findBy's 1 s
+    expect(await screen.findByText("→ finance", undefined, { timeout: 5000 })).toBeInTheDocument();
     expect(screen.getByText("rule 1")).toBeInTheDocument();
     await waitFor(() =>
       expect((Sources.previewRoutes as jest.Mock).mock.calls.at(-1)[0].body).toEqual({
