@@ -47,6 +47,7 @@ class Ssh(Driver):
     about = "Starts Lens workers on Linux machines you have, over SSH; they join Lens over the mesh. Costs nothing."
     priced = False
     needs_join = True
+    delete_gone = False  # a worker that ended leaves only its log, and its process group may be another's now
     extra = "ssh"
     modules = ("paramiko",)
     license = "LGPL-2.1 (Paramiko)"
