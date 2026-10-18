@@ -7,7 +7,7 @@ import json
 
 import pytest
 
-from app.domain import rss, settings, setup, store
+from app.domain import chat, rss, settings, setup, store
 from tests import fake_llm
 from tests.api._assist import Assist, sse, start_llm
 from tests.api.test_news_feed_source import site  # noqa: F401 - a news feed served from this process
@@ -45,6 +45,9 @@ def held(c, h, data, name="talk.wav"):
 def test_a_setup_conversation_sets_the_server_up(app, db, cfg, folder, new_client, llm, monkeypatch):
     s = Assist(app, db, cfg, folder, new_client)
     c, h = s.cl["admin"]
+    # room for every tool's whole result: at the default window the setup tools' own list leaves too little, and the
+    # results the model read are cut in the middle (chat.fit), so they wouldn't parse below
+    monkeypatch.setattr(chat, "CONTEXT_TOKENS", 128000)
     monkeypatch.setattr(
         setup, "detect_llm", lambda: [{"kind": "Ollama", "base_url": "http://x:11434/v1", "models": ["m"], "suggested": "m"}]
     )

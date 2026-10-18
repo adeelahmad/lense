@@ -280,6 +280,8 @@ def test_rules_scale_on_waiting_jobs_and_on_a_schedule(client, db, cfg, h, fake)
         g["rules"][1]["says"],
     ] and "max 1" in g["rules"][1]["says"]
     gid = g["id"]
+    # the schedule fires at its first cron time after the group was made: make that this test's clock, not the real one
+    db.q("UPDATE $g SET created_at = $t, updated_at = $t", g=R("scale_group", gid), t=NOW.isoformat())
     for _ in range(6):
         db.q("CREATE job CONTENT {status: 'queued', next_step: 'transcribe', created_at: $t}", t=NOW.isoformat())
     assert tick(db, cfg)["launched"] == 0  # the condition has to hold for 2 minutes
