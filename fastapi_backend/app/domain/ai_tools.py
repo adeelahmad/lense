@@ -14,6 +14,7 @@ from . import (
     auth,
     batches,
     classify as classifymod,
+    connection_tools,
     cypher,
     dates,
     decide,
@@ -555,6 +556,7 @@ def builtin_names():
         + browsermod.TOOLS
         + sandboxmod.TOOLS
         + researchmod.TOOLS
+        + connection_tools.TOOLS
     )
     return {t[0] for t in every + webmod.TOOLS} | {"use_skill"}
 
@@ -576,6 +578,7 @@ OWN_RESULTS = {
     "use_skill",
     "mark_activities",
     "decline_approval",
+    "connections",
     "lens_help",
 } | {
     t[0]
@@ -587,6 +590,7 @@ OWN_RESULTS = {
     + AUTOMATION_TOOLS
     + sandboxmod.TOOLS
     + researchmod.TOOLS
+    + connection_tools.TOOLS
     if t[4]
 }
 
@@ -629,6 +633,7 @@ GROUPS = {
         ],
     },
     "web": {"label": "The web", "tools": [t[0] for t in webmod.TOOLS]},
+    "connected": {"label": "Mail, calendars and files", "tools": [t[0] for t in connection_tools.TOOLS]},
     "notes": {"label": "Notes", "tools": ["find_notes", "read_note", "write_note", "update_note", "write_spec"]},
     "memory": {"label": "Namespace memory", "tools": [t[0] for t in MEMORY_TOOLS]},
     "activity": {
@@ -656,7 +661,7 @@ def _effect(changes, out):
     return "asks" if changes else "out" if out else "read"
 
 
-def _why_missing(group, cfg):
+def _why_missing(group, cfg, admin=False):
     """Why none of a built-in group's tools is offered to this person: in words, and the setting that would change it
     (for admins), if one would."""
     off = set(cfg["ai"].get("disabled_tools") or [])
@@ -674,8 +679,10 @@ def _why_missing(group, cfg):
         return "switched off by an admin", "ai.extensions"
     if all(t in off for t in GROUPS[group]["tools"]):
         return "switched off by an admin", "ai.disabled_tools"
-    if group == "server":
+    if group == "server" or (group == "connected" and not admin):
         return "for admins", None
+    if group == "connected":
+        return "nothing is connected yet: add a connection in Settings › Sources", None
     if group == "memory":
         return "in a conversation about one namespace whose own assistant is on", None
     return "needs editor access to a namespace", None
@@ -721,6 +728,7 @@ def catalog(box):
         + sandboxmod.TOOLS
         + webmod.TOOLS
         + researchmod.TOOLS
+        + connection_tools.TOOLS
     }
     out = []
     for name, g in GROUPS.items():
@@ -728,7 +736,8 @@ def catalog(box):
         for t in g["tools"]:
             sends = t in SENDS_OUT or t in BROWSER_OUT or t in runs_out
             tools.append({"name": t, "effect": _effect(built.get(t, False), sends), "out": sends, "available": t in offered})
-        out.append(_group(name, g["label"], tools, *(() if any(t["available"] for t in tools) else _why_missing(name, box.cfg))))
+        why = () if any(t["available"] for t in tools) else _why_missing(name, box.cfg, box.admin)
+        out.append(_group(name, g["label"], tools, *why))
     for name, g in box.ext.groups.items() if box.ext else ():
         tools = []
         for t in g["tools"]:
@@ -753,11 +762,12 @@ def read_before(history, summary=None):
     return []
 
 
-class Toolbox(ops_tools.OpsTools):
+class Toolbox(ops_tools.OpsTools, connection_tools.ConnectionTools):
     """`admin` adds the server tools (ops_tools.py), with `base` (archive.yaml's config) to save settings over; `act`
     makes their changes at once instead of asking for approval, `act_on` only those of these tools (a chat channel's:
     channels.Channel.acts). `browser`: the person's connected side panel (browser.py), whose browser the assistant can
-    then use. The conversation's code sandbox (sandbox.py) is there when an admin turned it on and the person may use it.
+    then use. The conversation's code sandbox (sandbox.py) is there when an admin turned it on and the person may use it,
+    and an admin has the tools for the mail, calendars and files connected to Lens (connection_tools.py).
     `account`: the person an automation acts for, when `user` is the automation itself (automation:<id>,
     the by of what it writes): their approvals, extensions, view of the timeline and marks on it; `origin` ({automation, run,
     node}) is kept on the approvals it asks for. `only`: the groups (GROUPS, an extension's mcp:<name> or ext:<name>)
@@ -822,6 +832,7 @@ class Toolbox(ops_tools.OpsTools):
         # Python and bash in the conversation's own sandbox, once an admin turned it on (sandbox.enabled, sandbox.who)
         self.sandbox = chat_id is not None and sandboxmod.offered(cfg, admin, bool(self.editable))
         self.web = webmod.enabled(cfg)  # web search and page reading, once an admin picked a provider (web.py)
+        self.linked = connection_tools.offered(db, admin)  # the connections' tools, for the kinds connected (admins)
 
     def system_note(self):
         """What the model is told besides its usual instructions: the skills it can follow, and context that hooks add
@@ -829,8 +840,11 @@ class Toolbox(ops_tools.OpsTools):
         out = self._home_note() + (browsermod.NOTE if self.browser else "")
         if self.sandbox:
             out += sandboxmod.NOTE.format(network=sandboxmod.network_note(self.cfg))
-        if self.web and webmod.NAMES & {s["function"]["name"] for s in self.specs()}:
+        given = {s["function"]["name"] for s in self.specs()}
+        if self.web and webmod.NAMES & given:
             out += webmod.NOTE
+        if self.linked & given:
+            out += connection_tools.NOTE
         if not self.ext:
             return out
         out += self.ext.system_note()
@@ -908,6 +922,7 @@ class Toolbox(ops_tools.OpsTools):
             tools += webmod.TOOLS
         if self.chat is not None and researchmod.available(self.cfg):
             tools += researchmod.TOOLS
+        tools += [t for t in connection_tools.TOOLS if t[0] in self.linked]
         if self.ext:
             tools += self.ext.tool_specs(can_act or self.admin)
         keep = self.chosen()
@@ -1203,21 +1218,18 @@ class Toolbox(ops_tools.OpsTools):
                 return got["output"], None
         return None, self._approval(tool, args, what + self.why())
 
-    def web_ref(self, url, title, site, text, fetched_at=None):
-        """A web page or search result to cite as [n] (web.py): its address instead of an asset's moment. The same
-        address keeps its number, with the page's own text once it's read."""
+    def web_ref(self, url, title, site, text, fetched_at=None, source="web"):
+        """A web page or search result to cite as [n] (web.py), or a connection's message or event (`source` mail or
+        event, connection_tools.py: `fetched_at` is when it was sent or happens, and `site` the connection's name): its
+        address instead of an asset's moment. The same address keeps its number, with the page's own text once it's
+        read."""
+        when = "fetched_at" if source == "web" else "recorded_at"
         for r in self.refs:
-            if r.get("source") == "web" and r.get("url") == url:
-                r.update(
-                    store.clean(
-                        {"title": title or r.get("title"), "text": text or r.get("text"), "fetched_at": fetched_at or r.get("fetched_at")}
-                    )
-                )
+            if r.get("source") == source and r.get("url") == url:
+                r.update(store.clean({"title": title or r.get("title"), "text": text or r.get("text"), when: fetched_at or r.get(when)}))
                 return r["n"]
         n = len(self.refs) + 1
-        self.refs.append(
-            store.clean({"n": n, "source": "web", "url": url, "title": title, "site": site, "fetched_at": fetched_at, "text": text})
-        )
+        self.refs.append(store.clean({"n": n, "source": source, "url": url, "title": title, "site": site, when: fetched_at, "text": text}))
         return n
 
     def t_web_search(self, query, limit=None, time_range=None):
@@ -2300,6 +2312,8 @@ def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable):
     elif a["tool"] == "mark_activities":  # the person's own marks, on activities they could see when it was asked
         flags = {k: v for k, v in args.items() if k in event_marks.FLAGS}
         result = {"marked": len(event_marks.mark(db, user["id"], args["ids"], flags))}
+    elif a["tool"] == "import_from_connection":
+        result = connection_tools.apply(db, cfg, args, user, admin)
     elif a["tool"] in webmod.NAMES:  # the person's yes to a search or page read after the answer read outside text
         result = {"output": webmod.run(cfg, a["tool"], args)}
     elif a["tool"] in ("write_note", "update_note"):  # proposed by an automation's agent (actions_ai.Box)
