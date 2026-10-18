@@ -10,6 +10,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   works on this install's database, or on any Lens server with `--url` and an API token. A pulled file says its
   version, so a push won't save over changes made in Lens since, and a pull won't overwrite changes made in the file,
   without `--force` ([Manifests as files](docs/assistant.md#manifests-as-files-lens-ext)).
+
+## 0.15.0 <small>October 18, 2026</small> {id="0.15.0"}
+
 - **The assistant sends mail, adds events and writes files, after your yes.** New tools `send_mail` (send, or save a
   draft, from Gmail; `reply_to` keeps a message's thread), `add_event` (an event on Google Calendar, inviting people
   if asked) and `write_file` (a text file on a storage connection, replacing one only when asked). Each always waits
@@ -152,6 +155,19 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
       routine last ran, Publish to feed adds it to a feed, and Podcast episode makes an episode about it (added to a
       feed, listed once it's made). Try on the canvas says what they would do
       ([Publishing from the graph](docs/processing.md#publishing-from-the-graph)).
+
+### Features
+
+- **assistant:** answer questions about Lens itself from its docs and this server ([#400](https://github.com/adeelahmad/lense/pull/400))
+- **automations:** an index of triggers for the dispatcher ([#545](https://github.com/adeelahmad/lense/pull/545))
+- **chat:** summarise long chats at the model's real context window ([#528](https://github.com/adeelahmad/lense/pull/528))
+- **scaling:** auto scaling groups, rules and approvals, with This machine as the first provider ([#556](https://github.com/adeelahmad/lense/pull/556))
+- **workflows:** an entity filter node ([#562](https://github.com/adeelahmad/lense/pull/562))
+
+### Fixes
+
+- **domain:** let automation_nodes and events_content be imported first ([#523](https://github.com/adeelahmad/lense/pull/523))
+- **settings:** test the LLM address and model on screen, not only the saved ones ([#539](https://github.com/adeelahmad/lense/pull/539))
 
 ## 0.14.0 <small>October 17, 2026</small> {id="0.14.0"}
 
