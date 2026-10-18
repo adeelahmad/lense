@@ -19,7 +19,7 @@ import secrets
 import threading
 import urllib.parse
 
-from . import convert, ipgroups, logs, mail_routes, objects, store, telemetry
+from . import convert, ipgroups, logs, mail_routes, objects, secret_providers, store, telemetry
 
 R = store.R
 EDITABLE = {
@@ -63,6 +63,7 @@ EDITABLE = {
     "backups": None,
     "scaling": None,
     "encryption": None,
+    "secrets": None,
     "fedora": None,
     "tunnel": None,
     "https": None,
@@ -155,6 +156,7 @@ SECRETS = {
     "documents": ("anytopdf_token",),
     "components": ("hf_token",),
     "web": ("api_key",),
+    "secrets": ("vaultwarden_client_secret", "vaultwarden_password"),
 }
 ENUMS = {
     ("transcribe", "engine"): {"sensevoice", "whisper", "mlx-whisper", "openai", "elevenlabs", "assemblyai", "deepgram"},
@@ -331,8 +333,12 @@ def _data(row):
     return json.loads(d) if isinstance(d, str) else dict(d or {})
 
 
-def effective(db, base, reveal=True):
+def effective(db, base, reveal=True, refs=None):
+    """The configuration as saved: archive.yaml, the app's settings over it, the environment over both. A secret field
+    that holds a reference to a password manager (secret_providers.py) carries the value read from it (None until it's
+    read), or with reveal off its reference and whether it could be read; `refs`, a list, collects the references."""
     cfg = copy.deepcopy(base)
+    found = {}
     for row in db.rows("SELECT record::id(id) AS section, data, sealed FROM app_setting"):
         sec = row["section"]
         if sec not in EDITABLE or not isinstance(cfg.get(sec), dict):
@@ -343,17 +349,31 @@ def effective(db, base, reveal=True):
             server = (base.get("documents") or {}).get("web_networks") or []
             cfg[sec]["web_networks"] = list(dict.fromkeys([*server, *(cfg[sec].get("web_networks") or [])]))
         for k, sealed in (row.get("sealed") or {}).items():
-            if not reveal:
-                cfg[sec][k] = {"secret": True, "set": True}
-                continue
             try:
-                cfg[sec][k] = unseal(base, sealed, f"setting:{sec}.{k}")
+                value = unseal(base, sealed, f"setting:{sec}.{k}")
             except Exception:  # noqa: BLE001 - key changed since it was saved
-                cfg[sec][k] = None
+                value = None
+            if secret_providers.is_reference(value):
+                found[(sec, k)] = value
+                cfg[sec][k] = None  # the value read from the password manager, below
+            elif not reveal:
+                cfg[sec][k] = {"secret": True, "set": True}
+            else:
+                cfg[sec][k] = value
     for sec, key in ENV_OVERRIDES:
         v = env_value(sec, key)
         if v is not None:
+            found.pop((sec, key), None)
             cfg[sec][key] = {"secret": True, "set": True} if not reveal and key in SECRETS.get(sec, ()) else v
+    if found:  # once every section is in, the secrets section (the password manager's own sign-in) is complete
+        if refs is not None:
+            refs.extend(found.values())
+        if reveal:
+            for (sec, k), v in secret_providers.resolve(cfg, found).items():
+                cfg[sec][k] = v
+        else:
+            for (sec, k), text in found.items():
+                cfg[sec][k] = secret_providers.mask(cfg, text)
     return cfg
 
 
@@ -369,19 +389,26 @@ def keep_passwords(db, base):
 
 
 class Settings:
-    """The effective configuration, rebuilt only when someone saves a setting."""
+    """The effective configuration, rebuilt only when someone saves a setting, or a secret read from a password
+    manager changes (secret_providers.generation)."""
 
     def __init__(self, db, base):
         self.db, self.base, self._cfg, self._ver, self._lock = db, base, None, None, threading.Lock()
+        self._gen, self._refs = None, []
 
     def current(self):
         v = self.db.values("SELECT VALUE n FROM $r", r=R("seq", "settings"))
+        g = secret_providers.generation()
         with self._lock:
-            if self._cfg is None or v != self._ver:
-                self._cfg, self._ver = effective(self.db, self.base), v
+            if self._cfg is None or v != self._ver or g != self._gen:
+                refs = []
+                self._cfg, self._ver, self._gen, self._refs = effective(self.db, self.base, refs=refs), v, g, refs
                 telemetry.apply(self._cfg)  # turned on, changed or off in the app: this process follows
                 logs.apply(self._cfg)  # and its logging (level, file, syslog)
-            return self._cfg
+            cfg, refs = self._cfg, self._refs
+        if refs:
+            secret_providers.tick(cfg, refs)  # a value kept past secrets.cache_minutes is read again, in the background
+        return cfg
 
 
 def view(db, base):
@@ -411,6 +438,22 @@ def view(db, base):
         "yolox_model": objects.yolox_model(base) or "not found",
     }
     return out
+
+
+def secrets_view(db, base):
+    """Every secret field in Settings: whether it's set and, when it holds a reference to a password manager, the
+    reference and whether its value could be read; and the password managers there are. Never a value."""
+    eff = effective(db, base, reveal=False)
+    fields, refs = [], []
+    for sec, keys in SECRETS.items():
+        for k in keys:
+            v = (eff.get(sec) or {}).get(k)
+            row = {"section": sec, "key": k, "set": bool(isinstance(v, dict) and v.get("set")), "locked": k in locked(sec)}
+            if isinstance(v, dict) and v.get("ref"):
+                row["ref"] = v["ref"]
+                refs.append({"section": sec, "key": k, **{x: v.get(x) for x in ("ref", "provider", "read", "error", "read_at", "missing")}})
+            fields.append(row)
+    return {"providers": secret_providers.providers(eff), "references": refs, "fields": fields}
 
 
 def _updates_setting(key, value):
@@ -516,6 +559,8 @@ def _check(section, key, value, default):
         return _scaling_setting(key, value)
     if section == "fedora":
         return _fedora_setting(key, value)
+    if section == "secrets":
+        return _secrets_setting(key, value)
     if section == "shares":
         return _share_setting(key, value)
     if section == "sensors":
@@ -1665,6 +1710,13 @@ def save(db, base, section, changes, user=None):
         if k in SECRETS.get(section, ()):
             if v is None or v == "":
                 sealed.pop(k, None)
+            elif isinstance(v, str) and secret_providers.is_reference(v):
+                # a reference to a password manager's item (secret_providers.py), kept in the secret's place: checked
+                # against the manager now, so nothing is saved that can't be read
+                if section == "secrets":
+                    raise ValueError(f"secrets.{k} is the password manager's own sign-in: it's kept in Lens, not read from one")
+                ref = secret_providers.verify(effective(db, base), v)
+                sealed[k] = seal(base, ref.text, f"setting:{section}.{k}")
             elif isinstance(v, str):
                 if (section, k) == ("telemetry", "headers"):
                     telemetry.parse_headers(v)  # ValueError when malformed
@@ -1756,9 +1808,49 @@ def save(db, base, section, changes, user=None):
         d={"data": json.dumps(data), "sealed": sealed, "updated_at": store.now(), "updated_by": user},
     )
     db.next_id("settings")
+    if section == "secrets":
+        secret_providers.forget()  # the password manager's sign-in or scope changed: what was read is read again
 
 
 FEDORA_RANGES = {"max_file_mb": (0, 1_000_000), "sync_seconds": (10, 86400), "full_hours": (1, 720)}
+
+
+SECRETS_RANGES = {"cache_minutes": (1, 1440)}
+VAULT_FOLDER_RX = re.compile(r"^[^\x00-\x1f/]{1,100}$")
+
+
+def _secrets_setting(key, value):
+    if key in SECRETS_RANGES:
+        lo, hi = SECRETS_RANGES[key]
+        if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+            raise ValueError(f"secrets.{key} is a whole number of minutes from {lo} to {hi}")
+        return value
+    if key == "vaultwarden_url":
+        if value in (None, ""):
+            return None
+        u = urllib.parse.urlsplit(value.strip()) if isinstance(value, str) else None
+        if not (u and VIEWER_URL.match(value.strip()) and u.hostname and u.username is None and u.password is None and not u.query):
+            raise ValueError(
+                "secrets.vaultwarden_url is the server's http(s) address with no password in it, such as https://vault.example"
+            )
+        return value.strip().rstrip("/")
+    if key == "vaultwarden_email":
+        if value in (None, ""):
+            return None
+        if not (isinstance(value, str) and EMAIL_RX.match(value.strip())):
+            raise ValueError("secrets.vaultwarden_email is the email address of the account Lens signs in as")
+        return value.strip()
+    if key == "vaultwarden_client_id":
+        if value in (None, ""):
+            return None
+        if not (isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9._-]{1,200}", value.strip())):
+            raise ValueError("secrets.vaultwarden_client_id is the account's API key client id, like user.8c3d…")
+        return value.strip()
+    if key == "vaultwarden_folder":
+        if not (isinstance(value, str) and VAULT_FOLDER_RX.match(value.strip())):
+            raise ValueError("secrets.vaultwarden_folder is the name of the one folder Lens reads")
+        return value.strip()
+    raise ValueError(f"unknown setting secrets.{key}")
 
 
 def _fedora_setting(key, value):

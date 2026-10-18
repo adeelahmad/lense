@@ -74,6 +74,9 @@ web = ["ddgs>=9.16,<10"]
 webrtc = ["pywebrtc-audio>=0.2.0,<0.3"]
 # Outlook .msg emails (extract-msg is GPL-3.0; .eml needs nothing)
 msg = ["extract-msg"]
+# secrets read from a Vaultwarden or Bitwarden vault (vaultwarden_secrets.py): python-vaultwarden (Apache-2.0); fetched
+# when Settings › Secrets has a Vaultwarden address
+vaultwarden = ["python-vaultwarden>=1.1.2,<2"]
 
 [project.scripts]
 lens = "app.cli:main"
@@ -104,6 +107,7 @@ dev = [
     "openshell>=0.1.4,<0.2",  # the code sandbox's client, tested against a fake OpenShell gateway
     "botocore>=1.43.113",
     "pywebrtc-audio>=0.2.0,<0.3",  # the clean_audio step's WebRTC audio processing, tested on synthetic audio
+    "python-vaultwarden>=1.1.2,<2",  # the Vaultwarden client, tested against a fake Vaultwarden
 ]
 
 [tool.hatch.build.targets.wheel]

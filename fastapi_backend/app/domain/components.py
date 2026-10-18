@@ -785,6 +785,20 @@ class SandboxClient(Component):
         pip_install(cfg, "sandbox", say)
 
 
+class VaultwardenClient(Component):
+    """python-vaultwarden, for secrets read from a Vaultwarden or Bitwarden vault (vaultwarden_secrets.py): fetched
+    once an admin sets the vault's address."""
+
+    def needed(self, cfg, m):
+        return bool((cfg.get("secrets") or {}).get("vaultwarden_url"))
+
+    def present(self, cfg):
+        return importable("vaultwarden.clients.bitwarden")
+
+    def fetch(self, cfg, m, say):
+        pip_install(cfg, "vaultwarden", say)
+
+
 class WebSearch(Component):
     """ddgs, for the assistant's web search through DuckDuckGo (web.py): fetched when an admin picks DuckDuckGo."""
 
@@ -1010,6 +1024,13 @@ COMPONENTS = [
     ),
     WebSearch(
         "web-search", "DuckDuckGo search", "the assistant's web search through DuckDuckGo (web.search; ddgs)", size_mb=30, license="MIT"
+    ),
+    VaultwardenClient(
+        "vaultwarden",
+        "Vaultwarden client",
+        "reads secrets from a Vaultwarden or Bitwarden vault (secrets.vaultwarden_url; python-vaultwarden)",
+        size_mb=10,
+        license="Apache-2.0",
     ),
     Msg("msg", "Outlook .msg emails", "reads Outlook .msg files (extract-msg)", optional=True, license="GPL-3.0", size_mb=5),
 ]
