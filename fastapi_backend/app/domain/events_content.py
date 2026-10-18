@@ -1074,7 +1074,9 @@ def _and_more(names, most=1):
 
 
 # ---------- comments ----------
-COMMENT_FIELDS = "id AS rid, record::id(id) AS id, recording, space, account, parent, text, t0, t1, quote, created_at"
+COMMENT_FIELDS = (
+    "id AS rid, record::id(id) AS id, recording, activity, about, audience, owner, space, account, parent, text, t0, t1, quote, created_at"
+)
 CONTENT_MAX = 1000  # characters of a comment an activity carries
 
 
@@ -1096,6 +1098,8 @@ def _comment_activities(db, rows):
         rec = assets.get(r.get("recording"))
         if rec:
             target = _asset(db, rec, types)
+        elif isinstance(r.get("activity"), str) and r.get("recording") is None:  # on an activity of the timeline
+            target = {"type": "Activity", "id": f"lens:activity/{r['activity']}", "name": _text(r.get("about")) or r["activity"]}
         else:
             target = {"type": "Document", "id": f"lens:recording/{r.get('recording')}", "name": "A deleted asset"}
         reply = _num(r.get("parent")) is not None
@@ -1104,7 +1108,7 @@ def _comment_activities(db, rows):
                 "type": "Note",
                 "id": f"lens:comment/{r['id']}",
                 "content": _text(r.get("text"), CONTENT_MAX) or "",
-                "url": f"/resources/{r.get('recording')}",
+                "url": f"/resources/{r.get('recording')}" if r.get("recording") is not None else "/timeline",
                 "inReplyTo": f"lens:comment/{r['parent']}" if reply else None,
                 "quote": _text(r.get("quote")),
                 "t0": _num(r.get("t0")),
@@ -1124,6 +1128,8 @@ def _comment_activities(db, rows):
                 source="comments",
                 pos=[r["created_at"], r["id"]],
                 published=published,
+                audience=r.get("audience") if r.get("audience") in ("owner", "admins") else None,
+                owner=_num(r.get("owner")),
             )
         )
     return out

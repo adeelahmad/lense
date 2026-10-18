@@ -5432,6 +5432,269 @@
         }
       }
     },
+    "/api/v1/activities/{activity_id}/react": {
+      "post": {
+        "tags": [
+          "activities"
+        ],
+        "summary": "React To Activity",
+        "description": "React to an activity with an emoji from the palette (\ud83d\udc4d \u2764\ufe0f \ud83c\udf89 \ud83d\udc40 \ud83d\ude02 \ud83d\ude2e \ud83d\ude22 \ud83d\ude4f), or with `on` false take yours\nback. Everyone who sees the activity sees the reactions; a new one is a `reaction.added` activity automations\ncan act on. The answer is the reactions on it now.",
+        "operationId": "react_to_activity",
+        "parameters": [
+          {
+            "name": "activity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Activity Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReactIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReactionsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/activities/{activity_id}/comments": {
+      "get": {
+        "tags": [
+          "activities"
+        ],
+        "summary": "List Activity Comments",
+        "description": "The activity's comments, threaded: each thread followed by its replies, the earliest first. On an asset's\narrival (`create-recording-<id>`) they are the asset's own comments, the same ones its page shows.",
+        "operationId": "list_activity_comments",
+        "parameters": [
+          {
+            "name": "activity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Activity Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Comment"
+                  },
+                  "title": "Response Activities-List Activity Comments"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "activities"
+        ],
+        "summary": "Comment On Activity",
+        "description": "Comment on an activity, or with `parent` reply on a thread (a reply to a reply goes on the thread too). Anyone\nwho sees the activity can, up to 1,000 each; everyone who sees it reads them, and each one is a `comment.added`\nactivity. On an asset's arrival the comment goes on the asset itself.",
+        "operationId": "comment_on_activity",
+        "parameters": [
+          {
+            "name": "activity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Activity Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActivityCommentCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comment"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/activities/{activity_id}/comments/{cid}": {
+      "patch": {
+        "tags": [
+          "activities"
+        ],
+        "summary": "Update Activity Comment",
+        "description": "Change its text (its writer only), or resolve or reopen its thread (`resolved`, on the thread's first comment:\nits writer, or an editor of the namespace).",
+        "operationId": "update_activity_comment",
+        "parameters": [
+          {
+            "name": "activity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Activity Id"
+            }
+          },
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comment"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "activities"
+        ],
+        "summary": "Delete Activity Comment",
+        "description": "Delete it: its writer, or an owner of the namespace. A thread's first comment takes its replies with it.\nAudited (`comment.delete`).",
+        "operationId": "delete_activity_comment",
+        "parameters": [
+          {
+            "name": "activity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Activity Id"
+            }
+          },
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/automations/hooks/{token}": {
       "post": {
         "tags": [
@@ -33269,6 +33532,34 @@
         ],
         "title": "ActivityActor"
       },
+      "ActivityCommentCreate": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent",
+            "description": "reply on this comment's thread"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "ActivityCommentCreate"
+      },
       "ActivityCosts": {
         "properties": {
           "period": {
@@ -33756,6 +34047,25 @@
             "type": "object",
             "title": "Marks",
             "description": "your marks on items, by id (those you marked)"
+          },
+          "reactions": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/Reaction"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Reactions",
+            "description": "everyone's reactions on items, by id (those with any)"
+          },
+          "comments": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Comments",
+            "description": "how many comments items have, by id (those with any)"
           }
         },
         "additionalProperties": true,
@@ -40906,8 +41216,28 @@
             "title": "Id"
           },
           "recording": {
-            "type": "integer",
-            "title": "Recording"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recording",
+            "description": "the resource it is on; null for a comment on an activity that isn't an asset's arrival"
+          },
+          "activity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activity",
+            "description": "the activity of the timeline it was made on, when it was"
           },
           "parent": {
             "anyOf": [
@@ -41079,7 +41409,6 @@
         "type": "object",
         "required": [
           "id",
-          "recording",
           "text",
           "mine",
           "can_resolve",
@@ -63581,6 +63910,71 @@
           "subject"
         ],
         "title": "RdfUnmatched"
+      },
+      "ReactIn": {
+        "properties": {
+          "emoji": {
+            "type": "string",
+            "maxLength": 8,
+            "title": "Emoji",
+            "description": "one of the palette: \ud83d\udc4d \u2764\ufe0f \ud83c\udf89 \ud83d\udc40 \ud83d\ude02 \ud83d\ude2e \ud83d\ude22 \ud83d\ude4f"
+          },
+          "on": {
+            "type": "boolean",
+            "title": "On",
+            "description": "give it (true) or take yours back (false)",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "emoji"
+        ],
+        "title": "ReactIn"
+      },
+      "Reaction": {
+        "properties": {
+          "emoji": {
+            "type": "string",
+            "title": "Emoji"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "mine": {
+            "type": "boolean",
+            "title": "Mine",
+            "default": false
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "emoji",
+          "count"
+        ],
+        "title": "Reaction",
+        "description": "One emoji on an activity: how many people gave it, and whether you did."
+      },
+      "ReactionsOut": {
+        "properties": {
+          "reactions": {
+            "items": {
+              "$ref": "#/components/schemas/Reaction"
+            },
+            "type": "array",
+            "title": "Reactions",
+            "description": "the reactions on the activity now, in the palette's order"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "reactions"
+        ],
+        "title": "ReactionsOut"
       },
       "Reading": {
         "properties": {

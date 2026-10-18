@@ -15,6 +15,10 @@ jest.mock("@/app/openapi-client", () => ({
     listActivities: jest.fn(),
     listActivityKinds: jest.fn(),
     markActivities: jest.fn(),
+    reactToActivity: jest.fn(),
+    listActivityComments: jest.fn(),
+    commentOnActivity: jest.fn(),
+    deleteActivityComment: jest.fn(),
   },
 }));
 const replace = jest.fn();
@@ -72,6 +76,22 @@ const PAGE: ActivityPage = {
   next: null,
   namespaces: { "3": "family" },
   marks: { u1: { reviewed: true } },
+  reactions: { e2: [{ emoji: "👍", count: 2, mine: false }], e1: [{ emoji: "👍", count: 1, mine: true }] },
+  comments: { u1: 1 },
+};
+const COMMENT = {
+  id: 7,
+  recording: 1,
+  activity: "u1",
+  parent: null,
+  text: "Nice one",
+  resolved: false,
+  created_by: "sam@x.io",
+  created_by_name: "Sam",
+  created_at: new Date(NOW - 60_000).toISOString(),
+  mine: false,
+  can_resolve: false,
+  can_delete: false,
 };
 
 function wrap(ui: ReactNode) {
@@ -107,6 +127,67 @@ beforeEach(() => {
   // the first page, then nothing new when it looks again
   m(Activities.listActivities).mockImplementation(({ query }) =>
     ok(query.since ? { items: [], next: null, namespaces: {}, marks: {} } : PAGE),
+  );
+  m(Activities.reactToActivity).mockImplementation(({ body }) =>
+    ok({ reactions: body.on ? [{ emoji: body.emoji, count: 1, mine: true }] : [] }),
+  );
+  m(Activities.listActivityComments).mockReturnValue(ok([COMMENT]));
+  m(Activities.commentOnActivity).mockImplementation(({ body }) =>
+    ok({ ...COMMENT, id: 8, text: body.text, parent: body.parent ?? null, mine: true, can_delete: true }),
+  );
+});
+
+test("reactions and comments: a line sums its items', a 👍 goes to the server, and Enter sends a comment", async () => {
+  wrap(<TimelinePage />);
+  const rows = within(await screen.findByRole("list", { name: "Timeline" })).getAllByTestId("timeline-row");
+  // closed: the run of three emails shows 👍 3 (two on e2, yours on e1); the upload shows its one comment
+  expect(rows[0]).toHaveTextContent("👍3");
+  expect(rows[1]).toHaveTextContent("1 comment");
+  // opened, each item has its own bar: react on e3 from the picker
+  fireEvent.click(within(rows[0]).getByRole("button", { name: "Show the 3" }));
+  const bars = within(rows[0]).getAllByTestId("reactions");
+  expect(bars).toHaveLength(3);
+  expect(within(bars[2]).getByRole("button", { name: "thumbs up 1, yours" })).toHaveAttribute("aria-pressed", "true");
+  fireEvent.click(within(bars[0]).getByRole("button", { name: "React" }));
+  fireEvent.click(await screen.findByRole("button", { name: "party" }));
+  await waitFor(() =>
+    expect(m(Activities.reactToActivity)).toHaveBeenCalledWith(
+      expect.objectContaining({ path: { activity_id: "e3" }, body: { emoji: "🎉", on: true } }),
+    ),
+  );
+  expect(within(bars[0]).getByRole("button", { name: "party 1, yours" })).toHaveAttribute("aria-pressed", "true");
+  // a chip of yours takes it back
+  fireEvent.click(within(bars[2]).getByRole("button", { name: "thumbs up 1, yours" }));
+  await waitFor(() =>
+    expect(m(Activities.reactToActivity)).toHaveBeenLastCalledWith(
+      expect.objectContaining({ path: { activity_id: "e1" }, body: { emoji: "👍", on: false } }),
+    ),
+  );
+  expect(within(bars[2]).queryByRole("button", { name: /thumbs up/ })).not.toBeInTheDocument();
+  // the upload's thread: its comment, then yours sent with Enter
+  fireEvent.click(within(rows[1]).getByRole("button", { name: "Show details" }));
+  fireEvent.click(within(rows[1]).getByRole("button", { name: "1 comment" }));
+  expect(await within(rows[1]).findByText("Nice one")).toBeInTheDocument();
+  expect(within(rows[1]).getByText("Sam")).toBeInTheDocument();
+  const box = within(rows[1]).getByRole("textbox", { name: "Comment" });
+  fireEvent.change(box, { target: { value: "Thanks!" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+  await waitFor(() =>
+    expect(m(Activities.commentOnActivity)).toHaveBeenCalledWith(
+      expect.objectContaining({ path: { activity_id: "u1" }, body: { text: "Thanks!", parent: null } }),
+    ),
+  );
+  await waitFor(() => expect(box).toHaveValue(""));
+  expect(within(rows[1]).getByRole("button", { name: "2 comments" })).toBeInTheDocument();
+  // a reply goes on the thread
+  fireEvent.click(within(rows[1]).getByRole("button", { name: "Reply" }));
+  const reply = within(rows[1]).getByRole("textbox", { name: "Reply" });
+  fireEvent.change(reply, { target: { value: "Agreed" } });
+  fireEvent.keyDown(reply, { key: "Enter" });
+  await waitFor(() =>
+    expect(m(Activities.commentOnActivity)).toHaveBeenLastCalledWith(
+      expect.objectContaining({ body: { text: "Agreed", parent: 7 } }),
+    ),
   );
 });
 

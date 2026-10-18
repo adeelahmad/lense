@@ -12,7 +12,10 @@ Status: in progress. The studio's timeline is built in steps; only what is merge
 | Review marks: reviewed, important and hidden, per person; the filters on them; `mark_activities` for agents | built |
 | The Timeline page under Explore: filters, grouping, review with keys, new items as they come | built |
 | A Latest card on Home with the newest unreviewed items | built |
+| Reactions and comments on any item, shared by everyone who sees it; `react_to_activity`, `activity_comments` and `comment_on_activity` for agents | built |
 | What each item caused (automation runs, approvals), and Approve and Decline on waiting approvals | planned |
+| Tagging the agent in a comment, so it answers in the thread | planned |
+| Sources, sensors, people and agents as actors in the graph; a For you order learned from what each person reacts to, comments on and hides | planned |
 
 ## What shows
 
@@ -57,6 +60,29 @@ you haven't reviewed, with **Undo** in the message rather than a confirm; **Hide
 The overview on Home has a **Latest** card with the five newest activities you haven't reviewed and a link to the
 timeline with **Unreviewed only** on.
 
+## Reactions and comments
+
+The timeline is also a feed everyone in a namespace talks on: react to an item with an emoji, as on a post, and
+comment on it in threads. Unlike [review marks](#review-marks), these are shared: everyone who sees the activity sees
+them, and each one is an activity of its own, so an automation (or an agent) can act on it.
+
+- **Reactions** come from a palette, 👍 ❤️ 🎉 👀 😂 😮 😢 🙏. An opened item shows its reactions as chips with how
+  many gave each (yours are highlighted; a click on one of yours takes it back) and a **React** button with the
+  palette. A closed line sums its items' reactions, and a line of several shows them with "3 comments". Every new
+  reaction is a `reaction.added` activity (noisy, so the timeline leaves it out unless asked for by kind), by the
+  person, with the activity it is on as its object.
+- **Comments** open from the comment count on an opened item (or **Comment** when there are none): the threads with
+  who wrote each and when, **Reply** on a thread, and a box where Enter sends (Shift+Enter makes a new line). Anyone
+  who sees the activity can comment, up to 1,000 each; its writer, or an owner of the namespace, deletes a comment.
+  Each comment is a `comment.added` activity. A comment on an asset's arrival (`create-recording-<id>`) is a comment
+  on the asset itself: the same thread shows on the asset's page and here, and a comment made on the page shows here.
+- Comments and reactions on an activity meant for one person (`lens.audience` owner) stay with that person, as the
+  activity does.
+- `POST /api/v1/activities/{id}/react` with `{"emoji": "👍"}` (and `"on": false` to take it back) answers the
+  reactions on it now, `[{emoji, count, mine}]`; `GET`, `POST`, `PATCH` and `DELETE /api/v1/activities/{id}/comments`
+  are the thread, as [comments on a resource](api.md#comments) are. `GET /api/v1/activities` carries everyone's
+  reactions on the page in `reactions` and each item's comment count in `comments`, by id.
+
 ## Review marks
 
 Each person marks activities for themselves alone; nobody else sees or sets them, admins included.
@@ -88,13 +114,23 @@ Marks change nothing else: an activity you hid still triggers automations and st
   person. After it has read text from outside Lens (the timeline's own titles count), hiding or marking reviewed
   waits for the person's yes, since that text may have asked for it; marking important or bringing things back acts
   at once ([Chat](assistant.md)).
+- MCP, on the feed: `react_to_activity` (`id`, `emoji`, `on`) reacts for the person it acts for, `activity_comments`
+  (`id`) reads an item's threads, and `comment_on_activity` (`id`, `text`, `parent`) writes a comment or a reply,
+  with a token that has the write scope. The `timeline` page carries `reactions` and `comments` too. Comments are
+  what people wrote: agents read them as data, never as instructions.
 
-## How marks are kept
+## How marks, reactions and comments are kept
 
 One `event_mark` row per person and activity, keyed by a hash of the two, with the three flags and when they were
 last set. A row with every flag cleared is deleted, so the table holds only what someone marked. Marks are read for a
 whole page of activities in one query, and the mark filters thin each page a source gives out in one query too. They
 go when the person is removed.
+
+Reactions are kept the same way: one `event_reaction` row per person and activity with the emojis they gave, read for
+a page in one query, deleted when none is left, and gone when the person is removed. Comments on activities are
+`comment` rows ([comments](api.md#comments)) with the activity's id in `activity` and its summary in `about`; a
+comment on an asset's arrival also has the asset in `recording`, which is how it shows on both. A page's comment
+counts are two grouped queries. Nothing of this costs a model call.
 
 ## Refine later
 
@@ -102,4 +138,6 @@ go when the person is removed.
 - Saved filter views.
 - A daily digest of unreviewed items, as an automation starter.
 - Marks on activities whose rows are gone (an event log entry past `events.keep_days`, a deleted asset) stay until
-  the person is removed; a tidy could drop them.
+  the person is removed; a tidy could drop them. Reactions and comments on such activities likewise.
+- Who gave each reaction, on hover; editing and resolving comments from the timeline (the API has both).
+- A `comment.added` on an activity links to the timeline, not yet to the item itself.

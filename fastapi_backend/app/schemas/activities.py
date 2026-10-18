@@ -58,11 +58,30 @@ class ActivityMark(ResponseModel):
     at: str | None = Field(None, description="when you last marked it")
 
 
+class Reaction(ResponseModel):
+    """One emoji on an activity: how many people gave it, and whether you did."""
+
+    emoji: str
+    count: int
+    mine: bool = False
+
+
 class ActivityPage(ResponseModel):
     items: list[StreamActivity] = Field(description="newest first")
     next: str | None = Field(None, description="give it as before for the page after; null at the end")
     namespaces: dict[str, str] = Field(default_factory=dict, description="the names of the namespaces in items, by id")
     marks: dict[str, ActivityMark] = Field(default_factory=dict, description="your marks on items, by id (those you marked)")
+    reactions: dict[str, list[Reaction]] = Field(default_factory=dict, description="everyone's reactions on items, by id (those with any)")
+    comments: dict[str, int] = Field(default_factory=dict, description="how many comments items have, by id (those with any)")
+
+
+class ReactIn(RequestModel):
+    emoji: str = Field(max_length=8, description="one of the palette: 👍 ❤️ 🎉 👀 😂 😮 😢 🙏")
+    on: bool = Field(True, description="give it (true) or take yours back (false)")
+
+
+class ReactionsOut(ResponseModel):
+    reactions: list[Reaction] = Field(description="the reactions on the activity now, in the palette's order")
 
 
 class MarkIn(RequestModel):

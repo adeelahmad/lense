@@ -23,6 +23,7 @@ merged is called built.
 | Lens itself: routine runs, budget warnings, backups and new releases ([Lens itself](#lens-itself-as-activities)) | built |
 | The timeline API (`GET /api/v1/activities`), the MCP tools `timeline` and `event_kinds`, the assistant's `timeline` | built |
 | Review marks on the timeline (reviewed, important, hidden), their filters and `mark_activities` ([Timeline](timeline.md)) | built |
+| Reactions and comments on activities, as `reaction.added` and `comment.added` ([Timeline](timeline.md#reactions-and-comments)) | built |
 | The shapes of triggers, joins, an If, policy and intents, checked (`app/domain/automation_spec.py`) | built |
 | The event workflow scope: what an automation does, drawn with action nodes and tried on an activity (`app/domain/automation_nodes.py`) | built |
 | The decide node: the decision model picks a branch, one port per option and `unsure` ([The decide node](#the-decide-node)) | built |
@@ -121,7 +122,8 @@ and the paths holding outside text are in `GET /api/v1/activities/kinds` (`event
 | `asset.failed` | | `jobs` | as `asset.processed`, with `step` (where it failed) and `error` | Processing “Call with the school” failed at transcribe |
 | `asset.deleted` | | `log` | `type`, `id`, `name`, `media` | Sam deleted “Old minutes” |
 | `calendar_event.changed` | | `log` | `startTime`, `endTime`, `location`, `calendar`, and `before` (`startTime`, `endTime`) | Family calendar moved “Parents' evening” to 2026-10-21 18:00 |
-| `comment.added` | | `comments` | a `Note`: `content`, `inReplyTo` (the comment it answers), `quote` (the passage), `t0`, `t1` (the moment, ms); `target` is the asset | Sam commented on “Call with the school” |
+| `comment.added` | | `comments` | a `Note`: `content`, `inReplyTo` (the comment it answers), `quote` (the passage), `t0`, `t1` (the moment, ms); `target` is the asset, or the activity of the timeline it was written on (`lens:activity/<id>`) | Sam commented on “Call with the school” |
+| `reaction.added` | | `log` | the activity reacted to (an `Activity`, `lens:activity/<id>`, `name` its summary), `emoji`, `activity` (its id); noisy | Sam reacted 👍 to “Work Gmail received “Parents' evening”” |
 | `note.created` | | `note_pages` | a `Page`: `summary`, `about` (what it's the page of), `place`, `author` (person or assistant) | Assistant wrote the note “St Mary's School” |
 | `note.saved` | | `note_versions` | as `note.created`, with `version` (the page as it was before) and `why` | Sam edited the note “School trip plans” |
 | `clock.tick` | | `clock` (never stored) | an `Event`: `at` (the moment, UTC), `cron`, `timezone`, `local` (the time there, in words), `description` (the schedule in words, or once), `late`; actor `Lens clock` | Lens clock: Fri 16 Oct at 07:00 (every weekday at 07:00, Europe/London) |
@@ -153,7 +155,9 @@ Mary's is understood". A run tried again finishes again, as another activity. A 
 is logged as `calendar_event.changed` (once per event and new start), with the times it had before.
 
 A comment on an asset, or a reply on its thread, is `comment.added`, by whoever wrote it, with the asset as its
-`target`. A note page is `note.created` when it is made (the assistant's own notes too) and `note.saved` when it
+`target`; a comment written on an activity of the timeline has that activity as its `target`
+(`lens:activity/<id>`), and an emoji given to one is `reaction.added`, with the activity as its object
+([Timeline](timeline.md#reactions-and-comments)). A note page is `note.created` when it is made (the assistant's own notes too) and `note.saved` when it
 changes: at most one activity per page in each ten minutes of the clock (`note-<page>-<window>`), read from the
 versions the notebook keeps of each change. A follower hears of a window's first change, as soon as it is made; the
 timeline shows its newest. Every change to the entity graph (`graph_event`, [graph history](graph-history.md)) is one

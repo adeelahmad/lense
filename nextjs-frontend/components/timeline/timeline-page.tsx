@@ -4,7 +4,7 @@ import { ArrowUp, CheckCheck, History, ListFilter } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { ActivityMark } from "@/app/openapi-client/types.gen";
+import type { ActivityMark, Reaction } from "@/app/openapi-client/types.gen";
 import { FiltersBar, type Actor } from "@/components/timeline/filters";
 import { TimelineRow, groupMark } from "@/components/timeline/item";
 import {
@@ -24,6 +24,8 @@ import {
   type Filters,
   type Mark,
 } from "@/components/timeline/model";
+import { Social } from "@/components/timeline/social";
+import { useCommentCounts, useReactions } from "@/components/timeline/use-social";
 import { useKinds, useMarks, useNewItems, useTimeline } from "@/components/timeline/use-timeline";
 import { Button } from "@/components/ui/button";
 import { Drawer } from "@/components/ui/dialog";
@@ -107,13 +109,17 @@ export function TimelinePage() {
   const [extra, setExtra] = useState<{
     items: Activity[];
     marks: Record<string, ActivityMark>;
+    reactions: Record<string, Reaction[]>;
+    comments: Record<string, number>;
     ns: Record<string, string>;
   }>({
     items: [],
     marks: {},
+    reactions: {},
+    comments: {},
     ns: {},
   });
-  useEffect(() => setExtra({ items: [], marks: {}, ns: {} }), [qs]);
+  useEffect(() => setExtra({ items: [], marks: {}, reactions: {}, comments: {}, ns: {} }), [qs]);
 
   const loaded = useMemo(() => (pages ?? []).flatMap((p) => p.items), [pages]);
   const all = useMemo(() => mergeNew(loaded, extra.items), [loaded, extra.items]);
@@ -125,7 +131,18 @@ export function TimelinePage() {
     () => Object.assign({}, ...(pages ?? []).map((p) => p.namespaces ?? {}), extra.ns) as Record<string, string>,
     [pages, extra.ns],
   );
+  const serverReactions = useMemo(
+    () =>
+      Object.assign({}, ...(pages ?? []).map((p) => p.reactions ?? {}), extra.reactions) as Record<string, Reaction[]>,
+    [pages, extra.reactions],
+  );
+  const serverComments = useMemo(
+    () => Object.assign({}, ...(pages ?? []).map((p) => p.comments ?? {}), extra.comments) as Record<string, number>,
+    [pages, extra.comments],
+  );
   const marks = useMarks(serverMarks);
+  const reactions = useReactions(serverReactions);
+  const counts = useCommentCounts(serverComments);
   const shown = useMemo(() => all.filter((a) => !marks.of(a.id).hidden), [all, marks]);
   const groups = useMemo(() => group(shown), [shown]);
   const labels = useMemo(() => Object.fromEntries((kinds.data ?? []).map((k) => [k.name, k.label])), [kinds.data]);
@@ -138,6 +155,8 @@ export function TimelinePage() {
     setExtra((x) => ({
       items: [...pending, ...x.items],
       marks: { ...x.marks, ...(d?.marks ?? {}) },
+      reactions: { ...x.reactions, ...(d?.reactions ?? {}) },
+      comments: { ...x.comments, ...(d?.comments ?? {}) },
       ns: { ...x.ns, ...(d?.namespaces ?? {}) },
     }));
     window.scrollTo?.({ top: 0, behavior: "smooth" });
@@ -293,6 +312,17 @@ export function TimelinePage() {
                 onToggle={() => toggle(g.key)}
                 focused={i === active}
                 onFocus={() => setActive(i)}
+                reactionsOf={reactions.of}
+                commentsOf={counts.of}
+                social={(a) => (
+                  <Social
+                    a={a}
+                    reactions={reactions.of(a.id)}
+                    onReact={(emoji, on) => reactions.react(a.id, emoji, on)}
+                    comments={counts.of(a.id)}
+                    bump={counts.bump}
+                  />
+                )}
               />
             ))}
           </ul>

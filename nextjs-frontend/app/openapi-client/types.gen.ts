@@ -179,6 +179,22 @@ export type ActivityActor = {
 };
 
 /**
+ * ActivityCommentCreate
+ */
+export type ActivityCommentCreate = {
+  /**
+   * Text
+   */
+  text: string;
+  /**
+   * Parent
+   *
+   * reply on this comment's thread
+   */
+  parent?: number | null;
+};
+
+/**
  * ActivityCosts
  */
 export type ActivityCosts = {
@@ -489,6 +505,22 @@ export type ActivityPage = {
    */
   marks?: {
     [key: string]: ActivityMark;
+  };
+  /**
+   * Reactions
+   *
+   * everyone's reactions on items, by id (those with any)
+   */
+  reactions?: {
+    [key: string]: Array<Reaction>;
+  };
+  /**
+   * Comments
+   *
+   * how many comments items have, by id (those with any)
+   */
+  comments?: {
+    [key: string]: number;
   };
   [key: string]: unknown;
 };
@@ -4556,8 +4588,16 @@ export type Comment = {
   id: number;
   /**
    * Recording
+   *
+   * the resource it is on; null for a comment on an activity that isn't an asset's arrival
    */
-  recording: number;
+  recording?: number | null;
+  /**
+   * Activity
+   *
+   * the activity of the timeline it was made on, when it was
+   */
+  activity?: string | null;
   /**
    * Parent
    *
@@ -17795,6 +17835,58 @@ export type RdfUnmatched = {
 };
 
 /**
+ * ReactIn
+ */
+export type ReactIn = {
+  /**
+   * Emoji
+   *
+   * one of the palette: 👍 ❤️ 🎉 👀 😂 😮 😢 🙏
+   */
+  emoji: string;
+  /**
+   * On
+   *
+   * give it (true) or take yours back (false)
+   */
+  on?: boolean;
+};
+
+/**
+ * Reaction
+ *
+ * One emoji on an activity: how many people gave it, and whether you did.
+ */
+export type Reaction = {
+  /**
+   * Emoji
+   */
+  emoji: string;
+  /**
+   * Count
+   */
+  count: number;
+  /**
+   * Mine
+   */
+  mine?: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * ReactionsOut
+ */
+export type ReactionsOut = {
+  /**
+   * Reactions
+   *
+   * the reactions on the activity now, in the palette's order
+   */
+  reactions: Array<Reaction>;
+  [key: string]: unknown;
+};
+
+/**
  * Reading
  */
 export type Reading = {
@@ -29875,6 +29967,166 @@ export type MarkActivityResponses = {
 };
 
 export type MarkActivityResponse = MarkActivityResponses[keyof MarkActivityResponses];
+
+export type ReactToActivityData = {
+  body: ReactIn;
+  path: {
+    /**
+     * Activity Id
+     */
+    activity_id: string;
+  };
+  query?: never;
+  url: "/api/v1/activities/{activity_id}/react";
+};
+
+export type ReactToActivityErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ReactToActivityError = ReactToActivityErrors[keyof ReactToActivityErrors];
+
+export type ReactToActivityResponses = {
+  /**
+   * Successful Response
+   */
+  200: ReactionsOut;
+};
+
+export type ReactToActivityResponse = ReactToActivityResponses[keyof ReactToActivityResponses];
+
+export type ListActivityCommentsData = {
+  body?: never;
+  path: {
+    /**
+     * Activity Id
+     */
+    activity_id: string;
+  };
+  query?: never;
+  url: "/api/v1/activities/{activity_id}/comments";
+};
+
+export type ListActivityCommentsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListActivityCommentsError = ListActivityCommentsErrors[keyof ListActivityCommentsErrors];
+
+export type ListActivityCommentsResponses = {
+  /**
+   * Response Activities-List Activity Comments
+   *
+   * Successful Response
+   */
+  200: Array<Comment>;
+};
+
+export type ListActivityCommentsResponse = ListActivityCommentsResponses[keyof ListActivityCommentsResponses];
+
+export type CommentOnActivityData = {
+  body: ActivityCommentCreate;
+  path: {
+    /**
+     * Activity Id
+     */
+    activity_id: string;
+  };
+  query?: never;
+  url: "/api/v1/activities/{activity_id}/comments";
+};
+
+export type CommentOnActivityErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CommentOnActivityError = CommentOnActivityErrors[keyof CommentOnActivityErrors];
+
+export type CommentOnActivityResponses = {
+  /**
+   * Successful Response
+   */
+  200: Comment;
+};
+
+export type CommentOnActivityResponse = CommentOnActivityResponses[keyof CommentOnActivityResponses];
+
+export type DeleteActivityCommentData = {
+  body?: never;
+  path: {
+    /**
+     * Activity Id
+     */
+    activity_id: string;
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/activities/{activity_id}/comments/{cid}";
+};
+
+export type DeleteActivityCommentErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteActivityCommentError = DeleteActivityCommentErrors[keyof DeleteActivityCommentErrors];
+
+export type DeleteActivityCommentResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteActivityCommentResponse = DeleteActivityCommentResponses[keyof DeleteActivityCommentResponses];
+
+export type UpdateActivityCommentData = {
+  body: CommentUpdate;
+  path: {
+    /**
+     * Activity Id
+     */
+    activity_id: string;
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/activities/{activity_id}/comments/{cid}";
+};
+
+export type UpdateActivityCommentErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateActivityCommentError = UpdateActivityCommentErrors[keyof UpdateActivityCommentErrors];
+
+export type UpdateActivityCommentResponses = {
+  /**
+   * Successful Response
+   */
+  200: Comment;
+};
+
+export type UpdateActivityCommentResponse = UpdateActivityCommentResponses[keyof UpdateActivityCommentResponses];
 
 export type CallAutomationHookData = {
   body?: unknown;
