@@ -2,7 +2,7 @@
 """A stand-in for rclone, for tests: remotes are folders under $FAKE_RCLONE_ROOT, and $FAKE_RCLONE_STATE says what
 Google is throttling right now: nothing (empty), "uploads" (new files: Drive's daily upload limit), "downloads", or
 "all". Each throttled call is logged to $FAKE_RCLONE_STATE.log. It lists (lsjson, with --include and --ignore-case),
-reads (cat, with --offset and --count), copies (copyto) and deletes (deletefile)."""
+reads (cat, with --offset and --count), writes what it's given (rcat), copies (copyto) and deletes (deletefile)."""
 
 import fnmatch
 import json
@@ -70,6 +70,11 @@ elif cmd == "cat":
         sys.exit(0)
     data = p.read_bytes()[int(opts.get("--offset", 0)) :]
     sys.stdout.buffer.write(data[: int(opts["--count"])] if "--count" in opts else data)
+elif cmd == "rcat":
+    throttled("uploads")
+    p = remote(rest[0])
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_bytes(sys.stdin.buffer.read())
 elif cmd == "deletefile":
     remote(rest[0]).unlink(missing_ok=True)
 else:

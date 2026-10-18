@@ -4,7 +4,9 @@ google_auth.TOKEN_URL and gmail.API at it, and play the browser on Google's cons
 
 `messages` is {id: {raw, labels, at (ms)}}; `add` and `label` change the mailbox as mail arriving and a label put on
 do, writing Gmail's history. History older than `kept_from` is gone (404), as Gmail forgets it after about a week.
-`requests` keeps (method, path, query) of every request, so a test can check nothing was changed.
+`requests` keeps (method, path, query) of every request, so a test can check nothing was changed. A token with
+gmail.compose (or all of Gmail) sends (messages.send: the message lands in SENT, kept in `sent`) and saves drafts
+(drafts.create, in DRAFT).
 """
 
 from __future__ import annotations
@@ -22,6 +24,7 @@ import urllib.parse
 import jwt
 
 GMAIL_READ = "https://www.googleapis.com/auth/gmail.readonly"
+COMPOSE = "https://www.googleapis.com/auth/gmail.compose"
 MAIL = "https://mail.google.com/"
 LABELS = [
     {"id": "INBOX", "name": "INBOX", "type": "system"},
@@ -49,6 +52,7 @@ class Google:
         self.codes: dict[str, dict] = {}
         self.service_accounts: dict[str, dict] = {}  # client_email -> {public_key, scopes allowed, domain}
         self.refused_refresh = False
+        self.sent: list[dict] = []  # what was sent or drafted: {id, raw, threadId, draft}
         google = self
 
         class Handler(http.server.BaseHTTPRequestHandler):
@@ -64,8 +68,19 @@ class Google:
                 self.wfile.write(data)
 
             def do_POST(self):
-                form = dict(urllib.parse.parse_qsl(self.rfile.read(int(self.headers["Content-Length"])).decode()))
-                google.requests.append(("POST", urllib.parse.urlsplit(self.path).path, {"grant_type": form.get("grant_type")}))
+                path = urllib.parse.urlsplit(self.path).path
+                data = self.rfile.read(int(self.headers["Content-Length"])).decode()
+                if path != "/token":
+                    google.requests.append(("POST", path, {}))
+                    who = google.access.get((self.headers.get("Authorization") or "").removeprefix("Bearer "))
+                    if not who:
+                        return self._json({"error": {"code": 401, "message": "Invalid Credentials"}}, 401)
+                    if not ({COMPOSE, MAIL} & set(who["scope"].split())):
+                        return self._json({"error": {"code": 403, "message": "Request had insufficient authentication scopes."}}, 403)
+                    status, body = google.write(path.split("/gmail/v1/users/me", 1)[-1], json.loads(data))
+                    return self._json(body, status)
+                form = dict(urllib.parse.parse_qsl(data))
+                google.requests.append(("POST", path, {"grant_type": form.get("grant_type")}))
                 status, body = google.token(form)
                 self._json(body, status)
 
@@ -156,6 +171,19 @@ class Google:
                     out.append({"id": rec["id"], **keep})
             return 200, {"history": out, "historyId": str(self.history_id)}
         return 404, {"error": {"code": 404, "message": "not here"}}
+
+    def write(self, path, body):
+        """messages.send and drafts.create: the raw message, base64url, kept and put in the mailbox."""
+        draft = path == "/drafts"
+        if path not in ("/messages/send", "/drafts"):
+            return 404, {"error": {"code": 404, "message": "not here"}}
+        m = body.get("message") if draft else body
+        raw = base64.urlsafe_b64decode(m["raw"] + "=" * (-len(m["raw"]) % 4))
+        mid = self.add(raw, ["DRAFT"] if draft else ["SENT"])
+        thread = m.get("threadId") or mid
+        self.sent.append({"id": mid, "raw": raw, "threadId": m.get("threadId"), "draft": draft})
+        made = {"id": mid, "threadId": thread, "labelIds": ["DRAFT"] if draft else ["SENT"]}
+        return 200, {"id": "r-" + mid, "message": made} if draft else made
 
     # ---------- signing in ----------
     def consent(self, sign_in_url, email_address=None, untick=()):

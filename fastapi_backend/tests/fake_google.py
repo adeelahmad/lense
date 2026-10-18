@@ -1,6 +1,7 @@
 """Google's token endpoint and Calendar API, enough for tests: a service account signs in with a JWT (checked against
 its public key: issuer, audience, scope, and the user it acts as) and a connected account with its refresh token; the
-access tokens they get read the calendars and events the test sets up, in pages, or one time span's (singleEvents)."""
+access tokens they get read the calendars and events the test sets up, in pages, or one time span's (singleEvents),
+and, given calendar.events, add events to a calendar they may write to (events.insert; `added` keeps what came)."""
 
 from __future__ import annotations
 
@@ -16,6 +17,9 @@ import urllib.parse
 import jwt
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
+
+READ = "https://www.googleapis.com/auth/calendar.readonly"
+EVENTS = "https://www.googleapis.com/auth/calendar.events"
 
 
 def service_account_key(email="lens-reader@harbour-project.iam.gserviceaccount.com"):
@@ -42,6 +46,8 @@ class Google:
         self.clients: set[tuple[str, str]] = set()  # OAuth clients (id, secret) that may swap codes
         self.codes: dict[str, dict] = {}  # authorization code -> what the consent screen gave
         self.tokens: dict[str, str] = {}  # access token -> account it reads as
+        self.scopes: dict[str, set] = {}  # access token -> the scopes it was given
+        self.added: list[tuple[str, dict, dict]] = []  # (calendar id, event, query) of each events.insert
         self.calendars: dict[str, dict] = {}  # calendar id -> {summary, timeZone, events: [...], readers: {account}}
         self.lists: dict[str, list] = {}  # account -> calendar ids in its calendar list
         self.calls: list[tuple[str, dict]] = []
@@ -68,7 +74,11 @@ class Google:
                 )
 
             def do_POST(self):
-                form = dict(urllib.parse.parse_qsl(self.rfile.read(int(self.headers["Content-Length"])).decode()))
+                data = self.rfile.read(int(self.headers["Content-Length"])).decode()
+                u = urllib.parse.urlsplit(self.path)
+                if u.path != "/token":
+                    return self._insert(urllib.parse.unquote(u.path), dict(urllib.parse.parse_qsl(u.query)), json.loads(data))
+                form = dict(urllib.parse.parse_qsl(data))
                 google.calls.append(("token", form))
                 if form.get("grant_type") == "urn:ietf:params:oauth:grant-type:jwt-bearer":
                     try:
@@ -88,7 +98,8 @@ class Google:
                             },
                             401,
                         )
-                    if claims.get("scope") != "https://www.googleapis.com/auth/calendar.readonly":
+                    granted = set(str(claims.get("scope") or "").split())
+                    if READ not in granted or not granted <= {READ, EVENTS}:
                         return self._json({"error": "invalid_scope"}, 400)
                 elif form.get("grant_type") == "authorization_code":
                     c = google.codes.pop(form.get("code"), None)
@@ -100,9 +111,15 @@ class Google:
                     if base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip("=") != c["challenge"]:
                         return self._json({"error": "invalid_grant", "error_description": "Invalid code verifier."}, 400)
                     refresh = secrets.token_urlsafe(16)
-                    google.users[refresh] = {"client_id": c["client_id"], "client_secret": form["client_secret"], "account": c["account"]}
+                    google.users[refresh] = {
+                        "client_id": c["client_id"],
+                        "client_secret": form["client_secret"],
+                        "account": c["account"],
+                        "scope": c["granted"],
+                    }
                     token = secrets.token_urlsafe(16)
                     google.tokens[token] = c["account"]
+                    google.scopes[token] = set(c["granted"].split())
                     id_token = jwt.encode(
                         {"iss": "https://accounts.google.com", "sub": "1", "email": c["account"]},
                         "a key Lens never checks: the id token comes straight from Google",
@@ -124,12 +141,32 @@ class Google:
                         return self._json({"error": "invalid_grant", "error_description": "Token has been expired or revoked."}, 400)
                     if (form.get("client_id"), form.get("client_secret")) != (u["client_id"], u["client_secret"]):
                         return self._json({"error": "invalid_client", "error_description": "The OAuth client was not found."}, 401)
-                    who = u["account"]
+                    who, granted = u["account"], set(str(u.get("scope") or READ).split())
                 else:
                     return self._json({"error": "unsupported_grant_type"}, 400)
                 token = secrets.token_urlsafe(16)
-                google.tokens[token] = who
-                return self._json({"access_token": token, "expires_in": 3599, "token_type": "Bearer"})
+                google.tokens[token], google.scopes[token] = who, granted
+                return self._json({"access_token": token, "expires_in": 3599, "token_type": "Bearer", "scope": " ".join(sorted(granted))})
+
+            def _insert(self, path, q, event):
+                token = (self.headers.get("Authorization") or "").removeprefix("Bearer ")
+                who = google.tokens.get(token)
+                google.calls.append((path, q))
+                if not who:
+                    return self._error(401, "authError", "Invalid Credentials")
+                if EVENTS not in google.scopes.get(token, set()):
+                    return self._error(403, "insufficientPermissions", "Request had insufficient authentication scopes.")
+                parts = path.removeprefix("/calendar/v3/").split("/")
+                cal = google.calendars.get(parts[1]) if len(parts) == 3 and parts[0] == "calendars" and parts[2] == "events" else None
+                if not cal or who not in cal["readers"]:
+                    return self._error(404, "notFound", "Not Found")
+                if who not in cal.get("writers", set()):
+                    return self._error(403, "requiredAccessLevel", "You need to have writer access to this calendar.")
+                made = {**event, "id": f"added{len(google.added) + 1}", "status": "confirmed"}
+                made["htmlLink"] = f"https://www.google.com/calendar/event?eid={made['id']}"
+                cal["events"].append(made)
+                google.added.append((parts[1], event, q))
+                return self._json(made)
 
             def do_GET(self):
                 u = urllib.parse.urlsplit(self.path)

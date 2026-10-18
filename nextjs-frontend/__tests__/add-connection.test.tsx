@@ -27,12 +27,12 @@ const BACKENDS = {
   smb: { label: "SMB", fields: { host: "", user: "", port: "", domain: "" }, secrets: ["pass"] },
   gcal: {
     label: "Google Calendar",
-    fields: { calendars: "", impersonate: "", days_back: "365", account: "" },
+    fields: { calendars: "", impersonate: "", days_back: "365", account: "", write: "" },
     secrets: ["token", "service_account_credentials"],
   },
   gmail: {
     label: "Gmail or Google Workspace",
-    fields: { user: "", via: "api" },
+    fields: { user: "", via: "api", write: "" },
     secrets: ["token", "service_account_credentials"],
   },
 };
@@ -142,7 +142,13 @@ describe("connecting a Google account", () => {
     expect((Sources.createSource as jest.Mock).mock.calls[0][0].body).toEqual({
       type: "gcal",
       name: "Google Calendar",
-      params: { calendars: "team@group.calendar.google.com", impersonate: "", days_back: "365", account: "" },
+      params: {
+        calendars: "team@group.calendar.google.com",
+        impersonate: "",
+        days_back: "365",
+        account: "",
+        write: "",
+      },
       secrets: {},
     });
     expect((Sources.connectGoogle as jest.Mock).mock.calls[0][0]).toMatchObject({ path: { sid: 7 }, body: {} });
@@ -180,12 +186,16 @@ describe("connecting a Google account", () => {
     expect(Sources.createSource).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("radio", { name: "Google account" }));
+    // the assistant only reads unless sending is turned on here, and then each message waits for a yes
+    const assistant = screen.getByRole("combobox", { name: "The assistant" });
+    expect(assistant).toHaveValue("");
+    fireEvent.change(assistant, { target: { value: "yes" } });
     fireEvent.click(await screen.findByRole("button", { name: "Connect with Google" }));
     await waitFor(() => expect(navigate.assign).toHaveBeenCalledWith(CONSENT));
     expect((Sources.createSource as jest.Mock).mock.calls[0][0].body).toEqual({
       type: "gmail",
       name: "Gmail",
-      params: { user: "", via: "api" },
+      params: { user: "", via: "api", write: "yes" },
       secrets: {},
     });
     expect((Sources.connectGoogle as jest.Mock).mock.calls[0][0]).toMatchObject({ path: { sid: 7 }, body: {} });
