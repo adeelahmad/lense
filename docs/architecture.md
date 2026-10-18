@@ -81,6 +81,16 @@ whose worker stops responding is retried up to `workers.max_attempts`. Admins ca
 jobs), drain it (it also hands its job back after the step it's on) and resume it; the flag lives on the worker's
 record, so it holds across restarts. `GET /api/v1/events` streams job progress as server-sent events.
 
+**Quiet processing** (Settings › Workers, both off by default) keeps the heavy steps (`workers.heavy_steps`: by
+default transcribe, read, diarize, shots, ocr, faces, objects and nsfw, the ones that work through media on this
+machine) to when it suits a small machine at home:
+
+- `workers.heavy_hours`, a window like `01:00-06:00` in `workers.timezone` (UTC by default; it may pass midnight).
+  Outside it no job starts a heavy step: a job that reaches one goes back on the queue, its log saying why, and waits
+  for the window. Light steps (analysis, summaries, reports) still run.
+- `workers.heavy_at_once`, how many jobs may be in a heavy step at a time across every worker. A step already running
+  finishes; two workers claiming in the same instant can briefly make it one more.
+
 In development the API can run workers in-process (`RUN_BACKGROUND=true` or `workers.inline > 0`); the Docker setups
 run a separate `worker` service.
 

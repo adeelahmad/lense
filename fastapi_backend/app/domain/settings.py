@@ -466,6 +466,29 @@ def secrets_view(db, base):
     return {"providers": secret_providers.providers(eff), "references": refs, "fields": fields}
 
 
+def _quiet_setting(key, value):
+    """Quiet processing (quiet.py): the heavy steps' hours, how many at once, which steps, and the hours' time zone."""
+    from . import jobs, quiet, schedule
+
+    if key == "heavy_hours":
+        if value is None or (isinstance(value, str) and not value.strip()):
+            return None
+        quiet.window(value)  # ValueError when it isn't a window
+        return value.strip()
+    if key == "heavy_at_once":
+        if value is not None and not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 64):
+            raise ValueError("workers.heavy_at_once is a whole number from 1 to 64, or empty for no limit")
+        return value
+    if key == "heavy_steps":
+        if not (isinstance(value, list) and all(isinstance(s, str) and s in jobs.STEPS for s in value)):
+            raise ValueError(f"workers.heavy_steps is a list of steps: {', '.join(jobs.STEPS)}")
+        return value
+    if not isinstance(value, str):
+        raise ValueError("workers.timezone is a time zone, like Europe/London")
+    schedule.zone(value.strip() or "UTC")
+    return value.strip() or "UTC"
+
+
 def _updates_setting(key, value):
     if key == "check_hours":
         if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 24 * 30):
@@ -690,6 +713,8 @@ def _check(section, key, value, default):
         if not isinstance(value, str) or len(value) > 200:
             raise ValueError("files.folder is a folder (a bucket and path for S3), up to 200 characters")
         return blobs._folder(value)
+    if section == "workers" and key in ("heavy_hours", "heavy_at_once", "heavy_steps", "timezone"):
+        return _quiet_setting(key, value)
     if (section, key) == ("video", "object_min_score"):
         if not (isinstance(value, (int, float)) and not isinstance(value, bool) and 0.05 <= value <= 0.95):
             raise ValueError("video.object_min_score is a number from 0.05 to 0.95")
