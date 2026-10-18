@@ -4646,9 +4646,7 @@ def undo_share(ctx: Context, share_id: int) -> dict[str, Any]:
     Arg("day_end", "integer", "the hour each day ends", default=18, minimum=1, maximum=24),
     personal=True,
 )
-def when_free(
-    ctx: Context, people: list[str], start: str, end: str, tz: str, minutes: int, day_start: int, day_end: int
-) -> dict[str, Any]:
+def when_free(ctx: Context, people: list[str], start: str, end: str, tz: str, minutes: int, day_start: int, day_end: int) -> dict[str, Any]:
     from app.domain import circles_ask
 
     return circles_ask.find_time(
