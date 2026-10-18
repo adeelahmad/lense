@@ -715,6 +715,19 @@ DEFAULTS = {
     # encryption at rest (docs/encryption.md): files Lens keeps under data_dir, encrypted with their namespace's key;
     # work_minutes: how long a plain working copy for ffmpeg and the other tools is kept after its last use
     "encryption": {"files": False, "work_minutes": 30, "vault_minutes": 60},
+    # secrets kept in a password manager (docs/secrets.md; domain/secret_providers.py): a secret field in Settings can
+    # hold a reference like vaultwarden://Item/password instead of the secret, read when the settings are built and
+    # again after cache_minutes. Vaultwarden (or Bitwarden): the server's address, the account Lens signs in as (its
+    # email, API key and master password, the last two secrets) and the one folder of it Lens may read.
+    "secrets": {
+        "cache_minutes": 10,
+        "vaultwarden_url": None,
+        "vaultwarden_email": None,
+        "vaultwarden_client_id": None,
+        "vaultwarden_client_secret": None,
+        "vaultwarden_password": None,
+        "vaultwarden_folder": "Lens",
+    },
     # the activity ledger (docs/activity.md): every change and call in or out, with its cost, per resource. On by
     # default; reads: log API reads (GET) too; keep_days: how long rows are kept
     "activity": {"enabled": True, "reads": False, "keep_days": 365},
