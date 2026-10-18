@@ -1,8 +1,11 @@
 # threat-model.yaml — derived index; the prose threat model (threat-model.md) is canonical.
-# Authority order: prose > yaml > json. Regenerate whenever the prose changes.
+# Authority order: prose > yaml > json. Regenerate whenever the prose changes: CI fails a change to the prose that
+# changes neither this file nor threat-model.json (ci/validate_threat_model.py --base).
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:d8b5fc4190658c39152d524e80f25796bf58fdbb089e4a41ae433b7c77a63076"
+# The prose in the same commit, not a hash of it: a hash is one line every change to the prose edits, so any two pull
+# requests touching the prose conflicted on it (#507). `git hash-object threat-model.md` names the exact prose.
+prose_version: "threat-model.md@same-commit"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 205, maintainer: 46, inferred: 91, assumption: 8}
@@ -607,15 +610,6 @@ entry_points:
         control_kinds: [data, x-prompt-injection]
         caller_must_enforce: "none — served only to the conversation's person (404 otherwise, or for another conversation's id) as an attachment with nosniff and a sandbox content policy, never rendered; random 96-bit id checked against the conversation; kept AES-256-GCM encrypted with a key derived from the server's secret, bound to the file and conversation; at most 20 a conversation, 25 MB each; deleted with the conversation or the account"
         provenance: {kind: documented, source: 'docs/assistant.md "Code sandbox"'}
-  - id: "lens help tool"
-    component: authz
-    parameters:
-      - name: "assistant and MCP lens_help: a question's words, a docs page's name"
-        attacker_controllable: true
-        x-condition: "any signed-in person or agent with a read token; indirectly through content the model reads"
-        control_kinds: [data, x-prompt-injection]
-        caller_must_enforce: "none — it only reads: docs from a fixed folder (a page picked by name from the indexed ones, never opened by path) in an in-memory index; this server's facts carry no keys, tokens or model server addresses, and the settings pages only for admins"
-        provenance: {kind: documented, source: 'docs/assistant.md "Questions about Lens itself"'}
   - id: "microsandbox program requests"
     component: authz
     parameters:

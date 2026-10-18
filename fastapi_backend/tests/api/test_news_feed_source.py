@@ -10,7 +10,7 @@ import threading
 
 import pytest
 
-from app.domain import content_types, feeds, netguard, rss, sources, store
+from app.domain import content_types, events, feeds, netguard, rss, sources, store
 from tests.helpers import drain, login, make_user
 
 R = store.R
@@ -163,6 +163,21 @@ def test_a_news_feed_as_a_source(site, client, db, cfg, admin):  # site first: i
     types = content_types.all_types(db)
     rec = db.one("SELECT source, path, title, media FROM $r", r=R("recording", one["id"]))
     assert content_types.recognise(db, rec, types)["key"] == "feed_post"
+    # an activity automations can start on: the post's address, feed and author, its text marked as outside text
+    a = events.get(db, cfg, f"create-recording-{one['id']}", events.viewer(1, None, admin=True))
+    assert a["kind"] == "feed_post.received" and events.check_activity(a)
+    assert a["actor"] == {"type": "Service", "id": f"lens:source/{sid}", "name": "harbour"}
+    o = a["object"]
+    assert (o["href"], o["site"], o["feed"], o["author"], o["published"], o["categories"]) == (
+        "https://harbour.example.org/posts/night",
+        "harbour.example.org",
+        "Harbour news",
+        "Mara Keane",
+        "2026-09-29T08:30:00+00:00",
+        ["Harbour"],
+    )
+    assert a["summary"] == "harbour received the post “Night crossing” from harbour.example.org"
+    assert {"object.name", "object.href", "object.feed", "object.author"} <= set(a["lens"]["untrusted"])
 
     # asked again once the copy read is old: it hasn't changed (304), so nothing is new and nothing is parsed
     _stale()
