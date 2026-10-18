@@ -78,8 +78,7 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [API](docs/api.md), [the graph as files](docs/file-tree.md), [authentication](docs/authentication.md);
   [checks](docs/requirements.md#connect-your-agents))
 - **Ask, and get cited answers.** A chat assistant on every page, and by voice, searches your archive by words (and by
-  meaning, once turned on), reads it, cites it and acts on it with tools: changes wait for your approval. It answers
-  questions about Lens itself from its docs and this server's settings. Once an admin
+  meaning, once turned on), reads it, cites it and acts on it with tools: changes wait for your approval. Once an admin
   turns them on, it also searches the web and reads pages, cited like the archive, and runs Python and bash in a sandbox
   of each conversation's own. An admin's assistant searches and reads the mail, calendars and files connected to Lens
   (Gmail, Google Calendar, Google Drive, S3 and the rest), cites messages and events, and brings them in once you
@@ -88,13 +87,14 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   nothing is lost. Each answer keeps a record of what produced it (the model, its tools, how long it took and what it
   cost), opened from its header. It reads answers aloud with a speech provider, macOS `say` or StyleTTS2 on this machine
   (opt-in), any message in one click. Long conversations are summarised before they fill the model's context, and
-  `/clear` and `/compact` start afresh or summarise now. Conversations title themselves after their first answer, unless
+  `/clear` and `/compact` start afresh or summarise now. It answers questions about Lens itself (how to back up,
+  whether Telegram is on) from its docs and this server, citing both. Conversations title themselves after their first answer, unless
   you name them. Each namespace can have its own assistant with
   its own name, instructions and memory, answering in Telegram and Slack (built in, with voice notes and files), in
   Discord, Matrix, WhatsApp and other chat rooms through Matterbridge, and by email at an address of its own that you
   email or forward things to. ([Chat](docs/assistant.md), [web search](docs/assistant.md#web-search-and-reading-pages),
-  [mail, calendars and files](docs/assistant.md#mail-calendars-and-files), [code sandbox](docs/assistant.md#code-sandbox), [questions about Lens](docs/assistant.md#questions-about-lens-itself), [answer records](docs/assistant.md#what-each-answer-records),
-  [chat rooms](docs/chat-rooms.md), [email](docs/assistant-email.md), [speech providers](docs/speech-providers.md);
+  [mail, calendars and files](docs/assistant.md#mail-calendars-and-files), [code sandbox](docs/assistant.md#code-sandbox), [answer records](docs/assistant.md#what-each-answer-records),
+  [questions about Lens](docs/assistant.md#questions-about-lens-itself), [chat rooms](docs/chat-rooms.md), [email](docs/assistant-email.md), [speech providers](docs/speech-providers.md);
   [checks](docs/requirements.md#ask-and-get-cited-answers))
 - **Extend the assistant.** Add tools (a prompt, a web request, a graph drawn on the canvas, or sandboxed Python),
   skills, hooks and MCP servers, by code, on the canvas or just by asking. Remote MCP servers connect by address, and
@@ -168,8 +168,9 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   content types or topics, acting only on a sure answer, and an Entity filter node keeps the entities you want. Anything that reaches outside Lens or changes more than what
   set it off asks first, until you let it run on its own: on the Approvals page or, for a change inside Lens, with a yes
   in the chat it told you in; agents can decline an approval but never give one. Each automation has limits and budgets,
-  and agents make, try and run them over MCP and in the assistant, or draft one from a sentence; the studio to draw them
-  in the web app is planned. ([Processing](docs/processing.md#workflows-and-the-canvas),
+  and agents make, try and run them over MCP and in the assistant, or draft one from a sentence. An automation's
+  workflow is drawn and tried on the workflow canvas, with its actions in the palette; the studio's builder is
+  planned. ([Processing](docs/processing.md#workflows-and-the-canvas),
   [converting assets](docs/processing.md#converting-assets), [notifications](docs/notifications.md),
   [automations](docs/automations.md),
   [approvals](docs/automations.md#approvals), [timeline](docs/timeline.md); [checks](docs/requirements.md#automate-it))
@@ -254,7 +255,8 @@ These are open pull requests, not yet part of Lens:
 
 Next, and not in a pull request yet; each links to where it is tracked:
 
-- **The automations studio:** drawing automations in the web app ([automations](docs/automations.md)).
+- **The automations studio:** a When, If and Then builder for automations, with their runs and costs, in the web app
+  ([automations](docs/automations.md)).
 - **Timeline:** what each item caused, and Approve and Decline on waiting approvals ([timeline](docs/timeline.md)).
 - **Notes:** nesting a note under its project or area without a click, pages in the graph, and wiki addresses for
   topics, recordings and the other things that have pages ([notes](docs/notes.md)).
