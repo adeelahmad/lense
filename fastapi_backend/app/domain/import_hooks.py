@@ -235,6 +235,9 @@ def accept_url(db, cfg, hook, url, title=None):
     if not convert.web_capture(cfg) and not urllib.parse.urlsplit(url).path.lower().endswith(".pdf"):
         raise ValueError("capturing web pages needs Chromium on the server (the lens:full image); a link to a PDF works without it")
     by = actor(hook)
+    if (had := webcapture.existing(db, hook["space"], url)) is not None:  # the namespace has it: link to it
+        _used(db, hook, 1)
+        return {"kind": "url", "name": url, "recording": had, "duplicate": True}
     rid = webcapture.create(db, hook["space"], url, title, _collection(db, hook), by=by["email"])
     job = jobs.enqueue(db, rid, None, by=by["email"], pipeline=hook.get("pipeline"))
     _used(db, hook, 1)

@@ -632,6 +632,11 @@ def _ingest(db, cfg, src, f, kind, space, by, steps=None, pipeline=None, collect
     known = db.one("SELECT record::id(id) AS id FROM recording WHERE fp_key = $k", k=f"{space}:{fp}")
     if known:
         return known["id"], None
+    if src["type"] == "local" and not f.get("key"):  # a file on this machine: by what's in it, as uploads are
+        fp = ingest.fingerprint(check_path(cfg, src, f["path"]))
+        copy = db.one("SELECT record::id(id) AS id FROM recording WHERE space = $s AND fingerprint = $f LIMIT 1", s=space, f=fp)
+        if copy:  # the same file in another folder, uploaded, or found by a scan: link to it, not read it twice
+            return copy["id"], None
     rid, mail = db.next_id("recording"), _mail_of(f)
     db.q(
         "CREATE $r CONTENT $d",
@@ -868,7 +873,7 @@ def import_files(db, cfg, sid, paths, space, by, pipeline=None, collection=None,
                 try:
                     deletion.forget(db, space, path=f"{src['name']}:{p}")  # chosen on purpose: it may come back
                     rid, job = _ingest(db, cfg, src, f, kind, space, by, None, pipeline, collection)
-                    results.append(store.clean({"path": p, "status": "queued", "recording": rid, "job": job}))
+                    results.append(store.clean({"path": p, "status": "queued" if job else "already", "recording": rid, "job": job}))
                 except Exception as e:  # noqa: BLE001 - one bad file must not stop the rest
                     results.append({"path": p, "status": "error", "detail": f"{type(e).__name__}: {e}"[:300]})
     return results

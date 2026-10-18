@@ -54435,15 +54435,27 @@
             "title": "Id"
           },
           "job": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Job"
+          },
+          "duplicate": {
+            "type": "boolean",
+            "title": "Duplicate",
+            "description": "the namespace already had this page or video: `id` is that resource",
+            "default": false
           }
         },
         "additionalProperties": true,
         "type": "object",
         "required": [
-          "id",
-          "job"
+          "id"
         ],
         "title": "ImportResult"
       },
