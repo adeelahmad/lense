@@ -39,11 +39,25 @@ class ReplyBefore(ResponseModel):
     at: str | None = None
 
 
+class ReplySent(ResponseModel):
+    at: str | None = None
+    by: str | None = None
+    connection: int | None = Field(None, description="the mail connection it went out through")
+    id: str | None = Field(None, description="Gmail's id of the message")
+    draft: str | None = Field(None, description="Gmail's id of the draft, when it was kept as one")
+    thread: str | None = None
+    url: str | None = Field(None, description="the message in Gmail")
+
+
+class ReplySend(RequestModel):
+    draft: bool = Field(False, description="keep it in Gmail's drafts instead of sending it")
+
+
 class Reply(ResponseModel):
     recording: int | None = Field(None, description="the email it answers")
-    status: Literal["none", "drafting", "draft", "skipped", "dismissed", "sent", "failed"] = Field(
+    status: Literal["none", "drafting", "draft", "skipped", "dismissed", "saved", "sent", "failed"] = Field(
         description="draft: waiting for the person; drafting: a job is on it (job); skipped: mail not to answer (why); "
-        "failed: the last job to draft it failed (error)"
+        "failed: the last job to draft it failed (error); saved: kept in Gmail's drafts; sent: sent (sent)"
     )
     why: str | None = None
     to: list[str] | None = None
@@ -66,6 +80,8 @@ class Reply(ResponseModel):
     instructions: str | None = None
     edited: bool | None = Field(None, description="someone changed the draft's text")
     previous: ReplyBefore | None = Field(None, description="the text it had before the last edit or draft, to undo it")
+    sends: bool | None = Field(None, description="it can go out through the Gmail connection the email came in on")
+    sent: ReplySent | None = Field(None, description="when and how it was sent or kept in Gmail's drafts")
     drafted_at: str | None = None
     updated_at: str | None = None
 

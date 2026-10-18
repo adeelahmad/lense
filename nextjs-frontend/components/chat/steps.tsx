@@ -60,6 +60,7 @@ const ICON: Record<string, LucideIcon> = {
   read_file: FileText,
   import_from_connection: FileInput,
   send_mail: Send,
+  send_reply: Send,
   add_event: CalendarPlus,
   write_file: FilePlus,
 };

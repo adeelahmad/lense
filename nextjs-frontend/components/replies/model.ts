@@ -71,8 +71,10 @@ export function statusLine(r: Reply): string {
       return `Not drafted, as mail not to answer${r.why ? ` (${r.why})` : ""}.`;
     case "dismissed":
       return "Set aside.";
+    case "saved":
+      return "Kept in Gmail’s drafts.";
     case "sent":
-      return "Sent.";
+      return r.sent?.by ? `Sent by ${r.sent.by}.` : "Sent.";
     case "draft":
       return r.unconfirmed ? `Draft ready, ${r.unconfirmed} to confirm` : "Draft ready";
     default:

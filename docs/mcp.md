@@ -116,6 +116,7 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 | `draft_reply` | draft a [reply](email-replies.md) to an email from what its namespace holds, each fact cited to its excerpt and what the archive doesn't say marked to confirm; `instructions` says what it should say. It's drafted in the background and nothing is sent. Needs a write-scope token and the right to process the email |
 | `get_reply` | an email's reply: its status, who it goes to, the draft with and without its citations, its sources and what's left to confirm |
 | `edit_reply` | change a draft reply's text, recipients or subject, or set it aside and bring it back. Needs a write-scope token and the right to process the email |
+| `send_reply` | ask the person to send a draft [reply](email-replies.md#sending) through the Gmail connection its email came in on, or keep it in Gmail's drafts: it waits in Approvals with all of the message, and sends the text approved. Needs an admin's write-scope token and the right to process the email |
 | `nsfw_settings` | how [NSFW classification](nsfw.md) works in a namespace: on or off, the threshold, how flagged resources show, and how many are classified, flagged and not classified yet |
 | `set_nsfw` | turn NSFW classification on or off, set its threshold and display, for a namespace (owners) or the archive (admins), and optionally classify what's there. Needs a write-scope token |
 | `mark_nsfw` | mark a resource NSFW or not by hand, or hand it back to the model's score. Needs a write-scope token and editor access |
@@ -185,7 +186,7 @@ which records an undoable change (proposed by default), `undo_graph_change`, `ed
 `merge_topics`, `delete_topic` and `undo_topic_change`, which curate entities and topics as an editor does in the web
 app (merges and deletes can be undone), `write_note`, which adds a note, `create_podcast`, which
 queues an episode, `create_feed` and `publish_to_feed`, which make and fill a [published feed](feeds.md),
-`write_spec`, which queues a spec, `draft_reply` and `edit_reply`, which draft and change [email replies](email-replies.md) (nothing is sent), `set_nsfw` and `mark_nsfw`, which change [NSFW classification](nsfw.md) (owners or admins, and
+`write_spec`, which queues a spec, `draft_reply` and `edit_reply`, which draft and change [email replies](email-replies.md) (nothing is sent), `send_reply`, which asks to send one (it waits in Approvals), `set_nsfw` and `mark_nsfw`, which change [NSFW classification](nsfw.md) (owners or admins, and
 editors), `enhance`, which enhances an image and reads it again (the process permission),
 `set_namespace_integrations`, which turns a namespace's own MCP server or chat completions on or off (owners), `set_picture_descriptions`, which changes what describes pictures (admins), `set_file_storage`, which changes where new files are kept (admins), `set_secret_reference`, which points a secret field at a password manager's item (admins), `install_plugin`, which
 installs a plugin from a marketplace as your own extension, `add_mcp_server`, which adds an

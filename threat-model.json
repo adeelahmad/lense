@@ -497,10 +497,10 @@
     },
     {
       "entry_point": "email replies",
-      "parameter": "an imported email's headers and text (From, Reply-To, Message-ID, References, the body), read to draft a reply",
+      "parameter": "an imported email's headers and text (From, Reply-To, Message-ID, References, the body), read to draft a reply; the reply sent, or kept in Gmail's drafts, through the Gmail connection the email came in on",
       "attacker_controllable": "yes",
       "component": "assistant",
-      "caller_must_enforce": "drafting needs the right to process the email; the email reaches the model marked untrusted and the system prompt says not to follow it; only the email's own namespace is searched for excerpts; a web address in the draft that neither the email nor the excerpts hold is broken up, and a citation to an excerpt the model wasn't given is taken out; nothing is sent: a draft waits for the person, who sees its recipient (the address Reply-To names) before anything goes",
+      "caller_must_enforce": "drafting needs the right to process the email; the email reaches the model marked untrusted and the system prompt says not to follow it; only the email's own namespace is searched for excerpts; a web address in the draft that neither the email nor the excerpts hold is broken up, and a citation to an excerpt the model wasn't given is taken out; nothing is sent on its own: sending (or keeping it in Gmail's drafts) is an admin's own pick, signed in to Lens, after an Undo window, on a Gmail connection an admin let send (write), checked when it goes; an API key, an app or an agent can only ask (MCP `send_reply`), which waits in Approvals showing all of the message and sends the text that was approved, never a later edit; a draft with a [to confirm: …] mark left isn't sent; the recipient (the address Reply-To names) is shown and editable before anything goes; the reply goes without its citations; each send is in the audit log",
       "provenance": "documented",
       "source": "docs/email-replies.md \"Lens never sends a reply on its own\""
     },
