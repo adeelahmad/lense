@@ -2620,6 +2620,7 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
       <F ctx={ctx} id="ai.refine_notes" />
       <F ctx={ctx} id="ai.organise_notes" />
       <F ctx={ctx} id="ai.compact" />
+      <F ctx={ctx} id="ai.auto_title" />
       <More
         ctx={ctx}
         ids={["ai.untrusted_marking", "ai.untrusted_asks", "ai.injection_check"]}

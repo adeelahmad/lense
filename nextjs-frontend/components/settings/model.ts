@@ -518,6 +518,9 @@ export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
   { name: "read_settings", label: "Read settings (admins)", acts: false },
   { name: "change_settings", label: "Change settings (admins)", acts: true },
   { name: "create_namespace", label: "Create namespaces (admins)", acts: true },
+  { name: "news_feeds", label: "List the news feeds Lens follows (admins)", acts: false },
+  { name: "subscribe_feed", label: "Follow news feeds (admins)", acts: true },
+  { name: "unsubscribe_feed", label: "Stop following news feeds (admins)", acts: true },
 ];
 
 /** The speech providers (the backend's app/domain/speech.py), in the order Settings shows them. */
@@ -907,13 +910,20 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "ai",
+    key: "auto_title",
+    label: "Title conversations",
+    kind: "switch",
+    hint: "After the first answer, the model gives a conversation a short title, with the model for summaries when one is set. A title you give it is kept. Off: it's titled with the first question.",
+  },
+  {
+    section: "ai",
     key: "compact_model",
     label: "Model for summaries",
     kind: "text",
     nullable: true,
     mono: true,
     placeholder: "the chat's model",
-    hint: "A smaller, cheaper model on the same provider to write them.",
+    hint: "A smaller, cheaper model on the same provider to write them, and conversations' titles.",
   },
   {
     section: "ai",
