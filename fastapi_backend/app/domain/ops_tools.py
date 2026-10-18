@@ -11,7 +11,26 @@ elsewhere, always waits for approval.
 
 from __future__ import annotations
 
-from . import auth, blobs, convert, decide, feeds, jobs, links, llm, metadata, roles, rss, scaling, settings, setup, sources, store, uploads
+from . import (
+    auth,
+    blobs,
+    convert,
+    decide,
+    feeds,
+    jobs,
+    links,
+    llm,
+    metadata,
+    roles,
+    rss,
+    scaling,
+    secret_providers,
+    settings,
+    setup,
+    sources,
+    store,
+    uploads,
+)
 
 R = store.R
 _S = {"type": "string"}
@@ -47,11 +66,13 @@ SECTIONS = (
     "sensors",
     "shares",
     "web",
+    "secrets",
     "scaling",
 )
 # telemetry, analytics and web search send data elsewhere; sensors and shares open ports on the network; files moves
-# where new files go; scaling turns on what can launch paid machines
-ALWAYS_ASK = {"telemetry", "analytics", "sensors", "shares", "files", "web", "scaling"}
+# where new files go; secrets is where Lens signs in to a password manager; scaling turns on what can launch paid
+# machines
+ALWAYS_ASK = {"telemetry", "analytics", "sensors", "shares", "files", "web", "secrets", "scaling"}
 ASK_TOOLS = {"invite_person", "change_person"}  # who gets in always waits for the admin's approval
 # within a scaling group's approved terms (its min, max and budget), so made at once unless the answer read outside text
 WITHIN_BOUNDS = {"set_scaling_desired", "pause_scaling_group", "terminate_scaling_unit"}
@@ -164,6 +185,16 @@ ADMIN_TOOLS = [
         False,
     ),
     (
+        "list_secrets",
+        "Every secret field in Settings (API keys, tokens, passwords): whether it's set, and the reference it holds when it "
+        "comes from a password manager (like vaultwarden://OpenAI/password) with whether that could be read; and the password "
+        "managers Lens can read from. Never a value. A secret field takes a reference through change_settings, e.g. llm "
+        "{api_key: 'vaultwarden://OpenAI/password'}; the manager is set up with change_settings secrets.",
+        {},
+        [],
+        False,
+    ),
+    (
         "subscribe_feed",
         "Follow a news feed (RSS or Atom) into a namespace: url is the feed's address, or a page of the site that names "
         "it. It's read first and kept only if it works, named by the feed's title unless name says. Each new post then "
@@ -179,6 +210,14 @@ ADMIN_TOOLS = [
         {"feed": {"type": "integer"}},
         ["feed"],
         True,
+    ),
+    (
+        "vault_items",
+        "The items of the password manager Lens may refer to (the folder it reads): each one's name, type, the fields that "
+        "hold something and the reference to each, never their values. q: part of a name.",
+        {"q": _S, "provider": {"type": "string", "enum": ["vaultwarden"]}},
+        [],
+        False,
     ),
     (
         "create_namespace",
@@ -562,9 +601,28 @@ class OpsTools:
             raise ValueError(f"{section} isn't one of {', '.join(SECTIONS)}")
         if not isinstance(changes, dict) or not changes:
             raise ValueError("changes is an object of the settings to change")
-        shown = {k: ("(a secret)" if k in settings.SECRETS.get(section, ()) else v) for k, v in changes.items()}
+        shown = {
+            k: (v if secret_providers.is_reference(v) else "(a secret)") if k in settings.SECRETS.get(section, ()) else v
+            for k, v in changes.items()
+        }
         what = ", ".join(f"{k} = {v}" for k, v in shown.items())
         return self._change("change_settings", {"section": section, "changes": changes}, f"Set {section}: {what}")
+
+    def t_list_secrets(self):
+        if not self.admin:
+            raise PermissionError("only admins see the secrets settings")
+        return settings.secrets_view(self.db, self.base), "Listed the secret settings and where each comes from"
+
+    def t_vault_items(self, q=None, provider="vaultwarden"):
+        if not self.admin:
+            raise PermissionError("only admins see the password manager's items")
+        p = secret_providers.PROVIDERS.get(provider)
+        if p is None or not p.scheme:
+            raise ValueError("provider is vaultwarden")
+        if not p.configured(self.cfg):
+            raise ValueError(f"{p.label} isn't set up yet: Settings → Secrets, or change_settings secrets")
+        items = p.items(self.cfg, q)
+        return {"provider": p.id, "items": items}, f"Listed {len(items)} item(s) Lens may refer to in {p.label}"
 
     def t_file_storage(self, check=False):
         f = self.cfg.get("files") or {}

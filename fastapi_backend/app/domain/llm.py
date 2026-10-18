@@ -18,6 +18,22 @@ class LLMError(RuntimeError):
     pass
 
 
+class ContextFull(LLMError):
+    """The server refused a request too long for the model's context. `window`: the context it said the model has, when
+    it said (kept as the model's, so the next conversation is summarised before it fills that)."""
+
+    def __init__(self, message, window=None):
+        super().__init__(message)
+        self.window = window
+
+
+# how servers say a request doesn't fit: OpenAI's, vLLM's and OpenRouter's "maximum context length", llama.cpp's
+# "exceeds the available context size", Groq's context_length_exceeded, Mistral's "too large for model with N maximum
+# context length", Anthropic's "prompt is too long", Gemini's "exceeds the maximum number of tokens"
+FULL_SAYS = re.compile(r"context[ _-]?(?:length|size|window)|maximum context|prompt is too long|exceeds the maximum number of tokens", re.I)
+WINDOW_SAYS = re.compile(r"maximum context length is (\d{3,7})|with (\d{3,7}) maximum context length|\"n_ctx\"\s*:\s*(\d{3,7})", re.I)
+
+
 def configured(cfg):
     return bool(cfg["llm"].get("base_url") and cfg["llm"].get("model"))
 
@@ -49,7 +65,14 @@ def _post(cfg, payload):
     try:
         return urllib.request.urlopen(req, timeout=l.get("timeout") or 300)
     except urllib.error.HTTPError as e:
-        raise LLMError(f"{e.code} from the LLM server: {e.read().decode('utf-8', 'replace')[:300]}") from None
+        said = e.read().decode("utf-8", "replace")
+        if e.code in (400, 413) and FULL_SAYS.search(said):
+            m = WINDOW_SAYS.search(said)
+            window = _tokens(next(g for g in m.groups() if g)) if m else None
+            if window:  # what the server said, rather than what it lists or nothing
+                _WINDOWS[(l["base_url"].rstrip("/"), payload.get("model") or l["model"])] = (time.monotonic(), window)
+            raise ContextFull(f"{e.code} from the LLM server: {said[:300]}", window) from None
+        raise LLMError(f"{e.code} from the LLM server: {said[:300]}") from None
     except (urllib.error.URLError, TimeoutError, OSError) as e:
         raise LLMError(f"can't reach the LLM server at {l['base_url']}: {e}") from None
 
@@ -327,6 +350,8 @@ def chat_message(cfg, messages, tools=None, model=None, temperature=0.2, tool_ch
     try:
         with telemetry.model_call(cfg, payload) as call, _post(cfg, payload) as r:
             j = call.reply(_load(r))
+    except ContextFull:  # a 400 too, but the tools aren't why
+        raise
     except LLMError as e:
         if tools and str(e)[:3] in ("400", "404", "422", "501"):
             raise ToolsUnsupported(str(e)) from None
