@@ -16,6 +16,23 @@ docker compose -f docker-compose.prod.yml up -d --build
 docker compose -f docker-compose.prod.yml logs backend | grep "setup code"
 ```
 
+## Prebuilt images
+
+Each release publishes Lens's own images to GHCR, built for amd64 and arm64 (a Raspberry Pi, a Mac with Apple silicon,
+an arm64 server), so a machine can download them instead of building
+([images.yml](https://github.com/adeelahmad/lense/blob/main/.github/workflows/images.yml)):
+
+| Image | Tags | What it is |
+|---|---|---|
+| `ghcr.io/adeelahmad/lens-backend` | `X.Y.Z-full` (also `X.Y.Z`, `latest-full`, `latest`) | the API and workers, full edition: reads Office files, web pages and emails too |
+| `ghcr.io/adeelahmad/lens-backend` | `X.Y.Z-lean` (also `latest-lean`) | the same without LibreOffice and Chromium |
+| `ghcr.io/adeelahmad/lens-frontend` | `X.Y.Z` (also `latest`) | the web app |
+
+`latest` follows the newest release. Pin a version (`X.Y.Z`) in anything you run, and run that release's
+`docker-compose.prod.yml` with it, since a version's images and its compose file go together. The images carry no
+optional extras (`EXTRAS`): to bake one in, build from source as above. The images are built in CI from the release's
+tag with the repository's own token; nothing else signs or hosts them.
+
 ## Checklist
 
 * **HTTPS in front of the web app**: [Remote access](remote-access.md) (a Cloudflare Tunnel Lens runs itself, set up in

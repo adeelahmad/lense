@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Lens",
-    "version": "0.14.0"
+    "version": "0.15.0"
   },
   "paths": {
     "/api/v1/auth/status": {
@@ -39873,6 +39873,17 @@
             "type": "array",
             "title": "Tree",
             "description": "every message of every version, oldest first"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChatMemory"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "what the model reads instead of the messages up to its `upto`; none before the first summary"
           }
         },
         "additionalProperties": true,
@@ -40149,6 +40160,46 @@
         "additionalProperties": false,
         "type": "object",
         "title": "ChatCreate"
+      },
+      "ChatMemory": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "the summary; empty after /clear, when the messages it covers aren't read at all"
+          },
+          "upto": {
+            "type": "integer",
+            "title": "Upto",
+            "description": "the last message it covers, of the version showing"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At",
+            "description": "when it was written"
+          },
+          "covers": {
+            "type": "integer",
+            "title": "Covers",
+            "description": "how many messages of the version showing it stands for"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "text",
+          "upto",
+          "covers"
+        ],
+        "title": "ChatMemory",
+        "description": "What the model reads instead of the messages a conversation's summary covers (long conversations are summarised;\n/compact and /clear)."
       },
       "ChatMessage": {
         "properties": {
@@ -43126,6 +43177,53 @@
           "ok"
         ],
         "title": "ConversionNodeTestResult"
+      },
+      "ConvertedFrom": {
+        "properties": {
+          "resource": {
+            "type": "integer",
+            "title": "Resource"
+          },
+          "to": {
+            "type": "string",
+            "enum": [
+              "audio",
+              "images"
+            ],
+            "title": "To"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page",
+            "description": "the page it is, from 0, for images made of a document's pages"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "resource",
+          "to"
+        ],
+        "title": "ConvertedFrom",
+        "description": "The asset a convert step made this one from (docs/processing.md#converting-assets)."
       },
       "Converters": {
         "properties": {
@@ -66234,6 +66332,17 @@
               }
             ],
             "description": "an email's attachment made a resource of its own: that email"
+          },
+          "converted_from": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConvertedFrom"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "made by a convert step: the asset it was made from"
           },
           "web": {
             "anyOf": [
