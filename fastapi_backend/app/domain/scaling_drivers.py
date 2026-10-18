@@ -23,6 +23,7 @@ time a provider of that kind is saved (components.pip_install), so the default i
 from __future__ import annotations
 
 import os
+import shlex
 import signal
 import socket
 import subprocess
@@ -57,6 +58,7 @@ class Driver:
     label = ""
     about = ""
     priced = True  # it charges money: its groups need a budget
+    needs_join = False  # its units are other machines, which join over the mesh's install line (scaling.bootstrap)
     extra = None  # the optional dependency (pyproject.toml) it needs, fetched when a provider of it is saved
     modules = ()  # what that extra installs, to see whether it's here
     license = None
@@ -79,6 +81,7 @@ class Driver:
             "label": self.label,
             "about": self.about,
             "priced": self.priced,
+            "needs_join": self.needs_join,
             "extra": self.extra,
             "license": self.license,
             "ready": self.ready(),
@@ -151,6 +154,16 @@ def check_settings(drv, given):
 
 def check_template(drv, given):
     return _values(drv.template, given, f"a {drv.label} unit")
+
+
+def user_data(boot, template):
+    """The script a new machine runs at its first boot (cloud-init runs a user-data that starts with `#!`): the unit's
+    name and steps as environment, then the mesh's install line, which joins Lens and starts `lens worker`."""
+    env = {**(boot.get("env") or {})}
+    if template.get("steps"):
+        env["LENS_WORKER_STEPS"] = ",".join(template["steps"])
+    lines = ["#!/bin/sh", "set -e", *(f"export {k}={shlex.quote(str(v))}" for k, v in sorted(env.items())), boot["line"]]
+    return "\n".join(lines) + "\n"
 
 
 # ---------- this machine ----------

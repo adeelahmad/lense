@@ -92,6 +92,7 @@ def test_clients_are_sent_to_sign_in(client, app, env):
         "set_namespace_integrations",
         "set_picture_descriptions",
         "set_file_storage",
+        "set_secret_reference",
         "propose_scaling_group",
         "change_scaling_group",
         "set_scaling_desired",

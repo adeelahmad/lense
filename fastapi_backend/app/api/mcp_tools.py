@@ -71,6 +71,7 @@ from app.domain import (
     rss,
     scaling,
     scaling_drivers,
+    secret_providers,
     services,
     settings,
     sources,
@@ -2554,6 +2555,85 @@ def set_file_storage(
     settings.save(ctx.db, ctx.request.app.state.archive.base, "files", changes, ctx.user.email)
     auth.audit(ctx.db, ctx.user.as_audit(), "settings.save", "files", sorted(changes) + ["mcp"])
     return {"saved": changes, "check": checked}
+
+
+# ---------- secrets kept in a password manager (admins) ----------
+@tool(
+    "list_secrets",
+    "Secrets and where they come from",
+    "Every secret field in Settings (API keys, tokens, passwords; docs/secrets.md): whether it's set and, when it comes "
+    "from a password manager, the reference it holds (like vaultwarden://OpenAI/password) and whether this server could "
+    "read its value, when, or why not; and the password managers Lens can read from, whether each is set up. Never a "
+    "value: agents refer to secrets and never read them. Admins only.",
+    admin=True,
+)
+def list_secrets(ctx: Context) -> dict[str, Any]:
+    _admin(ctx)
+    return settings.secrets_view(ctx.db, ctx.request.app.state.archive.base)
+
+
+@tool(
+    "list_vault_items",
+    "A password manager's items",
+    "The items of the password manager Lens may refer to (the one folder it reads): each one's name, type, the fields "
+    "that hold something and the reference to each, never their values. q narrows by name. Admins only.",
+    Arg("provider", "string", "the password manager", default="vaultwarden", enum=("vaultwarden",)),
+    Arg("q", "string", "part of an item's name", max_length=200),
+    Arg("limit", "integer", "at most this many", default=200, minimum=1, maximum=1000),
+    admin=True,
+)
+def list_vault_items(ctx: Context, provider: str = "vaultwarden", q: str | None = None, limit: int = 200) -> dict[str, Any]:
+    _admin(ctx)
+    p = secret_providers.PROVIDERS.get(provider)
+    if p is None or not p.scheme:
+        raise ToolError("provider is vaultwarden")
+    if not p.configured(ctx.cfg):
+        raise ToolError(f"{p.label} isn't set up: an admin sets it up in Settings → Secrets ({ctx.web}/settings/secrets)")
+    try:
+        items = p.items(ctx.cfg, q, limit)
+    except secret_providers.Unavailable as e:
+        raise ToolError(str(e)) from None
+    return {"provider": p.id, "items": items}
+
+
+@tool(
+    "set_secret_reference",
+    "Point a secret at a password manager",
+    "Make a secret field in Settings (section and key, from list_secrets) read its value from a password manager: ref "
+    "is a reference like vaultwarden://OpenAI/password (an item of the folder Lens reads, and a field: a login's "
+    "password, username, totp, uri or notes, a card's number or code, or a custom field by name; the item alone means a "
+    "login's password or a note's text). It's checked against the manager first, so nothing is saved that can't be "
+    "read; the value itself never passes through here. Admins only, with a token that has the write scope.",
+    Arg("section", "string", "the settings section, like llm", required=True, max_length=40),
+    Arg("key", "string", "the secret field in it, like api_key", required=True, max_length=60),
+    Arg("ref", "string", "the reference, like vaultwarden://OpenAI/password", required=True, max_length=500),
+    writes=True,
+    admin=True,
+)
+def set_secret_reference(ctx: Context, section: str, key: str, ref: str) -> dict[str, Any]:
+    _admin(ctx)
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to point a secret at a password manager")
+    if key not in settings.SECRETS.get(section, ()):
+        raise ToolError(f"{section}.{key} isn't a secret field (list_secrets names them)")
+    if not secret_providers.is_reference(ref):
+        raise ToolError("ref is a reference like vaultwarden://Item name/field: a value never passes through here")
+    if key in settings.locked(section):
+        raise ToolError(f"{section}.{key} is set by the environment and can't be changed in the app")
+    try:
+        settings.save(ctx.db, ctx.request.app.state.archive.base, section, {key: ref}, ctx.user.email)
+    except ValueError as e:
+        raise ToolError(str(e)) from None
+    auth.audit(ctx.db, ctx.user.as_audit(), "settings.save", section, [key, "mcp"])
+    shown = next(
+        (
+            f
+            for f in settings.secrets_view(ctx.db, ctx.request.app.state.archive.base)["references"]
+            if f["section"] == section and f["key"] == key
+        ),
+        None,
+    )
+    return {"saved": {"section": section, "key": key, "ref": ref}, "status": shown}
 
 
 # ---------- auto scaling (admins) ----------
