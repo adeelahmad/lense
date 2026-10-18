@@ -22,6 +22,22 @@ def configured(cfg):
     return bool(cfg["llm"].get("base_url") and cfg["llm"].get("model"))
 
 
+def trying(saved, base_url=None, model=None, api_key=None):
+    """The LLM settings with typed values over the saved ones, for a test before saving. The saved key (stored or
+    from the environment) goes only to the saved address, so a new address never receives it."""
+    l = dict(saved)
+    if base_url and base_url.strip():
+        url = base_url.strip()
+        if url.rstrip("/") != (saved.get("base_url") or "").rstrip("/"):
+            l.update(api_key=None, api_key_env=None)
+        l["base_url"] = url
+    if model and model.strip():
+        l["model"] = model.strip()
+    if api_key:
+        l["api_key"] = api_key
+    return l
+
+
 def _post(cfg, payload):
     l = cfg["llm"]
     if not configured(cfg):

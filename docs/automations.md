@@ -10,6 +10,9 @@ merged is called built.
 | Part | Status |
 | --- | --- |
 | Match trees: one condition language for triggers, an automation's If and workflow nodes | built |
+| Operators for times, lists, text patterns and changes (`in`, `matches`, `within`, `changed`...) | built |
+| Looking back over the stream in an automation's If (`seen`) | built |
+| Joins: `all`, `count`, `absent` and `batch`, completed as the stream brings each trigger's activities and as their timers fire ([Joins](#joins)) | built |
 | Activities, the kinds catalog, the event log, following the stream, timeline reads (`app/domain/events.py`) | built |
 | New assets as `asset.added` (the `recordings` source) | built |
 | New assets by kind: emails received, calendar events, files from storage, uploads, pages saved from the web, imports | built |
@@ -47,7 +50,7 @@ merged is called built.
 | Running automations: following the stream, limits, budgets, runs as `automation.ran`, trying and running now, the API (`app/domain/automations.py`) | built |
 | Automations for agents: the MCP tools and the assistant's, switching on and running now by approval | built |
 | Describing an automation in words: a draft from a sentence (`POST /api/v1/automations/draft`) | built |
-| Joins, the studio | planned |
+| The studio | planned |
 
 ## Contract
 
@@ -109,6 +112,7 @@ and the paths holding outside text are in `GET /api/v1/activities/kinds` (`event
 | `asset.added` | | `recordings` | `{type: Audio, Video, Image or Document, id: lens:recording/<id>, name: its title, url: /resources/<id>, media: audio, video, image, document or transcript, content_type}` | Lens added “Scan 12” |
 | `email.received` | `asset.added` | `recordings` | `from`, `to`, `cc` (addresses), `subject`, `list`, `mailbox`, `date` (sent), `snippet` (the start of its text), `attachments` (how many) | Work mail received “School trip on Friday” from office@stmarys.org |
 | `calendar_event.added` | `asset.added` | `recordings` | `startTime`, `endTime`, `location`, `organizer`, `attendees` (addresses), `calendar` | Family calendar added the event “Parents' evening” on 2026-10-20 |
+| `feed_post.received` | `asset.added` | `recordings` | `href` (the post's address), `site`, `feed` (its title), `author`, `published`, `categories` | Harbour news received the post “Autumn regatta” from harbour.example.org |
 | `file.added` | `asset.added` | `recordings` | `path` (in its source), `mediaType`, `size` (bytes), `duration` (seconds) | Office share added “Minutes” |
 | `upload.added` | `asset.added` | `recordings` | `path` (the file's name), `mediaType`, `size`, `duration` | Sam uploaded “Call with the school” |
 | `web_page.saved` | `asset.added` | `recordings` | `href` (the page's address), `site` | Sam saved “Museum opening hours” from museum.example.org |
@@ -327,15 +331,78 @@ M := {"all": [M, …]} | {"any": [M, …]} | {"not": M} | {"path": "a.b.0", "op"
 ```
 
 - A test (`{path, op, value}`) reads the part of the value at a dotted path, list items by number
-  (`object.from.0`); no path tests the value itself. The tests are the workflow engine's: `exists`, `empty`,
-  `equals`, `not_equals`, `contains` (text in any case, or an item of a list), `gt` and `lt` (numbers).
+  (`object.from.0`); no path tests the value itself. The tests are in the table below.
 - `all` holds when every condition in it does (an empty `all` always holds), `any` when one does (it needs at least
   one), `not` when its condition doesn't.
 - Values are literals, never templates, so matching stays cheap and safe.
 - A tree nests at most 6 deep and holds at most 50 tests. A problem is named with where it is: `the condition,
   all.1.not: compare with a number`.
-- `match.describe(tree)` reads a tree in words: `object.from contains “@stmarys.org” and (object.subject contains
-  “trip” or object.subject contains “outing”)`.
+- `match.describe(tree, kind=None)` reads a tree in words: `object.from ends with “@stmarys.org” and
+  object.subject matches “trip” or “outing”`. With a kind, fields are named by the titles in its schema.
+
+#### Operators
+
+The first seven are the workflow engine's tests and work exactly as a condition node's always have. The others are
+built in `app/domain/match.py` (`match.OPS` lists them all). When the value tested is a list, those pass when one of
+its items does (as `contains` does), and `not_in` passes when none does. A value of the wrong kind, such as text for
+`between` on numbers, doesn't pass; a test's own value is checked when it is saved, with the problem in words.
+
+| Test | Value | Passes when the value tested |
+| --- | --- | --- |
+| `exists`, `empty` | none | is set; is missing, empty text, `[]` or `{}` |
+| `equals`, `not_equals` | anything | is (or isn't) exactly the value |
+| `contains` | anything | is text holding it in any case, or a list or object holding it |
+| `gt`, `lt` | a number | is a number more (less) than it |
+| `in`, `not_in` | a list of up to 500 values | is (or isn't) one of them; text in any case |
+| `starts_with`, `ends_with` | text (a number is read as text) | is text, or a number, starting (ending) with it, in any case |
+| `matches` | a pattern of up to 200 characters, such as `trip` or `^re:` | is text holding a match, in any case |
+| `between` | two numbers, or two times: `[1, 5]`, `["-1d", "now"]` | is a number, or a time, from the first to the second (both included) |
+| `before`, `after` | a time: `2026-10-16T07:30`, `now`, or from now: `2h`, `-30m` | is a time before (after) it |
+| `within` | a duration: `30m`, `2h`, `1d` | is a time no further than that from now, either way |
+| `weekday` | days: `["sat", "sun"]`, `["monday"]` or ISO numbers (1 is Monday) | is a time on one of those days |
+| `time_between` | two times of day: `["22:00", "06:00"]` | is a time of day from the first up to the second, across midnight when the second is earlier |
+| `changed` | none, or a path to keep values apart by: `actor.id` | differs from the value this test saw last time (the first one seen is no change) |
+
+- **Times** are ISO 8601 times or dates. A time written without a zone (in the value or in what is tested) is in the
+  automation's time zone, and so are `weekday` and `time_between`. Durations are a whole number and `s`, `m`, `h` or
+  `d`; a minus points back (`-2h` is two hours ago).
+- **Patterns** are regular expressions in Python's syntax, read in any case. To keep one pattern from tying up the
+  worker on a crafted email, a pattern that repeats a part that repeats itself (`(a+)+`), repeats alternatives that
+  may start alike (`(a|aa)+`) or refers back to a group (`\1`) is refused when it is saved, a pattern reads at most
+  the first 20,000 characters of a value, and a match that takes over 50 ms counts as no match. Compiled patterns are
+  cached.
+- **`env`**: `match.test(tree, value, env)` reads time and state from `env`, never from globals, so tests and dry
+  runs can fix them: `now` (the clock when not given), `timezone` (UTC when not given) and `state`.
+- **`changed`** compares with the last value the same test saw for the same automation and trigger, kept in
+  `automation_state` (kind `last`) by a `match.State(db, automation, alias, dry=False)` in `env["state"]`. Make one
+  State per activity tested, so the If and a node testing the same thing agree. With `dry` it reads and keeps nothing.
+  Without a State nothing has changed. With a path in `value` (`actor.id`), each sensor or sender keeps its own last
+  value. Like every test, it is only reached when the tests before it in an `all` pass, so `changed` compares with
+  the last value seen when it was reached.
+- **`automation_state`** holds what automations keep between activities. Each automation keeps at most 1000 rows; past
+  that the oldest go and are counted (`match.dropped(db, automation)`). A `last` value is kept 30 days after it was
+  last seen; `match.tidy` drops expired rows once an hour, from the routine schedule.
+
+#### Looking back
+
+Built (`match.seen`). An automation's If (and only its If, so testing a trigger's `where` on each new activity stays
+cheap) can ask whether something happened before: a `seen` stands where a test would.
+
+```json
+{"seen": {"kinds": ["email.received"], "within": "2d", "same": "object.from",
+          "where": {"path": "object.subject", "op": "matches", "value": "trip|outing"},
+          "count": {"at_least": 1}}}
+```
+
+- It finds activities of `kinds` (and the kinds under them) published in the last `within` before now, passing its
+  own `where`, and, with `same`, holding the same value at that path as the activity that started the run (the run
+  context's `event`). That activity itself doesn't count.
+- `count` is `{"at_least": n}` (1 when not given), `{"at_most": n}` or both, up to 100: `{"at_most": 0}` reads
+  "if nothing like it came", as in "if I haven't replied within 2 days".
+- It reads at most 200 activities, of the automation's namespaces (`env["spaces"]`) and as the automation's person
+  (`env["viewer"]`, or `env["account"]`) may see them; `env["db"]` and `env["cfg"]` give the database. Without a database it finds
+  nothing. Its `where` is tested with the same `env` (so its clock too) and can't test `changed`.
+- In words: `at least one of “Email received” in the last 2 days, with the same sender`.
 
 In a workflow, a condition, filter or switch case takes either one test, as before, or a tree in `match`; with a
 tree, `path` (when given) is the part of the value the tree tests. Graphs saved before keep running unchanged.
@@ -349,7 +416,8 @@ tree, `path` (when given) is the part of the value the tree tests. Graphs saved 
 ### Automations: triggers and joins
 
 Built as shapes with checks (`app/domain/automation_spec.py`), saved ([Saving automations](#saving-automations)) and
-run ([Running automations](#running-automations)) for triggers on `event` and `manual` and the join `any`. Each check gives a cleaned copy, or a ValueError naming the first problem.
+run ([Running automations](#running-automations)), joins included. Each check gives a cleaned copy, or a ValueError
+naming the first problem.
 
 ```json
 {"name": "School emails", "enabled": true, "spaces": [3], "run_as": 1,
@@ -374,6 +442,35 @@ run ([Running automations](#running-automations)) for triggers on `event` and `m
 - `check_if(tree)`: the If is a match tree over the run context, so its paths start with one of the context's keys.
 - `check_policy(p, nodes, allow_auto=False)`: `{action node id: ask or auto}`. Only a person in a signed-in session
   lets a node run on its own; everywhere else (agents, drafts, the workflow API) `auto` is refused.
+
+#### Joins
+
+Built (`match.join_step`). Running automations hands each activity a trigger matched (after its guards and its
+claim) to `match.join_step(db, cfg, automation, alias, activity)`, which gives a list of completions, each
+`{"as": alias, "events": {alias: activity or [activities]}, "event": the last}`, and each completion fires the
+automation: its If and graph see every trigger's activity in `events` (`{{ events.mail.object.subject }}`), and
+`event` is the last. Triggers a join doesn't name fire on their own, as with `any`. Windows are measured between the
+activities' `published` times.
+
+| Mode | Example | Completes |
+| --- | --- | --- |
+| `any` | `{"mode": "any"}` | at once, for each activity |
+| `all` | `{"mode": "all", "within": "1d", "key": "object.from.0"}`: an email from the school and a calendar event from the same sender within a day | when every trigger has an activity within `within` of the others (on the same `key`); each trigger's latest one goes in `events`, then it starts again |
+| `count` | `{"mode": "count", "of": "login", "at_least": 3, "within": "5m", "key": "actor.id"}`: three failed logins from one device in five minutes | when `of` has `at_least` activities within `within` (per `key`), with the list of them; then it counts again |
+| `absent` | `{"mode": "absent", "after": "mail", "missing": "reply", "within": "2d", "key": "object.thread"}`: no reply within two days | when `within` passes after `after` with no `missing` on the same key published after it, with the first `after` activity; a `missing` one in time cancels it |
+| `batch` | `{"mode": "batch", "of": "alert", "within": "1h"}`: the hour's alerts, acted on once | `within` after the first activity, with every one collected (up to 500), by trigger |
+
+- What a join waits on is kept in `automation_state` (kind `join`) with small copies of the activities (long text
+  cut), written so two processes at once lose nothing (a version on each row). A row expires `within` after its
+  newest activity, or a day after an `absent` or `batch` timer's time.
+- `absent` and `batch` set [timers](#timers) for their automation (`absent-<automation>-<key>`,
+  `batch-<automation>`), so they outlast a restart and fire once; their handlers, `join.absent` and `join.batch`
+  (`match.TIMER_HANDLERS`), fire the automation. A `missing` activity in time calls its timer off. A timer that ends
+  without firing (the automation is switched off, or Lens was off past `automations.catch_up`) drops what it waited
+  on, so the next activity starts afresh; one that can't be set (the automation has 1000 timers waiting) drops it
+  too, with a line in the log.
+- `match.describe_join(join)` reads a join in words: `all of the triggers within 10 minutes, for the same
+  object.from`; `3 times login within 5 minutes`; `mail, then no reply within 2 days`.
 
 ### Webhook trigger
 
@@ -958,9 +1055,9 @@ person who made it (`run_as`), with their permissions, in namespaces they can ed
   value, and saving that again keeps it.
 - **Checks** when it is saved: the triggers, the join and the If as in [the contract](#automations-triggers-and-joins),
   the graph, the namespaces, `limits` (`cooldown`, like `10m`, default `0s`; `max_per_hour`, 1 to 3600, default 60)
-  and the policy. Joins other than `any` are refused as coming soon until joins are built. Saving sets the timers of
-  its `schedule` and `at` triggers ([Schedule, at and relative triggers](#schedule-at-and-relative-triggers)), and
-  switching it off or deleting it calls them off.
+  and the policy. Saving sets the timers of its `schedule` and `at` triggers ([Schedule, at and relative
+  triggers](#schedule-at-and-relative-triggers)), and switching it off or deleting it calls them off, with any its
+  joins set.
 - **Webhook triggers** get their address when the automation is saved ([Webhook trigger](#webhook-trigger)): the
   answer's `hooks` gives each new one's `url` and signing `secret`, shown this once, and the trigger keeps the hook's
   id. Saving it again keeps its address; a webhook trigger dropped (or changed to another kind) loses it at once.
@@ -994,8 +1091,8 @@ is `{draft, dropped, unmapped}`:
 - `dropped` says what in the model's draft didn't fit and why: a trigger, its `where`, the If, an action that doesn't
   exist or params that don't fit its schema. With no trigger left it runs when you run it; with no action left it has
   no Then yet.
-- `unmapped` lists what the sentence asked for that it couldn't express, such as "when both arrive" (joins are
-  planned).
+- `unmapped` lists what the sentence asked for that it couldn't express, such as "when both arrive" (a draft
+  doesn't make joins yet; add one before saving).
 
 Nothing is saved: try the draft (`POST /automations/test`), change it, then save it. The call counts in the [activity
 ledger](activity.md) for you and its namespaces, and isn't made once a budget they count for, or everything's, is
@@ -1028,17 +1125,22 @@ Each new activity is checked against each trigger that listens for its kind (a w
 - an automation made it, unless the trigger says `from_automations`;
 - it is the end of a chain of automations setting each other off as long as `automations.max_depth` (3);
 - it isn't in one of the automation's namespaces, or the automation's person may not see it;
-- the trigger's `where` doesn't match it.
+- the trigger's `where` doesn't match it (in the trigger's time zone; a `changed` in it compares with the last
+  activity the trigger saw).
 
 Then it is claimed (for the automation, trigger and activity together), so it runs each automation once, even with the
 API and a worker both following. **`automations.fire(db, cfg, automation_id, alias, activity, events=None, dry=False)`**
-is the one way every trigger starts a run (the stream with its webhook calls, run now, and later the clock, timers and
-joins); it gives the run's id, or none when nothing ran. A run goes:
+is the one way every trigger starts a run (the stream with its webhook calls, run now, the clock, timers and joins);
+with a join other than `any`, the claimed activity goes to the join first ([Joins](#joins)) and the automation fires
+when it completes. It gives the run's id, or none when nothing ran. A run goes:
 
 1. **Its person**: if the person it acts for lost their account, their admin role (for one that works everywhere) or
    the right to edit one of its namespaces, the run fails saying so, and the automation is switched off.
-2. **The If**, on the [run context](#run-context). When it is false the run stops there: it counts in
-   `counters.skipped`, uses up no limit and makes no run and no activity.
+2. **The If**, on the [run context](#run-context), with the run's clock and time zone: a `seen` in it looks back in
+   the automation's namespaces as its person may see, and `changed` compares with what the automation saw last
+   ([Operators](#operators)). The If and the graph's condition, filter and switch nodes share one State a run, so a
+   node testing what the If tested agrees with it; a dry run keeps nothing. When it is false the run stops there: it
+   counts in `counters.skipped`, uses up no limit and makes no run and no activity.
 3. **Limits**: the automation's `cooldown` (the wait between runs) and `max_per_hour`, then every automation's runs
    together this minute (`automations.max_runs_per_minute`, 60). Over one, nothing runs: it counts in
    `counters.limited` and says so in the stream (`automation.limited`) at most once an hour.
@@ -1073,7 +1175,13 @@ held run until you pick.
 
 ## Refine later
 
-- More operators: `in`, `matches` (bounded regular expressions), `between`, times against now, `changed`.
+- A draft from a sentence that makes joins ("when both arrive", "if no reply within 2 days").
+- Switching an automation off and on keeps what an `all` or `count` join was waiting on, until its window passes; a
+  changed join keeps the old one's rows until they expire.
+
+- Variables inside match values (`{"var": "vars.threshold"}`), once saved variables are built.
+- Statistical conditions, such as a reading above its 7-day average.
+- Sequences longer than two steps ("A, then B, then C").
 - The canvas shows and edits match trees on condition, filter and switch nodes (today it edits one test; a tree
   saved through the API is kept).
 - A `?format=as2` JSON-LD view and per-actor outboxes for ActivityPub; SurrealDB `DEFINE EVENT` for Update verbs that

@@ -189,6 +189,9 @@ import type {
   CreateExtensionVersionData,
   CreateExtensionVersionErrors,
   CreateExtensionVersionResponses,
+  CreateFeedData,
+  CreateFeedErrors,
+  CreateFeedResponses,
   CreateFieldData,
   CreateFieldErrors,
   CreateFieldResponses,
@@ -335,6 +338,9 @@ import type {
   DeleteFaceTrackData,
   DeleteFaceTrackErrors,
   DeleteFaceTrackResponses,
+  DeleteFeedData,
+  DeleteFeedErrors,
+  DeleteFeedResponses,
   DeleteFieldData,
   DeleteFieldErrors,
   DeleteFieldResponses,
@@ -573,6 +579,9 @@ import type {
   GetExtensionResponses,
   GetFedoraStatusData,
   GetFedoraStatusResponses,
+  GetFeedData,
+  GetFeedErrors,
+  GetFeedResponses,
   GetFieldData,
   GetFieldErrors,
   GetFieldResponses,
@@ -677,6 +686,9 @@ import type {
   GetRecordingWordcloudData,
   GetRecordingWordcloudErrors,
   GetRecordingWordcloudResponses,
+  GetResearchData,
+  GetResearchErrors,
+  GetResearchResponses,
   GetResourceFieldsData,
   GetResourceFieldsErrors,
   GetResourceFieldsResponses,
@@ -901,6 +913,12 @@ import type {
   ListExtensionsData,
   ListExtensionsErrors,
   ListExtensionsResponses,
+  ListFeedItemsData,
+  ListFeedItemsErrors,
+  ListFeedItemsResponses,
+  ListFeedsData,
+  ListFeedsErrors,
+  ListFeedsResponses,
   ListFieldsData,
   ListFieldsErrors,
   ListFieldsResponses,
@@ -1003,6 +1021,9 @@ import type {
   ListRecordingsData,
   ListRecordingsErrors,
   ListRecordingsResponses,
+  ListResearchData,
+  ListResearchErrors,
+  ListResearchResponses,
   ListRolesData,
   ListRolesResponses,
   ListRoutinesData,
@@ -1020,6 +1041,8 @@ import type {
   ListSegmentEditsResponses,
   ListSensorsData,
   ListSensorsResponses,
+  ListServicesData,
+  ListServicesResponses,
   ListSessionsData,
   ListSessionsResponses,
   ListSharesData,
@@ -1100,6 +1123,8 @@ import type {
   MarkRecordingNsfwData,
   MarkRecordingNsfwErrors,
   MarkRecordingNsfwResponses,
+  McpPresetsData,
+  McpPresetsResponses,
   MeData,
   MeResponses,
   MergeEntitiesData,
@@ -1158,6 +1183,11 @@ import type {
   PageVersionData,
   PageVersionErrors,
   PageVersionResponses,
+  PasskeyAddressesData,
+  PasskeyAddressesResponses,
+  PasskeyElsewhereData,
+  PasskeyElsewhereErrors,
+  PasskeyElsewhereResponses,
   PasskeyLoginData,
   PasskeyLoginErrors,
   PasskeyLoginResponses,
@@ -1205,6 +1235,9 @@ import type {
   ProposeGraphChangeData,
   ProposeGraphChangeErrors,
   ProposeGraphChangeResponses,
+  PublishToFeedData,
+  PublishToFeedErrors,
+  PublishToFeedResponses,
   PurgeDeletedData,
   PurgeDeletedErrors,
   PurgeDeletedResponses,
@@ -1237,6 +1270,12 @@ import type {
   QueueStepData,
   QueueStepErrors,
   QueueStepResponses,
+  ReadFeedAudioData,
+  ReadFeedAudioErrors,
+  ReadFeedAudioResponses,
+  ReadFeedData,
+  ReadFeedErrors,
+  ReadFeedResponses,
   ReadFileData,
   ReadFileErrors,
   ReadFileResponses,
@@ -1274,6 +1313,9 @@ import type {
   RemoveBudgetData,
   RemoveBudgetErrors,
   RemoveBudgetResponses,
+  RemoveFeedItemData,
+  RemoveFeedItemErrors,
+  RemoveFeedItemResponses,
   RemoveLocalModelData,
   RemoveLocalModelErrors,
   RemoveLocalModelResponses,
@@ -1313,6 +1355,12 @@ import type {
   RequestAccessData,
   RequestAccessErrors,
   RequestAccessResponses,
+  ResearchNoteData,
+  ResearchNoteErrors,
+  ResearchNoteResponses,
+  ResearchPodcastData,
+  ResearchPodcastErrors,
+  ResearchPodcastResponses,
   ResetPasswordData,
   ResetPasswordErrors,
   ResetPasswordResponses,
@@ -1337,6 +1385,9 @@ import type {
   RestoreVersionData,
   RestoreVersionErrors,
   RestoreVersionResponses,
+  ResumeResearchData,
+  ResumeResearchErrors,
+  ResumeResearchResponses,
   RetagRecordingsData,
   RetagRecordingsErrors,
   RetagRecordingsResponses,
@@ -1351,6 +1402,9 @@ import type {
   RevertMetadataEditResponses,
   ReviewNewData,
   ReviewNewResponses,
+  ReviseResearchData,
+  ReviseResearchErrors,
+  ReviseResearchResponses,
   RevokeAnyTokenData,
   RevokeAnyTokenErrors,
   RevokeAnyTokenResponses,
@@ -1372,6 +1426,9 @@ import type {
   RevokeTokenData,
   RevokeTokenErrors,
   RevokeTokenResponses,
+  RotateFeedTokenData,
+  RotateFeedTokenErrors,
+  RotateFeedTokenResponses,
   RotateNotifySecretData,
   RotateNotifySecretErrors,
   RotateNotifySecretResponses,
@@ -1481,6 +1538,9 @@ import type {
   SetSandboxGatewayData,
   SetSandboxGatewayErrors,
   SetSandboxGatewayResponses,
+  SetServiceData,
+  SetServiceErrors,
+  SetServiceResponses,
   SetupData,
   SetupErrors,
   SetupResponses,
@@ -1515,6 +1575,9 @@ import type {
   StartRcloneSigninData,
   StartRcloneSigninErrors,
   StartRcloneSigninResponses,
+  StartResearchData,
+  StartResearchErrors,
+  StartResearchResponses,
   StartUpgradeData,
   StartUpgradeErrors,
   StartUpgradeResponses,
@@ -1526,6 +1589,9 @@ import type {
   StopAnswerData,
   StopAnswerErrors,
   StopAnswerResponses,
+  StopResearchData,
+  StopResearchErrors,
+  StopResearchResponses,
   StreamEventsData,
   StreamEventsErrors,
   StreamEventsResponses,
@@ -1577,6 +1643,7 @@ import type {
   TestFileStoreErrors,
   TestFileStoreResponses,
   TestLlmData,
+  TestLlmErrors,
   TestLlmResponses,
   TestLogsData,
   TestLogsResponses,
@@ -1604,6 +1671,9 @@ import type {
   TestTelemetryResponses,
   TestTikaData,
   TestTikaResponses,
+  TitleChatData,
+  TitleChatErrors,
+  TitleChatResponses,
   TodayPageData,
   TodayPageErrors,
   TodayPageResponses,
@@ -1691,6 +1761,9 @@ import type {
   UpdateExtensionData,
   UpdateExtensionErrors,
   UpdateExtensionResponses,
+  UpdateFeedData,
+  UpdateFeedErrors,
+  UpdateFeedResponses,
   UpdateFieldData,
   UpdateFieldErrors,
   UpdateFieldResponses,
@@ -2270,6 +2343,41 @@ export class Auth {
   ): RequestResult<RenamePasskeyResponses, RenamePasskeyErrors, ThrowOnError> {
     return (options.client ?? client).patch<RenamePasskeyResponses, RenamePasskeyErrors, ThrowOnError>({
       url: "/api/v1/auth/passkeys/{pid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Passkey Addresses
+   *
+   * The other https:// addresses Lens opens at (Settings › Remote access and HTTPS), and whether you have a passkey
+   * for each: a passkey works only on the address it was made at.
+   */
+  public static passkeyAddresses<ThrowOnError extends boolean = false>(
+    options?: Options<PasskeyAddressesData, ThrowOnError>,
+  ): RequestResult<PasskeyAddressesResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<PasskeyAddressesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/auth/passkeys/elsewhere",
+      ...options,
+    });
+  }
+
+  /**
+   * Passkey Elsewhere
+   *
+   * A sign-in link of your own at another address Lens opens at, to sign in there and add a passkey for it, with no
+   * email and no admin. It lasts 15 minutes and works once; links others have are left alone. For people signed in
+   * themselves, not API tokens or apps. Audited as `passkey.elsewhere`.
+   */
+  public static passkeyElsewhere<ThrowOnError extends boolean = false>(
+    options: Options<PasskeyElsewhereData, ThrowOnError>,
+  ): RequestResult<PasskeyElsewhereResponses, PasskeyElsewhereErrors, ThrowOnError> {
+    return (options.client ?? client).post<PasskeyElsewhereResponses, PasskeyElsewhereErrors, ThrowOnError>({
+      url: "/api/v1/auth/passkeys/elsewhere",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -2878,14 +2986,19 @@ export class Admin {
   /**
    * Test Llm
    *
-   * Ask the configured model for one word, to check the address, key and model name.
+   * Ask the model for one word, to check the address, key and model name: what is given (typed, not saved yet),
+   * else what is saved.
    */
   public static testLlm<ThrowOnError extends boolean = false>(
     options?: Options<TestLlmData, ThrowOnError>,
-  ): RequestResult<TestLlmResponses, unknown, ThrowOnError> {
-    return (options?.client ?? client).post<TestLlmResponses, unknown, ThrowOnError>({
+  ): RequestResult<TestLlmResponses, TestLlmErrors, ThrowOnError> {
+    return (options?.client ?? client).post<TestLlmResponses, TestLlmErrors, ThrowOnError>({
       url: "/api/v1/settings/llm/test",
       ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+      },
     });
   }
 
@@ -3714,6 +3827,41 @@ export class Updates {
   ): RequestResult<SetMonitoringResponses, SetMonitoringErrors, ThrowOnError> {
     return (options.client ?? client).put<SetMonitoringResponses, SetMonitoringErrors, ThrowOnError>({
       url: "/api/v1/admin/monitoring",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Services
+   *
+   * Lens's optional containers (the MCP runner, the browser, monitoring): whether each is on and answering, and
+   * how the machine's last change went.
+   */
+  public static listServices<ThrowOnError extends boolean = false>(
+    options?: Options<ListServicesData, ThrowOnError>,
+  ): RequestResult<ListServicesResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListServicesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/services",
+      ...options,
+    });
+  }
+
+  /**
+   * Set Service
+   *
+   * Have this machine start or stop one of them: its upgrade agent adds the profile to COMPOSE_PROFILES in .env, or
+   * takes it out, and starts or stops its containers. Monitoring also turns /metrics on, as PUT /admin/monitoring
+   * does. GET /admin/services follows along; without an agent, 409 says the line to run on the machine instead.
+   */
+  public static setService<ThrowOnError extends boolean = false>(
+    options: Options<SetServiceData, ThrowOnError>,
+  ): RequestResult<SetServiceResponses, SetServiceErrors, ThrowOnError> {
+    return (options.client ?? client).put<SetServiceResponses, SetServiceErrors, ThrowOnError>({
+      url: "/api/v1/admin/services/{profile}",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -9962,6 +10110,21 @@ export class Extensions {
   }
 
   /**
+   * Mcp Presets
+   *
+   * MCP servers ready to add (admins): the browser Lens can run next to it, with whether its container is on and
+   * running (`service`), and GitHub's own server, with the token to type in (`fill`).
+   */
+  public static mcpPresets<ThrowOnError extends boolean = false>(
+    options?: Options<McpPresetsData, ThrowOnError>,
+  ): RequestResult<McpPresetsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<McpPresetsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/extensions/mcp/presets",
+      ...options,
+    });
+  }
+
+  /**
    * Delete Extension
    *
    * Takes it out of the assistant at once.
@@ -10197,7 +10360,7 @@ export class Chats {
    *
    * A conversation. Its answers may use what `tools` and `max_tool_calls` say, which become your latest choice;
    * left out, your latest choice (here or PATCH /chats/{cid}), else Auto: everything you may use, limited by the rounds
-   * alone.
+   * alone. A `title` is yours, and kept; without one, Lens titles it after its first answer (ai.auto_title).
    */
   public static createChat<ThrowOnError extends boolean = false>(
     options?: Options<CreateChatData, ThrowOnError>,
@@ -10350,6 +10513,23 @@ export class Chats {
   }
 
   /**
+   * Title Chat
+   *
+   * Have Lens title a conversation now, from how it starts (the version showing's first messages), even one you
+   * named: the title is Lens's again, as after a first answer. Written by the model for summaries (ai.compact_model)
+   * when set, else the chat's, in one call counted for the conversation in the activity ledger. 409 before the first
+   * question; 400 with no model, or when the model writes no title.
+   */
+  public static titleChat<ThrowOnError extends boolean = false>(
+    options: Options<TitleChatData, ThrowOnError>,
+  ): RequestResult<TitleChatResponses, TitleChatErrors, ThrowOnError> {
+    return (options.client ?? client).post<TitleChatResponses, TitleChatErrors, ThrowOnError>({
+      url: "/api/v1/chats/{cid}/title",
+      ...options,
+    });
+  }
+
+  /**
    * Download Chat File
    *
    * A file the code sandbox handed you in this conversation (share_sandbox_file, the download on its answer).
@@ -10387,6 +10567,10 @@ export class Chats {
    *
    * `/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the
    * conversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.
+   *
+   * With `research` (or /research <goal>) the content is a research goal: the answer is a plan to approve (streamed as
+   * `research`, then `approval`), which runs in the background once approved (POST /chats/{cid}/research, GET
+   * /research/{id}).
    *
    * With `browser` (the session of a browser's Lens side panel, POST /browser/sessions), the assistant can use that
    * browser while the side panel is connected: open pages, read them, click, type and download files into the
@@ -10491,6 +10675,148 @@ export class Chats {
   ): RequestResult<DecideApprovalResponses, DecideApprovalErrors, ThrowOnError> {
     return (options.client ?? client).post<DecideApprovalResponses, DecideApprovalErrors, ThrowOnError>({
       url: "/api/v1/approvals/{aid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class Research {
+  /**
+   * Start Research
+   *
+   * Start research on a goal in a conversation: the goal is saved as a question and one model call plans it (up to
+   * three follow-up questions with answers to pick, the sub-questions, where it looks, the tool calls it may make, the
+   * report's outline, and an estimate of the cost). The plan waits as an approval (POST /approvals/{id}: approve it as
+   * it is, or with `params` its edits; or decline), or revise it (POST /research/{id}/revise). With `review` false it
+   * starts at once: your own pick when signed in; an API key or an app needs research.agents_skip_review. The same as a
+   * question with `research: true`, or /research <goal>.
+   */
+  public static startResearch<ThrowOnError extends boolean = false>(
+    options: Options<StartResearchData, ThrowOnError>,
+  ): RequestResult<StartResearchResponses, StartResearchErrors, ThrowOnError> {
+    return (options.client ?? client).post<StartResearchResponses, StartResearchErrors, ThrowOnError>({
+      url: "/api/v1/chats/{cid}/research",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Research
+   *
+   * Your research, newest first; with `chat_id`, that conversation's (to show each plan's or run's card).
+   */
+  public static listResearch<ThrowOnError extends boolean = false>(
+    options?: Options<ListResearchData, ThrowOnError>,
+  ): RequestResult<ListResearchResponses, ListResearchErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListResearchResponses, ListResearchErrors, ThrowOnError>({
+      url: "/api/v1/research",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Research
+   *
+   * A research run: its plan, status and stage (gather, write, check, done), progress (sub-questions done, sources
+   * found, tool calls and cost so far, from the activity ledger) and, once it's done, the report's message
+   * (`answer`, in the conversation). What it waits for when a budget holds it (`held`), and why it ended early.
+   */
+  public static getResearch<ThrowOnError extends boolean = false>(
+    options: Options<GetResearchData, ThrowOnError>,
+  ): RequestResult<GetResearchResponses, GetResearchErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetResearchResponses, GetResearchErrors, ThrowOnError>({
+      url: "/api/v1/research/{rid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Revise Research
+   *
+   * Send your answers to the follow-up questions and your edits to the plan back for one more planning call; the
+   * plan and its approval change in place. Only while the plan waits for approval.
+   */
+  public static reviseResearch<ThrowOnError extends boolean = false>(
+    options: Options<ReviseResearchData, ThrowOnError>,
+  ): RequestResult<ReviseResearchResponses, ReviseResearchErrors, ThrowOnError> {
+    return (options.client ?? client).post<ReviseResearchResponses, ReviseResearchErrors, ThrowOnError>({
+      url: "/api/v1/research/{rid}/revise",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Stop Research
+   *
+   * Stop a run: it stops after the step it's on and keeps what it found, saved in the conversation as its answer,
+   * marked stopped (one that hasn't started, or waits on a budget, stops now). Works whichever process runs it.
+   */
+  public static stopResearch<ThrowOnError extends boolean = false>(
+    options: Options<StopResearchData, ThrowOnError>,
+  ): RequestResult<StopResearchResponses, StopResearchErrors, ThrowOnError> {
+    return (options.client ?? client).post<StopResearchResponses, StopResearchErrors, ThrowOnError>({
+      url: "/api/v1/research/{rid}/stop",
+      ...options,
+    });
+  }
+
+  /**
+   * Resume Research
+   *
+   * Let a run that a budget holds go on anyway (your pick, as "run it once" is for a held routine run).
+   */
+  public static resumeResearch<ThrowOnError extends boolean = false>(
+    options: Options<ResumeResearchData, ThrowOnError>,
+  ): RequestResult<ResumeResearchResponses, ResumeResearchErrors, ThrowOnError> {
+    return (options.client ?? client).post<ResumeResearchResponses, ResumeResearchErrors, ThrowOnError>({
+      url: "/api/v1/research/{rid}/resume",
+      ...options,
+    });
+  }
+
+  /**
+   * Research Note
+   *
+   * Save the report as a note: in the namespace it looked in (`namespace` when there are several), its archive
+   * citations as links to the assets they cite, web citations as links, and a link back to the conversation (shown to
+   * you alone). Needs editor access there.
+   */
+  public static researchNote<ThrowOnError extends boolean = false>(
+    options: Options<ResearchNoteData, ThrowOnError>,
+  ): RequestResult<ResearchNoteResponses, ResearchNoteErrors, ThrowOnError> {
+    return (options.client ?? client).post<ResearchNoteResponses, ResearchNoteErrors, ThrowOnError>({
+      url: "/api/v1/research/{rid}/note",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Research Podcast
+   *
+   * Make a podcast episode from the assets the report cites (POST /podcasts with them picked): about the research
+   * goal unless `prompt` says otherwise, titled after the report.
+   */
+  public static researchPodcast<ThrowOnError extends boolean = false>(
+    options: Options<ResearchPodcastData, ThrowOnError>,
+  ): RequestResult<ResearchPodcastResponses, ResearchPodcastErrors, ThrowOnError> {
+    return (options.client ?? client).post<ResearchPodcastResponses, ResearchPodcastErrors, ThrowOnError>({
+      url: "/api/v1/research/{rid}/podcast",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -12070,6 +12396,178 @@ export class Podcasts {
   ): RequestResult<RegeneratePodcastResponses, RegeneratePodcastErrors, ThrowOnError> {
     return (options.client ?? client).post<RegeneratePodcastResponses, RegeneratePodcastErrors, ThrowOnError>({
       url: "/api/v1/podcasts/{rid}/regenerate",
+      ...options,
+    });
+  }
+}
+
+export class Feeds {
+  /**
+   * Read Feed
+   *
+   * A feed as RSS 2.0, with Apple Podcasts' tags for a podcast feed: what feed readers and podcast apps subscribe
+   * to. No session: the token in the address is the credential (404 for any other). Answers 304 to a reader whose
+   * copy (If-None-Match) is current.
+   */
+  public static readFeed<ThrowOnError extends boolean = false>(
+    options: Options<ReadFeedData, ThrowOnError>,
+  ): RequestResult<ReadFeedResponses, ReadFeedErrors, ThrowOnError> {
+    return (options.client ?? client).get<ReadFeedResponses, ReadFeedErrors, ThrowOnError>({
+      url: "/api/v1/feeds/public/{token}",
+      ...options,
+    });
+  }
+
+  /**
+   * Read Feed Audio
+   *
+   * An item's audio (or video), with byte ranges, as podcast apps download it. The feed's token is the credential.
+   */
+  public static readFeedAudio<ThrowOnError extends boolean = false>(
+    options: Options<ReadFeedAudioData, ThrowOnError>,
+  ): RequestResult<ReadFeedAudioResponses, ReadFeedAudioErrors, ThrowOnError> {
+    return (options.client ?? client).get<ReadFeedAudioResponses, ReadFeedAudioErrors, ThrowOnError>({
+      url: "/api/v1/feeds/public/{token}/items/{iid}/audio",
+      ...options,
+    });
+  }
+
+  /**
+   * List Feeds
+   *
+   * Feeds in the namespaces you can read (or one of them), each with its private address.
+   */
+  public static listFeeds<ThrowOnError extends boolean = false>(
+    options?: Options<ListFeedsData, ThrowOnError>,
+  ): RequestResult<ListFeedsResponses, ListFeedsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListFeedsResponses, ListFeedsErrors, ThrowOnError>({
+      url: "/api/v1/feeds",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Feed
+   *
+   * A new feed in a namespace you edit, with its private address. Audited as `feed.create`.
+   */
+  public static createFeed<ThrowOnError extends boolean = false>(
+    options: Options<CreateFeedData, ThrowOnError>,
+  ): RequestResult<CreateFeedResponses, CreateFeedErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateFeedResponses, CreateFeedErrors, ThrowOnError>({
+      url: "/api/v1/feeds",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Feed
+   *
+   * Delete a feed and its items (editors): its address stops working at once. What the items were about stays.
+   * Audited as `feed.delete`.
+   */
+  public static deleteFeed<ThrowOnError extends boolean = false>(
+    options: Options<DeleteFeedData, ThrowOnError>,
+  ): RequestResult<DeleteFeedResponses, DeleteFeedErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteFeedResponses, DeleteFeedErrors, ThrowOnError>({
+      url: "/api/v1/feeds/{fid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Feed
+   */
+  public static getFeed<ThrowOnError extends boolean = false>(
+    options: Options<GetFeedData, ThrowOnError>,
+  ): RequestResult<GetFeedResponses, GetFeedErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetFeedResponses, GetFeedErrors, ThrowOnError>({
+      url: "/api/v1/feeds/{fid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Feed
+   *
+   * Change a feed's settings (editors of its namespace). Fields left out stay as they are.
+   */
+  public static updateFeed<ThrowOnError extends boolean = false>(
+    options: Options<UpdateFeedData, ThrowOnError>,
+  ): RequestResult<UpdateFeedResponses, UpdateFeedErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateFeedResponses, UpdateFeedErrors, ThrowOnError>({
+      url: "/api/v1/feeds/{fid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Rotate Feed Token
+   *
+   * A new private address for a feed (editors): the old one stops working at once, so readers subscribed to it
+   * need the new one. Audited as `feed.token`.
+   */
+  public static rotateFeedToken<ThrowOnError extends boolean = false>(
+    options: Options<RotateFeedTokenData, ThrowOnError>,
+  ): RequestResult<RotateFeedTokenResponses, RotateFeedTokenErrors, ThrowOnError> {
+    return (options.client ?? client).post<RotateFeedTokenResponses, RotateFeedTokenErrors, ThrowOnError>({
+      url: "/api/v1/feeds/{fid}/token",
+      ...options,
+    });
+  }
+
+  /**
+   * List Feed Items
+   *
+   * A feed's items, newest first.
+   */
+  public static listFeedItems<ThrowOnError extends boolean = false>(
+    options: Options<ListFeedItemsData, ThrowOnError>,
+  ): RequestResult<ListFeedItemsResponses, ListFeedItemsErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListFeedItemsResponses, ListFeedItemsErrors, ThrowOnError>({
+      url: "/api/v1/feeds/{fid}/items",
+      ...options,
+    });
+  }
+
+  /**
+   * Publish To Feed
+   *
+   * Add resources (podcast episodes too), timeline activities and text items to a feed (editors of its namespace).
+   * What's already in it isn't added twice; what may not show there (it's in a namespace not everyone who reads the
+   * feed can read) is refused, with why. Audited as `feed.publish`.
+   */
+  public static publishToFeed<ThrowOnError extends boolean = false>(
+    options: Options<PublishToFeedData, ThrowOnError>,
+  ): RequestResult<PublishToFeedResponses, PublishToFeedErrors, ThrowOnError> {
+    return (options.client ?? client).post<PublishToFeedResponses, PublishToFeedErrors, ThrowOnError>({
+      url: "/api/v1/feeds/{fid}/items",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Remove Feed Item
+   *
+   * Take an item out of a feed (editors). A routine may add it again; what it was about stays.
+   */
+  public static removeFeedItem<ThrowOnError extends boolean = false>(
+    options: Options<RemoveFeedItemData, ThrowOnError>,
+  ): RequestResult<RemoveFeedItemResponses, RemoveFeedItemErrors, ThrowOnError> {
+    return (options.client ?? client).delete<RemoveFeedItemResponses, RemoveFeedItemErrors, ThrowOnError>({
+      url: "/api/v1/feeds/{fid}/items/{iid}",
       ...options,
     });
   }

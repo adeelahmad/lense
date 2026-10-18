@@ -19,6 +19,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
     podcast_script = None  # the lines a podcast script comes back with (podcasts.write), else a built-in one
     spec = None  # a spec's answer (specs.write), else one quoting the transcript's lines in turn (see _spec)
     usage = None  # token counts to report with each answer (and as a streamed answer's last chunk), like OpenAI
+    research_plan = None  # a research plan (research.plan) to come back with, else a built-in one about the capsid
+    research_report = None  # a research report (research._write) to come back with, else one citing [1] and [2]
+    title = None  # a conversation's title (chat.suggest_title), else the first question, labelled and quoted as models do
 
     def _json(self, obj):
         data = json.dumps(obj).encode()
@@ -76,6 +79,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         if seen:
             return self._json({"choices": [{"message": {"content": _describe(seen)}}]})
+        if str(((body.get("messages") or [{}])[0]).get("content") or "").startswith("You title conversations"):
+            asked = re.search(r"^Person: (.*)$", body["messages"][-1]["content"], re.M)
+            title = Handler.title if Handler.title is not None else f'Title: "{asked.group(1) if asked else "Untitled"}."'
+            return self._json({"choices": [{"message": {"content": title}}], **({"usage": Handler.usage} if Handler.usage else {})})
         schema = ((body.get("response_format") or {}).get("json_schema") or {}).get("schema") or {}
         if "verdicts" in schema.get("properties", {}):
             claims = [l[2:] for l in body["messages"][-1]["content"].splitlines() if l.startswith("- ")]
@@ -168,6 +175,30 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 else:
                     checks.append({"line": int(k), "verdict": "supported"})
             content = json.dumps({"checks": checks})
+        elif {"questions", "plan"} <= set(schema.get("properties", {})):
+            # a research plan (research.plan): Handler.research_plan, else two sub-questions about the capsid in the
+            # archive, and a follow-up question unless it's a revision (answers given)
+            text = body["messages"][-1]["content"]
+            goal = re.search(r"^Goal: (.*)$", text, re.M).group(1)
+            plan = Handler.research_plan or {
+                "title": "Capsid research",
+                "goal": goal,
+                "sub_questions": ["What did the capsid model do?", "When do the samples ship?"],
+                "sources": ["archive"],
+                "max_tool_calls": 6,
+                "report_outline": ["Findings", "Open questions"],
+            }
+            revised = "Their answers:" in text or "The earlier plan" in text
+            questions = [] if revised else [{"question": "Which period?", "answers": ["This year", "All time"]}]
+            if revised:
+                plan = {**plan, "title": plan["title"] + " (revised)"}
+            content = json.dumps({"questions": questions, "plan": plan})
+        elif "rewrites" in schema.get("properties", {}):
+            # a research report's unsupported claims (research._check): the first one rewritten, the rest given up on
+            claims = [l[2:] for l in body["messages"][-1]["content"].splitlines() if l.startswith("- ")]
+            content = json.dumps(
+                {"rewrites": [{"claim": c, "text": "Samples ship on Friday [2]." if i == 0 else ""} for i, c in enumerate(claims)]}
+            )
         elif "cypher" in schema.get("properties", {}):
             # graph questions: the scripted queries in order, else one that finds organisations
             q = Handler.cypher_script.pop(0) if Handler.cypher_script else "MATCH (e:Organisation) RETURN e, e.name LIMIT 50"
@@ -220,6 +251,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
             content = json.dumps({"title": "Capsid plan" if title == "Untitled" else title, "summary": f"About {first}"})
         elif set(schema.get("properties", {})) == {"choice", "confidence"}:
             content = json.dumps(Handler.decision or {"choice": schema["properties"]["choice"]["enum"][0], "confidence": 0.9})
+        elif str(body["messages"][0].get("content") or "").startswith("You write research reports"):
+            content = Handler.research_report or (
+                "# Capsid research\n\nThe capsid model beat the human designs [1]. The shipment leaves on Friday [2]. "
+                "Mars has capsids too [2]."
+            )
         elif body.get("response_format"):
             content = json.dumps(
                 {

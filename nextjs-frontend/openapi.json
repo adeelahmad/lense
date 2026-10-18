@@ -1204,6 +1204,72 @@
         }
       }
     },
+    "/api/v1/auth/passkeys/elsewhere": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Passkey Addresses",
+        "description": "The other https:// addresses Lens opens at (Settings \u203a Remote access and HTTPS), and whether you have a passkey\nfor each: a passkey works only on the address it was made at.",
+        "operationId": "passkey_addresses",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PasskeyAddress"
+                  },
+                  "type": "array",
+                  "title": "Response Auth-Passkey Addresses"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Passkey Elsewhere",
+        "description": "A sign-in link of your own at another address Lens opens at, to sign in there and add a passkey for it, with no\nemail and no admin. It lasts 15 minutes and works once; links others have are left alone. For people signed in\nthemselves, not API tokens or apps. Audited as `passkey.elsewhere`.",
+        "operationId": "passkey_elsewhere",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeyAddressAsk"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SigninLink"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/external": {
       "get": {
         "tags": [
@@ -2537,8 +2603,25 @@
           "admin"
         ],
         "summary": "Test Llm",
-        "description": "Ask the configured model for one word, to check the address, key and model name.",
+        "description": "Ask the model for one word, to check the address, key and model name: what is given (typed, not saved yet),\nelse what is saved.",
         "operationId": "test_llm",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/LlmTry"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2546,6 +2629,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/LlmTestResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -4311,6 +4404,81 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Monitoring"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/services": {
+      "get": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "List Services",
+        "description": "Lens's optional containers (the MCP runner, the browser, monitoring): whether each is on and answering, and\nhow the machine's last change went.",
+        "operationId": "list_services",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Services"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/services/{profile}": {
+      "put": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Set Service",
+        "description": "Have this machine start or stop one of them: its upgrade agent adds the profile to COMPOSE_PROFILES in .env, or\ntakes it out, and starts or stops its containers. Monitoring also turns /metrics on, as PUT /admin/monitoring\ndoes. GET /admin/services follows along; without an agent, 409 says the line to run on the machine instead.",
+        "operationId": "set_service",
+        "parameters": [
+          {
+            "name": "profile",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Profile"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Service"
                 }
               }
             }
@@ -24816,6 +24984,28 @@
         }
       }
     },
+    "/api/v1/extensions/mcp/presets": {
+      "get": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "Mcp Presets",
+        "description": "MCP servers ready to add (admins): the browser Lens can run next to it, with whether its container is on and\nrunning (`service`), and GitHub's own server, with the token to type in (`fill`).",
+        "operationId": "mcp_presets",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpPresets"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/extensions/{eid}": {
       "get": {
         "tags": [
@@ -25482,7 +25672,7 @@
           "chats"
         ],
         "summary": "Create Chat",
-        "description": "A conversation. Its answers may use what `tools` and `max_tool_calls` say, which become your latest choice;\nleft out, your latest choice (here or PATCH /chats/{cid}), else Auto: everything you may use, limited by the rounds\nalone.",
+        "description": "A conversation. Its answers may use what `tools` and `max_tool_calls` say, which become your latest choice;\nleft out, your latest choice (here or PATCH /chats/{cid}), else Auto: everything you may use, limited by the rounds\nalone. A `title` is yours, and kept; without one, Lens titles it after its first answer (ai.auto_title).",
         "operationId": "create_chat",
         "requestBody": {
           "content": {
@@ -25938,6 +26128,49 @@
         }
       }
     },
+    "/api/v1/chats/{cid}/title": {
+      "post": {
+        "tags": [
+          "chats"
+        ],
+        "summary": "Title Chat",
+        "description": "Have Lens title a conversation now, from how it starts (the version showing's first messages), even one you\nnamed: the title is Lens's again, as after a first answer. Written by the model for summaries (ai.compact_model)\nwhen set, else the chat's, in one call counted for the conversation in the activity ledger. 409 before the first\nquestion; 400 with no model, or when the model writes no title.",
+        "operationId": "title_chat",
+        "parameters": [
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatTitle"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/chats/{cid}/files/{fid}": {
       "get": {
         "tags": [
@@ -25992,7 +26225,7 @@
           "chats"
         ],
         "summary": "Send Message",
-        "description": "Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model\nreads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), meta (the answer's record, kept with it: what produced\nit), done (the saved message id).\n\nA conversation is a tree of versions (GET /chats/{cid}: `tree`, and each message's `versions`); the question goes\non from `parent` when given (any message of the conversation), else from the version showing (`head`). With\n`regenerate` (an answer's id) its question is answered again, as a new version beside that answer (`content` isn't\nneeded; `model` may pick another). With `edit`, one of your earlier questions is edited: this question becomes a new\nversion beside it and is answered, and the old one stays with what followed it (404 if it isn't a question in this\nconversation). Either keeps the page the question was asked from (where, and the highlighted text; not the page's\ntext, which isn't kept) unless `context` is given, and streams `branch` first ({message, parent, versions}: the\nnew version, the message it follows and its versions); so does a question beside others under `parent`.\n\nWhat the answer may use: `tools` (tool groups and tools, GET /chats/tools; [] for none, when it answers from a\nsearch) and `max_tool_calls` (at most that many tool calls, in as many rounds as it takes), else the conversation's\nchoice (PATCH /chats/{cid}); and `scope`, what this answer alone draws on (the conversation keeps its own). Its\nrecord keeps what it was given and used.\n\n`/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the\nconversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.\n\nWith `browser` (the session of a browser's Lens side panel, POST /browser/sessions), the assistant can use that\nbrowser while the side panel is connected: open pages, read them, click, type and download files into the\nconversation (docs/browser-assistant.md).",
+        "description": "Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model\nreads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), meta (the answer's record, kept with it: what produced\nit), done (the saved message id).\n\nA conversation is a tree of versions (GET /chats/{cid}: `tree`, and each message's `versions`); the question goes\non from `parent` when given (any message of the conversation), else from the version showing (`head`). With\n`regenerate` (an answer's id) its question is answered again, as a new version beside that answer (`content` isn't\nneeded; `model` may pick another). With `edit`, one of your earlier questions is edited: this question becomes a new\nversion beside it and is answered, and the old one stays with what followed it (404 if it isn't a question in this\nconversation). Either keeps the page the question was asked from (where, and the highlighted text; not the page's\ntext, which isn't kept) unless `context` is given, and streams `branch` first ({message, parent, versions}: the\nnew version, the message it follows and its versions); so does a question beside others under `parent`.\n\nWhat the answer may use: `tools` (tool groups and tools, GET /chats/tools; [] for none, when it answers from a\nsearch) and `max_tool_calls` (at most that many tool calls, in as many rounds as it takes), else the conversation's\nchoice (PATCH /chats/{cid}); and `scope`, what this answer alone draws on (the conversation keeps its own). Its\nrecord keeps what it was given and used.\n\n`/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the\nconversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.\n\nWith `research` (or /research <goal>) the content is a research goal: the answer is a plan to approve (streamed as\n`research`, then `approval`), which runs in the background once approved (POST /chats/{cid}/research, GET\n/research/{id}).\n\nWith `browser` (the session of a browser's Lens side panel, POST /browser/sessions), the assistant can use that\nbrowser while the side panel is connected: open pages, read them, click, type and download files into the\nconversation (docs/browser-assistant.md).",
         "operationId": "send_message",
         "parameters": [
           {
@@ -26373,6 +26606,425 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ApprovalOutcome"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chats/{cid}/research": {
+      "post": {
+        "tags": [
+          "research"
+        ],
+        "summary": "Start Research",
+        "description": "Start research on a goal in a conversation: the goal is saved as a question and one model call plans it (up to\nthree follow-up questions with answers to pick, the sub-questions, where it looks, the tool calls it may make, the\nreport's outline, and an estimate of the cost). The plan waits as an approval (POST /approvals/{id}: approve it as\nit is, or with `params` its edits; or decline), or revise it (POST /research/{id}/revise). With `review` false it\nstarts at once: your own pick when signed in; an API key or an app needs research.agents_skip_review. The same as a\nquestion with `research: true`, or /research <goal>.",
+        "operationId": "start_research",
+        "parameters": [
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResearchStart"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchStarted"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/research": {
+      "get": {
+        "tags": [
+          "research"
+        ],
+        "summary": "List Research",
+        "description": "Your research, newest first; with `chat_id`, that conversation's (to show each plan's or run's card).",
+        "operationId": "list_research",
+        "parameters": [
+          {
+            "name": "chat_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Chat Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Research"
+                  },
+                  "title": "Response Research-List Research"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/research/{rid}": {
+      "get": {
+        "tags": [
+          "research"
+        ],
+        "summary": "Get Research",
+        "description": "A research run: its plan, status and stage (gather, write, check, done), progress (sub-questions done, sources\nfound, tool calls and cost so far, from the activity ledger) and, once it's done, the report's message\n(`answer`, in the conversation). What it waits for when a budget holds it (`held`), and why it ended early.",
+        "operationId": "get_research",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Research"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/research/{rid}/revise": {
+      "post": {
+        "tags": [
+          "research"
+        ],
+        "summary": "Revise Research",
+        "description": "Send your answers to the follow-up questions and your edits to the plan back for one more planning call; the\nplan and its approval change in place. Only while the plan waits for approval.",
+        "operationId": "revise_research",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResearchRevise"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Research"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/research/{rid}/stop": {
+      "post": {
+        "tags": [
+          "research"
+        ],
+        "summary": "Stop Research",
+        "description": "Stop a run: it stops after the step it's on and keeps what it found, saved in the conversation as its answer,\nmarked stopped (one that hasn't started, or waits on a budget, stops now). Works whichever process runs it.",
+        "operationId": "stop_research",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchStop"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/research/{rid}/resume": {
+      "post": {
+        "tags": [
+          "research"
+        ],
+        "summary": "Resume Research",
+        "description": "Let a run that a budget holds go on anyway (your pick, as \"run it once\" is for a held routine run).",
+        "operationId": "resume_research",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Research"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/research/{rid}/note": {
+      "post": {
+        "tags": [
+          "research"
+        ],
+        "summary": "Research Note",
+        "description": "Save the report as a note: in the namespace it looked in (`namespace` when there are several), its archive\ncitations as links to the assets they cite, web citations as links, and a link back to the conversation (shown to\nyou alone). Needs editor access there.",
+        "operationId": "research_note",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ResearchNote"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchNoteMade"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/research/{rid}/podcast": {
+      "post": {
+        "tags": [
+          "research"
+        ],
+        "summary": "Research Podcast",
+        "description": "Make a podcast episode from the assets the report cites (POST /podcasts with them picked): about the research\ngoal unless `prompt` says otherwise, titled after the report.",
+        "operationId": "research_podcast",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ResearchPodcast"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PodcastStarted"
                 }
               }
             }
@@ -31217,6 +31869,543 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PodcastJob"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/feeds/public/{token}": {
+      "get": {
+        "tags": [
+          "feeds"
+        ],
+        "summary": "Read Feed",
+        "description": "A feed as RSS 2.0, with Apple Podcasts' tags for a podcast feed: what feed readers and podcast apps subscribe\nto. No session: the token in the address is the credential (404 for any other). Answers 304 to a reader whose\ncopy (If-None-Match) is current.",
+        "operationId": "read_feed",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/rss+xml": {}
+            }
+          },
+          "304": {
+            "description": "unchanged since the reader's copy"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/feeds/public/{token}/items/{iid}/audio": {
+      "get": {
+        "tags": [
+          "feeds"
+        ],
+        "summary": "Read Feed Audio",
+        "description": "An item's audio (or video), with byte ranges, as podcast apps download it. The feed's token is the credential.",
+        "operationId": "read_feed_audio",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          },
+          {
+            "name": "iid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Iid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "audio/*": {}
+            }
+          },
+          "206": {
+            "description": "a byte range"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/feeds": {
+      "get": {
+        "tags": [
+          "feeds"
+        ],
+        "summary": "List Feeds",
+        "description": "Feeds in the namespaces you can read (or one of them), each with its private address.",
+        "operationId": "list_feeds",
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Namespace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Feed"
+                  },
+                  "title": "Response Feeds-List Feeds"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "feeds"
+        ],
+        "summary": "Create Feed",
+        "description": "A new feed in a namespace you edit, with its private address. Audited as `feed.create`.",
+        "operationId": "create_feed",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Feed"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/feeds/{fid}": {
+      "get": {
+        "tags": [
+          "feeds"
+        ],
+        "summary": "Get Feed",
+        "operationId": "get_feed",
+        "parameters": [
+          {
+            "name": "fid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Fid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Feed"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "feeds"
+        ],
+        "summary": "Update Feed",
+        "description": "Change a feed's settings (editors of its namespace). Fields left out stay as they are.",
+        "operationId": "update_feed",
+        "parameters": [
+          {
+            "name": "fid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Fid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedSettings"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Feed"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "feeds"
+        ],
+        "summary": "Delete Feed",
+        "description": "Delete a feed and its items (editors): its address stops working at once. What the items were about stays.\nAudited as `feed.delete`.",
+        "operationId": "delete_feed",
+        "parameters": [
+          {
+            "name": "fid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Fid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/feeds/{fid}/token": {
+      "post": {
+        "tags": [
+          "feeds"
+        ],
+        "summary": "Rotate Feed Token",
+        "description": "A new private address for a feed (editors): the old one stops working at once, so readers subscribed to it\nneed the new one. Audited as `feed.token`.",
+        "operationId": "rotate_feed_token",
+        "parameters": [
+          {
+            "name": "fid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Fid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Feed"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/feeds/{fid}/items": {
+      "get": {
+        "tags": [
+          "feeds"
+        ],
+        "summary": "List Feed Items",
+        "description": "A feed's items, newest first.",
+        "operationId": "list_feed_items",
+        "parameters": [
+          {
+            "name": "fid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Fid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FeedItem"
+                  },
+                  "title": "Response Feeds-List Feed Items"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "feeds"
+        ],
+        "summary": "Publish To Feed",
+        "description": "Add resources (podcast episodes too), timeline activities and text items to a feed (editors of its namespace).\nWhat's already in it isn't added twice; what may not show there (it's in a namespace not everyone who reads the\nfeed can read) is refused, with why. Audited as `feed.publish`.",
+        "operationId": "publish_to_feed",
+        "parameters": [
+          {
+            "name": "fid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Fid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedPublish"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedPublished"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/feeds/{fid}/items/{iid}": {
+      "delete": {
+        "tags": [
+          "feeds"
+        ],
+        "summary": "Remove Feed Item",
+        "description": "Take an item out of a feed (editors). A routine may add it again; what it was about stays.",
+        "operationId": "remove_feed_item",
+        "parameters": [
+          {
+            "name": "fid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Fid"
+            }
+          },
+          {
+            "name": "iid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Iid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
                 }
               }
             }
@@ -37144,6 +38333,22 @@
             "type": "string",
             "title": "Title"
           },
+          "title_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "assistant",
+                  "person"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title By",
+            "description": "who titled it: assistant (Lens, from its first question and answer; it titles it again when the first question is edited) or person (named by someone, so Lens leaves it); null: from before Lens kept who titled it"
+          },
           "kind": {
             "type": "string",
             "enum": [
@@ -37461,7 +38666,8 @@
                 "type": "null"
               }
             ],
-            "title": "Title"
+            "title": "Title",
+            "description": "yours, and kept; left out, Lens titles it after its first answer (ai.auto_title)"
           },
           "kind": {
             "type": "string",
@@ -37685,6 +38891,22 @@
               }
             ],
             "description": "what produced it; none on messages from before it was recorded"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "research",
+                  "research_plan"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind",
+            "description": "research: a deep research report; research_plan: the plan it waits on (GET /research/{meta.research})"
           }
         },
         "additionalProperties": true,
@@ -37841,6 +39063,22 @@
             "type": "string",
             "title": "Title"
           },
+          "title_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "assistant",
+                  "person"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title By",
+            "description": "who titled it: assistant (Lens, from its first question and answer; it titles it again when the first question is edited) or person (named by someone, so Lens leaves it); null: from before Lens kept who titled it"
+          },
           "kind": {
             "type": "string",
             "enum": [
@@ -37928,6 +39166,30 @@
         ],
         "title": "ChatSummary"
       },
+      "ChatTitle": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "title_by": {
+            "type": "string",
+            "enum": [
+              "assistant",
+              "person"
+            ],
+            "title": "Title By",
+            "description": "who titled it: assistant (Lens, from its first question and answer; it titles it again when the first question is edited) or person (named by someone, so Lens leaves it); null: from before Lens kept who titled it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "title",
+          "title_by"
+        ],
+        "title": "ChatTitle"
+      },
       "ChatTools": {
         "properties": {
           "groups": {
@@ -37974,7 +39236,8 @@
                 "type": "null"
               }
             ],
-            "title": "Title"
+            "title": "Title",
+            "description": "rename it: yours from then on, so Lens doesn't retitle it (POST /chats/{cid}/title does)"
           },
           "scope": {
             "anyOf": [
@@ -44161,6 +45424,728 @@
         ],
         "title": "FedoraSyncResult"
       },
+      "Feed": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "space": {
+            "type": "integer",
+            "title": "Space"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "rss",
+              "podcast"
+            ],
+            "title": "Kind"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "explicit": {
+            "type": "boolean",
+            "title": "Explicit",
+            "default": false
+          },
+          "image": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image"
+          },
+          "max_items": {
+            "type": "integer",
+            "title": "Max Items"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "the feed's private address: anyone with it can read the feed, so share it like a password"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path",
+            "description": "the address without the server"
+          },
+          "page": {
+            "type": "string",
+            "title": "Page",
+            "description": "the feed's page in the web app"
+          },
+          "items": {
+            "type": "integer",
+            "title": "Items",
+            "description": "how many items it holds"
+          },
+          "last_item_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Item At"
+          },
+          "fetched_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fetched At",
+            "description": "when a feed reader or podcast app last read it"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "space",
+          "kind",
+          "title",
+          "max_items",
+          "url",
+          "path",
+          "page",
+          "items"
+        ],
+        "title": "Feed"
+      },
+      "FeedCreate": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author",
+            "description": "who a podcast app shows it's by (default Lens)"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language",
+            "description": "a language tag, like en or en-GB (default en)"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category",
+            "description": "an Apple Podcasts category (podcast feeds; default Education)"
+          },
+          "explicit": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explicit"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image",
+            "description": "artwork: an https:// address of a square picture"
+          },
+          "max_items": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 500.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Items",
+            "description": "how many items the feed lists, newest first (default 50)"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "rss",
+              "podcast"
+            ],
+            "title": "Kind",
+            "default": "rss"
+          },
+          "namespace": {
+            "type": "string",
+            "title": "Namespace",
+            "description": "the namespace the feed belongs to: its editors manage it, its readers see it"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "title",
+          "namespace"
+        ],
+        "title": "FeedCreate"
+      },
+      "FeedItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "feed": {
+            "type": "integer",
+            "title": "Feed"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "asset",
+              "episode",
+              "activity",
+              "text"
+            ],
+            "title": "Kind"
+          },
+          "guid": {
+            "type": "string",
+            "title": "Guid"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link"
+          },
+          "published_at": {
+            "type": "string",
+            "title": "Published At"
+          },
+          "recording": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recording"
+          },
+          "activity": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activity"
+          },
+          "categories": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categories"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin",
+            "description": "the routine run and workflow node that added it"
+          },
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "feed",
+          "kind",
+          "guid",
+          "published_at"
+        ],
+        "title": "FeedItem"
+      },
+      "FeedPublish": {
+        "properties": {
+          "recordings": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "title": "Recordings",
+            "description": "resources (and podcast episodes) to list"
+          },
+          "activities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "title": "Activities",
+            "description": "timeline activities to list, by id"
+          },
+          "texts": {
+            "items": {
+              "$ref": "#/components/schemas/FeedText"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "Texts",
+            "description": "text items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "FeedPublish"
+      },
+      "FeedPublished": {
+        "properties": {
+          "added": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Added",
+            "description": "the new items' ids"
+          },
+          "already": {
+            "type": "integer",
+            "title": "Already",
+            "description": "how many were in the feed already"
+          },
+          "refused": {
+            "items": {
+              "$ref": "#/components/schemas/FeedRefused"
+            },
+            "type": "array",
+            "title": "Refused",
+            "description": "what can't go in this feed, and why"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "added",
+          "already",
+          "refused"
+        ],
+        "title": "FeedPublished"
+      },
+      "FeedRefused": {
+        "properties": {
+          "what": {
+            "type": "string",
+            "title": "What"
+          },
+          "why": {
+            "type": "string",
+            "title": "Why"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "what",
+          "why"
+        ],
+        "title": "FeedRefused"
+      },
+      "FeedSettings": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author",
+            "description": "who a podcast app shows it's by (default Lens)"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language",
+            "description": "a language tag, like en or en-GB (default en)"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category",
+            "description": "an Apple Podcasts category (podcast feeds; default Education)"
+          },
+          "explicit": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explicit"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image",
+            "description": "artwork: an https:// address of a square picture"
+          },
+          "max_items": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 500.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Items",
+            "description": "how many items the feed lists, newest first (default 50)"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "rss",
+                  "podcast"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind",
+            "description": "rss lists anything; podcast lists items with audio, with Apple Podcasts' tags"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "FeedSettings"
+      },
+      "FeedText": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary",
+            "description": "the item's text"
+          },
+          "link": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link",
+            "description": "an http or https address"
+          },
+          "guid": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guid",
+            "description": "what the item is about, so the same item isn't added twice"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "FeedText"
+      },
       "FieldCreate": {
         "properties": {
           "label": {
@@ -47397,6 +49382,12 @@
             ],
             "title": "Mqtt Port"
           },
+          "mqtt_web": {
+            "type": "boolean",
+            "title": "Mqtt Web",
+            "description": "the broker over WebSockets too, which the web app relays at /mqtt",
+            "default": false
+          },
           "syslog": {
             "type": "boolean",
             "title": "Syslog"
@@ -49603,6 +51594,53 @@
         ],
         "title": "LlmTestResult"
       },
+      "LlmTry": {
+        "properties": {
+          "base_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Url",
+            "description": "the server's address, as typed"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "the model name, as typed"
+          },
+          "api_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Key",
+            "description": "a key typed but not saved; the saved key is used only at the saved address"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "LlmTry",
+        "description": "What to test before saving it (Settings \u2192 LLM provider); anything left out is taken from what is saved."
+      },
       "LocalLlmProgress": {
         "properties": {
           "done": {
@@ -50884,6 +52922,86 @@
         ],
         "title": "McpConfigText"
       },
+      "McpPreset": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "what its tools are called by: name__tool"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "spec": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Spec",
+            "description": "the server, as an MCP extension keeps it"
+          },
+          "fill": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Fill",
+            "description": "values written as ${NAME} in spec, to type in first"
+          },
+          "needs": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Needs",
+            "description": "the optional profile it runs in (GET /admin/services), if any"
+          },
+          "service": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Service"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "that profile: whether it's on and running"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "label",
+          "description",
+          "spec"
+        ],
+        "title": "McpPreset"
+      },
+      "McpPresets": {
+        "properties": {
+          "presets": {
+            "items": {
+              "$ref": "#/components/schemas/McpPreset"
+            },
+            "type": "array",
+            "title": "Presets"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "presets"
+        ],
+        "title": "McpPresets"
+      },
       "McpServerFound": {
         "properties": {
           "name": {
@@ -51513,6 +53631,18 @@
               }
             ],
             "description": "what this answer draws on, instead of the conversation's scope (which stays as it is); {} for everything you can read"
+          },
+          "research": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Research",
+            "description": "the content is a research goal: the reply is a plan to approve (streams `research`, then `approval`), as /research <goal> and POST /chats/{cid}/research do"
           }
         },
         "additionalProperties": false,
@@ -51675,6 +53805,22 @@
               }
             ],
             "description": "what produced it; none on messages from before it was recorded"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "research",
+                  "research_plan"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind",
+            "description": "research: a deep research report; research_plan: the plan it waits on (GET /research/{meta.research})"
           },
           "ledger": {
             "items": {
@@ -53123,6 +55269,12 @@
             "type": "boolean",
             "title": "Rclone",
             "description": "whether rclone is installed here"
+          },
+          "add_files": {
+            "type": "boolean",
+            "title": "Add Files",
+            "description": "whether files written to the share are imported (nfs.add_files); off: read-only",
+            "default": false
           }
         },
         "additionalProperties": true,
@@ -54070,8 +56222,8 @@
               {
                 "type": "string",
                 "enum": [
-                  "person",
-                  "assistant"
+                  "assistant",
+                  "person"
                 ]
               },
               {
@@ -54115,8 +56267,8 @@
               {
                 "type": "string",
                 "enum": [
-                  "person",
-                  "assistant"
+                  "assistant",
+                  "person"
                 ]
               },
               {
@@ -54515,8 +56667,8 @@
               {
                 "type": "string",
                 "enum": [
-                  "person",
-                  "assistant"
+                  "assistant",
+                  "person"
                 ]
               },
               {
@@ -54560,8 +56712,8 @@
               {
                 "type": "string",
                 "enum": [
-                  "person",
-                  "assistant"
+                  "assistant",
+                  "person"
                 ]
               },
               {
@@ -56673,6 +58825,43 @@
           "created_at"
         ],
         "title": "Passkey"
+      },
+      "PasskeyAddress": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "an https:// address Lens opens at besides this one (Remote access, HTTPS)"
+          },
+          "passkey": {
+            "type": "boolean",
+            "title": "Passkey",
+            "description": "whether you have a passkey for it: a passkey works only where it was made"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "url",
+          "passkey"
+        ],
+        "title": "PasskeyAddress"
+      },
+      "PasskeyAddressAsk": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 300,
+            "title": "Url",
+            "description": "one of GET /auth/passkeys/elsewhere's addresses"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "PasskeyAddressAsk"
       },
       "PasskeyAnswer": {
         "properties": {
@@ -61801,6 +63990,724 @@
         "type": "object",
         "title": "ReprocessRequest"
       },
+      "Research": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "chat": {
+            "type": "integer",
+            "title": "Chat"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message",
+            "description": "the question that asked for it"
+          },
+          "plan_message": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan Message",
+            "description": "the answer that shows the plan"
+          },
+          "answer": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer",
+            "description": "the report, once saved in the conversation"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval",
+            "description": "the plan's approval (POST /approvals/{id}: approve, with `params` its edits, or decline)"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "declined",
+              "queued",
+              "running",
+              "held",
+              "done",
+              "stopped",
+              "failed"
+            ],
+            "title": "Status",
+            "description": "planned (waiting for approval), declined, queued (approved, waiting its turn), running, held (by a budget), done, stopped or failed"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "gather",
+                  "write",
+                  "check",
+                  "done"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
+          },
+          "goal": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goal"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/ResearchPlan"
+          },
+          "questions": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchQuestion"
+            },
+            "type": "array",
+            "title": "Questions",
+            "description": "follow-up questions; answer them with revise"
+          },
+          "answers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Answers",
+            "description": "the answers given to them"
+          },
+          "scope": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Scope"
+          },
+          "estimate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResearchEstimate"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "progress": {
+            "$ref": "#/components/schemas/ResearchProgress"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchFinding"
+            },
+            "type": "array",
+            "title": "Findings",
+            "description": "the sub-questions answered so far"
+          },
+          "held": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResearchHeld"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "ended": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "stopped",
+                  "timeout",
+                  "budget"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended",
+            "description": "why it ended early: stopped, out of time (research.max_minutes), or a budget"
+          },
+          "revisions": {
+            "type": "integer",
+            "title": "Revisions",
+            "default": 0
+          },
+          "notes": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Notes",
+            "description": "notes made from the report"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "chat",
+          "status",
+          "plan",
+          "progress"
+        ],
+        "title": "Research"
+      },
+      "ResearchEstimate": {
+        "properties": {
+          "usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usd",
+            "description": "what it will likely cost, from the prices in Settings; null without a price"
+          },
+          "tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens"
+          },
+          "tool_calls": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Calls"
+          },
+          "basis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Basis",
+            "description": "what the estimate is drawn from"
+          },
+          "estimate": {
+            "type": "boolean",
+            "title": "Estimate",
+            "default": true
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "ResearchEstimate"
+      },
+      "ResearchFinding": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "tool_calls": {
+            "type": "integer",
+            "title": "Tool Calls",
+            "default": 0
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "question"
+        ],
+        "title": "ResearchFinding"
+      },
+      "ResearchHeld": {
+        "properties": {
+          "why": {
+            "type": "string",
+            "title": "Why"
+          },
+          "budget": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget",
+            "description": "the budget it waits for (all, space:<id>)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "why"
+        ],
+        "title": "ResearchHeld"
+      },
+      "ResearchNote": {
+        "properties": {
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace",
+            "description": "where the note goes; needed when the research looked in several"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ResearchNote"
+      },
+      "ResearchNoteMade": {
+        "properties": {
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "namespace": {
+            "type": "string",
+            "title": "Namespace"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "page",
+          "namespace"
+        ],
+        "title": "ResearchNoteMade"
+      },
+      "ResearchPlan": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "goal": {
+            "type": "string",
+            "title": "Goal"
+          },
+          "sub_questions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sub Questions",
+            "description": "what it answers, one look-up at a time, in order"
+          },
+          "sources": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "archive",
+                "graph",
+                "notes",
+                "web",
+                "code"
+              ]
+            },
+            "type": "array",
+            "title": "Sources",
+            "description": "where it looks: the archive, the graph, notes, the web, the code sandbox"
+          },
+          "max_tool_calls": {
+            "type": "integer",
+            "title": "Max Tool Calls",
+            "description": "the most tool calls the run makes in all (research.max_tool_calls at most)"
+          },
+          "report_outline": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Report Outline",
+            "description": "the report's sections"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "title",
+          "goal",
+          "sub_questions",
+          "sources",
+          "max_tool_calls"
+        ],
+        "title": "ResearchPlan"
+      },
+      "ResearchPodcast": {
+        "properties": {
+          "prompt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt",
+            "description": "an angle; else the research goal"
+          },
+          "length": {
+            "type": "integer",
+            "maximum": 120.0,
+            "minimum": 1.0,
+            "title": "Length",
+            "description": "minutes (up to podcasts.max_minutes)",
+            "default": 10
+          },
+          "style": {
+            "type": "string",
+            "enum": [
+              "deep-dive",
+              "recap",
+              "debate",
+              "beginner"
+            ],
+            "title": "Style",
+            "default": "deep-dive"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "else the report's title"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ResearchPodcast"
+      },
+      "ResearchProgress": {
+        "properties": {
+          "sub_questions": {
+            "type": "integer",
+            "title": "Sub Questions",
+            "default": 0
+          },
+          "done": {
+            "type": "integer",
+            "title": "Done",
+            "description": "sub-questions answered",
+            "default": 0
+          },
+          "sources": {
+            "type": "integer",
+            "title": "Sources",
+            "description": "sources found so far",
+            "default": 0
+          },
+          "tool_calls": {
+            "type": "integer",
+            "title": "Tool Calls",
+            "default": 0
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd",
+            "description": "spent so far (the activity ledger rows of research:<id>)",
+            "default": 0.0
+          },
+          "tokens": {
+            "type": "integer",
+            "title": "Tokens",
+            "default": 0
+          },
+          "cost_estimated": {
+            "type": "boolean",
+            "title": "Cost Estimated",
+            "default": false
+          },
+          "minutes": {
+            "type": "number",
+            "title": "Minutes",
+            "description": "how long it has run",
+            "default": 0.0
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "ResearchProgress"
+      },
+      "ResearchQuestion": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "answers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Answers",
+            "description": "suggested answers to pick from"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "question"
+        ],
+        "title": "ResearchQuestion"
+      },
+      "ResearchRevise": {
+        "properties": {
+          "answers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Answers",
+            "description": "the follow-up questions' answers, by question"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan",
+            "description": "the plan as edited: any of title, sub_questions, sources, max_tool_calls, report_outline"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ResearchRevise"
+      },
+      "ResearchStart": {
+        "properties": {
+          "goal": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Goal",
+            "description": "what to research"
+          },
+          "tools": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tools",
+            "description": "what it may use (GET /chats/tools); null: the conversation's choice"
+          },
+          "max_tool_calls": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Tool Calls",
+            "description": "the most tool calls the plan may make (research.max_tool_calls at most)"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChatScope"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "what it draws on, instead of the conversation's scope"
+          },
+          "review": {
+            "type": "boolean",
+            "title": "Review",
+            "description": "false: start the run at once, without the plan waiting for review (signed in; an API key or an app only with research.agents_skip_review)",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "goal"
+        ],
+        "title": "ResearchStart"
+      },
+      "ResearchStarted": {
+        "properties": {
+          "research": {
+            "$ref": "#/components/schemas/Research"
+          },
+          "question": {
+            "type": "integer",
+            "title": "Question",
+            "description": "the question saved in the conversation"
+          },
+          "message": {
+            "type": "integer",
+            "title": "Message",
+            "description": "the answer that shows the plan"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "the plan as the conversation shows it"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MessageRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "research",
+          "question",
+          "message",
+          "text"
+        ],
+        "title": "ResearchStarted"
+      },
+      "ResearchStop": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          },
+          "stopping": {
+            "type": "boolean",
+            "title": "Stopping",
+            "description": "it stops after the step it's on (or now, when it hadn't started or waited on a budget)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "stopping"
+        ],
+        "title": "ResearchStop"
+      },
       "ResetPasswordRequest": {
         "properties": {
           "token": {
@@ -65455,6 +68362,150 @@
         ],
         "title": "SeriesPoint"
       },
+      "Service": {
+        "properties": {
+          "profile": {
+            "type": "string",
+            "title": "Profile",
+            "description": "the Docker Compose profile: mcp (the MCP runner), browser, monitoring"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "on": {
+            "type": "boolean",
+            "title": "On",
+            "description": "as last asked here; never asked here: whether it runs"
+          },
+          "running": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Running",
+            "description": "whether it answers where Lens reaches it now; null: Lens can't tell"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "queued",
+                  "running",
+                  "done",
+                  "failed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State",
+            "description": "how the machine's last change went"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "asked_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asked At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "agent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent",
+            "description": "what changes it on this machine (systemd, launchd); none: run `manual` there"
+          },
+          "manual": {
+            "type": "string",
+            "title": "Manual",
+            "description": "the line that turns it on by hand, on the machine Lens runs on"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "profile",
+          "label",
+          "description",
+          "on",
+          "manual"
+        ],
+        "title": "Service"
+      },
+      "ServiceRequest": {
+        "properties": {
+          "on": {
+            "type": "boolean",
+            "title": "On",
+            "description": "start (true) or stop (false) the profile's containers"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "on"
+        ],
+        "title": "ServiceRequest"
+      },
+      "Services": {
+        "properties": {
+          "services": {
+            "items": {
+              "$ref": "#/components/schemas/Service"
+            },
+            "type": "array",
+            "title": "Services"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "services"
+        ],
+        "title": "Services"
+      },
       "SetupAdmin": {
         "properties": {
           "from_env": {
@@ -67031,6 +70082,12 @@
             "type": "string",
             "title": "Mount",
             "description": "the command that mounts it on Linux"
+          },
+          "add_files": {
+            "type": "boolean",
+            "title": "Add Files",
+            "description": "whether files people copy in are imported (smb.add_files); off: read-only",
+            "default": false
           }
         },
         "additionalProperties": true,

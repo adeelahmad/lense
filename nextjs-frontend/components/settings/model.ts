@@ -169,9 +169,9 @@ export const SECTIONS: SectionSpec[] = [
   {
     id: "ai",
     label: "AI assistant",
-    backend: ["ai", "web", "decisions", "voice"],
+    backend: ["ai", "web", "decisions", "voice", "research"],
     description:
-      "What the chat assistant may do with tools, whether it searches the web, which routine choices it makes for you, and when a batch run needs a typed confirmation.",
+      "What the chat assistant may do with tools, whether it searches the web, which routine choices it makes for you, deep research, and when a batch run needs a typed confirmation.",
   },
   {
     id: "sandbox",
@@ -341,14 +341,14 @@ export const SECTIONS: SectionSpec[] = [
     label: "NFS share",
     backend: ["nfs"],
     description:
-      "Off unless you turn it on. The archive as folders and files over NFS, read-only: namespaces, collections, topics and entities as folders, assets as files, for machines on the networks you allow.",
+      "Off unless you turn it on. The archive as folders and files over NFS: namespaces, collections, topics and entities as folders, assets as files, for machines on the networks you allow; files copied into a collection’s folder are imported there.",
   },
   {
     id: "smb",
     label: "SMB share",
     backend: ["smb"],
     description:
-      "Off unless you turn it on. The graph as folders and files over SMB, read-only, for Finder, Explorer and Linux: each person signs in with a file access key and sees what they see in the web app.",
+      "Off unless you turn it on. The graph as folders and files over SMB, for Finder, Explorer and Linux: each person signs in with a file access key, sees what they see in the web app, and files they copy into a collection’s folder are imported there.",
   },
   {
     id: "shares",
@@ -518,6 +518,9 @@ export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
   { name: "read_settings", label: "Read settings (admins)", acts: false },
   { name: "change_settings", label: "Change settings (admins)", acts: true },
   { name: "create_namespace", label: "Create namespaces (admins)", acts: true },
+  { name: "news_feeds", label: "List the news feeds Lens follows (admins)", acts: false },
+  { name: "subscribe_feed", label: "Follow news feeds (admins)", acts: true },
+  { name: "unsubscribe_feed", label: "Stop following news feeds (admins)", acts: true },
 ];
 
 /** The speech providers (the backend's app/domain/speech.py), in the order Settings shows them. */
@@ -825,8 +828,9 @@ export const FIELDS: FieldSpec[] = [
     options: [
       { value: "llm", label: "The provider’s model that can see images" },
       { value: "florence-2", label: "Florence-2 on this server (MIT, runs on the CPU)" },
+      { value: "moondream", label: "Moondream on this server (PyTorch)" },
     ],
-    hint: "The Describe step says what each page and shot shows. Florence-2 sends no picture anywhere and is fetched the first time it’s needed",
+    hint: "The Describe step says what each page and shot shows. Florence-2 and Moondream send no picture anywhere and are fetched the first time they’re needed",
   },
   {
     section: "llm",
@@ -836,6 +840,19 @@ export const FIELDS: FieldSpec[] = [
     options: [
       { value: "base", label: "Base (about 280 MB, for small machines)" },
       { value: "large", label: "Large (about 830 MB, more detail, slower)" },
+    ],
+  },
+  {
+    section: "llm",
+    key: "moondream_model",
+    label: "Moondream model",
+    kind: "select",
+    options: [
+      {
+        value: "moondream3-preview",
+        label: "Moondream 3 Preview (about 19 GB, needs a GPU; BSL 1.1, not open source)",
+      },
+      { value: "moondream2", label: "Moondream 2 (about 3.7 GB, runs on the CPU, slowly; Apache-2.0)" },
     ],
   },
   {
@@ -907,13 +924,20 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "ai",
+    key: "auto_title",
+    label: "Title conversations",
+    kind: "switch",
+    hint: "After the first answer, the model gives a conversation a short title, with the model for summaries when one is set. A title you give it is kept. Off: it's titled with the first question.",
+  },
+  {
+    section: "ai",
     key: "compact_model",
     label: "Model for summaries",
     kind: "text",
     nullable: true,
     mono: true,
     placeholder: "the chat's model",
-    hint: "A smaller, cheaper model on the same provider to write them.",
+    hint: "A smaller, cheaper model on the same provider to write them, and conversations' titles.",
   },
   {
     section: "ai",
@@ -978,6 +1002,42 @@ export const FIELDS: FieldSpec[] = [
     hint: "The highest limit a question or a conversation can set on the tool calls of one answer.",
     min: 1,
     max: 500,
+  },
+  {
+    section: "research",
+    key: "max_tool_calls",
+    label: "Most tool calls a deep research may make",
+    kind: "int",
+    hint: "A plan asks for fewer; you can raise it on the plan up to this.",
+    min: 1,
+    max: 500,
+  },
+  {
+    section: "research",
+    key: "max_minutes",
+    label: "Longest a deep research may run",
+    kind: "int",
+    unit: "minutes",
+    hint: "It then writes its report from what it found.",
+    min: 1,
+    max: 240,
+  },
+  {
+    section: "research",
+    key: "model",
+    label: "Model for deep research",
+    kind: "text",
+    nullable: true,
+    mono: true,
+    placeholder: "the conversation's model",
+    hint: "A cheaper or stronger model on the same provider.",
+  },
+  {
+    section: "research",
+    key: "agents_skip_review",
+    label: "Let agents start deep research without your review",
+    kind: "switch",
+    hint: "Off: a plan an API key, an app or an agent asks for waits for you to approve it.",
   },
   {
     section: "ai",
@@ -2570,7 +2630,14 @@ export const FIELDS: FieldSpec[] = [
     key: "enabled",
     label: "Share the file tree over NFS",
     kind: "switch",
-    hint: "Read-only. Off: nothing listens",
+    hint: "Off: nothing listens",
+  },
+  {
+    section: "nfs",
+    key: "add_files",
+    label: "Import files people add",
+    kind: "switch",
+    hint: "A file copied into a collection’s folder is imported there, as the account below adds it (NFS has no login). Off: read-only",
   },
   {
     section: "nfs",
@@ -2579,7 +2646,7 @@ export const FIELDS: FieldSpec[] = [
     kind: "select",
     nullable: true,
     options: [],
-    hint: "The share shows what this person sees in the web app, and nothing else",
+    hint: "The share shows what this person sees in the web app, and nothing else; files added to it are added as them",
   },
   {
     section: "nfs",
@@ -2642,7 +2709,14 @@ export const FIELDS: FieldSpec[] = [
     key: "enabled",
     label: "Share the file tree over SMB",
     kind: "switch",
-    hint: "Read-only. Off: nothing listens",
+    hint: "Off: nothing listens",
+  },
+  {
+    section: "smb",
+    key: "add_files",
+    label: "Import files people add",
+    kind: "switch",
+    hint: "A file copied into a collection’s folder is imported there, as an upload; a new folder under Collections is a new collection. Off: read-only",
   },
   {
     section: "smb",
@@ -2706,6 +2780,22 @@ export const FIELDS: FieldSpec[] = [
     label: "Let devices in without a login",
     kind: "switch",
     hint: "Off: devices sign in with a hub login (Sensors → Hub logins)",
+  },
+  {
+    section: "sensors",
+    key: "mqtt_web",
+    label: "MQTT at the web app’s address too",
+    kind: "switch",
+    hint: "Over WebSockets at /mqtt wherever the web app opens, Remote access and HTTPS included, for devices with a hub login. Off: only on the MQTT port",
+  },
+  {
+    section: "sensors",
+    key: "mqtt_web_port",
+    label: "MQTT over WebSockets port",
+    kind: "int",
+    min: 1,
+    max: 65535,
+    hint: "Where the web app passes /mqtt on to (LENS_MQTT_WS_URL)",
   },
   { section: "sensors", key: "syslog", label: "Syslog", kind: "switch" },
   {
