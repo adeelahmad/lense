@@ -10,6 +10,7 @@ import { useNamespaceSpeakers } from "@/components/speakers/parts";
 import { lastHeard, reviewPairs } from "@/components/speakers/derive";
 import { Registry } from "@/components/speakers/registry";
 import { ReviewQueue } from "@/components/speakers/review";
+import { VoiceMode } from "@/components/speakers/voice-mode";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/field";
@@ -26,7 +27,7 @@ export function SpeakersPage() {
   const params = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const { namespaces, namespace: topNs } = useArchive();
+  const { namespaces, namespace: topNs, can } = useArchive();
   const ns =
     params.get("ns") && namespaces.some((n) => n.name === params.get("ns"))
       ? params.get("ns")!
@@ -141,6 +142,7 @@ export function SpeakersPage() {
               Voiceprints are built from clean audio (Settings → Voice IDs). People without one are still matched, less
               reliably.
             </p>
+            <VoiceMode ns={ns} mode={dir.data.voices ?? "recognize"} canManage={can("owner", ns)} />
           </div>
         )}
         {dir.data && ns && tab === "review" && <ReviewQueue pairs={pairs} ns={ns} />}

@@ -1717,6 +1717,9 @@ import type {
   SetNamespaceFacesModeData,
   SetNamespaceFacesModeErrors,
   SetNamespaceFacesModeResponses,
+  SetNamespaceVoiceModeData,
+  SetNamespaceVoiceModeErrors,
+  SetNamespaceVoiceModeResponses,
   SetPolicyData,
   SetPolicyErrors,
   SetPolicyResponses,
@@ -7849,6 +7852,25 @@ export class Speakers {
     return (options.client ?? client).get<ListSpeakersResponses, ListSpeakersErrors, ThrowOnError>({
       url: "/api/v1/speakers",
       ...options,
+    });
+  }
+
+  /**
+   * Set Namespace Voice Mode
+   *
+   * Recognise voices across the namespace's recordings (the default), or only tell them apart in each one
+   * (separate), which deletes its voiceprints and the matches waiting for review. Owners only.
+   */
+  public static setNamespaceVoiceMode<ThrowOnError extends boolean = false>(
+    options: Options<SetNamespaceVoiceModeData, ThrowOnError>,
+  ): RequestResult<SetNamespaceVoiceModeResponses, SetNamespaceVoiceModeErrors, ThrowOnError> {
+    return (options.client ?? client).put<SetNamespaceVoiceModeResponses, SetNamespaceVoiceModeErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/voices/mode",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import Field
 
@@ -68,6 +68,17 @@ class SpeakerDirectory(ResponseModel):
         default_factory=list,
         description="likely the same person in another shared namespace you can read (speakers.cross_namespace: suggest), "
         "best first; not linked, and not marked as different",
+    )
+    voices: Literal["recognize", "separate"] = Field(
+        "recognize",
+        description="recognize: voiceprints kept and people matched across recordings; separate: voices told apart in "
+        "each recording only (PUT /namespaces/{name}/voices/mode)",
+    )
+
+
+class VoiceMode(RequestModel):
+    mode: Literal["recognize", "separate"] = Field(
+        description="recognize, or separate: voices told apart in each recording only, the namespace's voiceprints deleted"
     )
 
 

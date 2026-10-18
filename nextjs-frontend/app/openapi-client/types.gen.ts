@@ -25754,6 +25754,12 @@ export type SpeakerDirectory = {
    * likely the same person in another shared namespace you can read (speakers.cross_namespace: suggest), best first; not linked, and not marked as different
    */
   cross?: Array<SpeakerCandidate>;
+  /**
+   * Voices
+   *
+   * recognize: voiceprints kept and people matched across recordings; separate: voices told apart in each recording only (PUT /namespaces/{name}/voices/mode)
+   */
+  voices?: "recognize" | "separate";
   [key: string]: unknown;
 };
 
@@ -29006,6 +29012,18 @@ export type VoiceList = {
    */
   error?: string | null;
   [key: string]: unknown;
+};
+
+/**
+ * VoiceMode
+ */
+export type VoiceMode = {
+  /**
+   * Mode
+   *
+   * recognize, or separate: voices told apart in each recording only, the namespace's voiceprints deleted
+   */
+  mode: "recognize" | "separate";
 };
 
 /**
@@ -40069,6 +40087,36 @@ export type ListSpeakersResponses = {
 };
 
 export type ListSpeakersResponse = ListSpeakersResponses[keyof ListSpeakersResponses];
+
+export type SetNamespaceVoiceModeData = {
+  body: VoiceMode;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/voices/mode";
+};
+
+export type SetNamespaceVoiceModeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetNamespaceVoiceModeError = SetNamespaceVoiceModeErrors[keyof SetNamespaceVoiceModeErrors];
+
+export type SetNamespaceVoiceModeResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type SetNamespaceVoiceModeResponse = SetNamespaceVoiceModeResponses[keyof SetNamespaceVoiceModeResponses];
 
 export type ListSpeakerRecordingsData = {
   body?: never;
