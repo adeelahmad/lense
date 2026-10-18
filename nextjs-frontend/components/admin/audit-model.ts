@@ -3,6 +3,7 @@
  * filtering, and CSV export. The backend records who, what and on what; secrets are never in it.
  */
 import { FIELDS, SECTIONS } from "@/components/settings/model";
+import { toCsvText } from "@/lib/csv";
 
 export type AuditEntry = {
   at: string;
@@ -160,10 +161,6 @@ export function filterEntries(entries: AuditEntry[], f: Filters, now = Date.now(
   );
 }
 
-function csvCell(v: string): string {
-  return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
-}
-
 export function toCsv(entries: AuditEntry[], look: Lookup): string {
   const rows = [["time", "person", "email", "action", "target", "details"]];
   for (const e of entries)
@@ -175,5 +172,5 @@ export function toCsv(entries: AuditEntry[], look: Lookup): string {
       targetText(e.target, e.action, look),
       detailText(e, look),
     ]);
-  return rows.map((r) => r.map(csvCell).join(",")).join("\n") + "\n";
+  return toCsvText(rows);
 }

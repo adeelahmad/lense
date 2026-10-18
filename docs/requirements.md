@@ -368,6 +368,7 @@ request, to another check that proves the same thing; loosening a requirement or
 | IIIF for publishing | [test_iiif.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_iiif.py) `test_manifests_collections_search_state_discovery`, `test_authorization_flow` |
 | OpenTelemetry and Prometheus for monitoring | [test_telemetry.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_telemetry.py) `test_traces_and_metrics_go_to_the_endpoint`; [test_prometheus.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_prometheus.py) `test_what_it_measures` |
 | An optional Fedora mirror | [test_fedora.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_fedora.py) `test_off_by_default`, `test_sync_sends_changes_and_deletes` |
+| A CSV catalogue of the assets selected in the Library, one row each with a link to its page, safe to open in a spreadsheet | [library-catalogue.test.ts](https://github.com/adeelahmad/lense/blob/main/nextjs-frontend/__tests__/library-catalogue.test.ts) `has a row per asset with its people, tags and a link to its page`, `quotes what needs it and never lets a cell run as a formula` |
 
 ## Light by default
 

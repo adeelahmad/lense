@@ -660,6 +660,7 @@ export function LibraryScreen({
           moveTargets={targets}
           onReprocess={() => setReprocessOpen(true)}
           onExport={(fmt) => actions.exportMany([...selected], fmt)}
+          onCatalogue={() => actions.exportCatalogue(selectedRows)}
           onMove={() => setMoveOpen(true)}
           onPlace={() => setPlaceOpen(true)}
           placeReason={placeReason}
