@@ -35450,6 +35450,18 @@
             ],
             "title": "Summary"
           },
+          "preview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview",
+            "description": "what would be sent or written, all of it, for the person to read first (a message, an event, a file)"
+          },
           "estimate": {
             "title": "Estimate"
           },

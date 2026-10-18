@@ -80,7 +80,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   turns them on, it also searches the web and reads pages, cited like the archive, and runs Python and bash in a sandbox
   of each conversation's own. An admin's assistant searches and reads the mail, calendars and files connected to Lens
   (Gmail, Google Calendar, Google Drive, S3 and the rest), cites messages and events, and brings them in once you
-  approve. Regenerating an answer or editing a question makes a new version beside the old one, and
+  approve; where an admin allows it, it sends mail, adds events and writes files, each only after you read all of it
+  and say yes. Regenerating an answer or editing a question makes a new version beside the old one, and
   nothing is lost. Each answer keeps a record of what produced it (the model, its tools, how long it took and what it
   cost), opened from its header. It reads answers aloud with a speech provider, macOS `say` or StyleTTS2 on this machine
   (opt-in), any message in one click. Long conversations are summarised before they fill the model's context, and
@@ -160,7 +161,7 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   namespaces) and let a decision model pick the branch, then tell you in
   your own chat app, ask the model or the agent, use a tool, call a web address (its credentials kept sealed), run a
   workflow, pipeline or routine, or change assets and notes. A Classify node in a workflow sorts an asset into labels,
-  content types or topics, acting only on a sure answer. Anything that reaches outside Lens or changes more than what
+  content types or topics, acting only on a sure answer, and an Entity filter node keeps the entities you want. Anything that reaches outside Lens or changes more than what
   set it off asks first, until you let it run on its own: on the Approvals page or, for a change inside Lens, with a yes
   in the chat it told you in; agents can decline an approval but never give one. Each automation has limits and budgets,
   and agents make, try and run them over MCP and in the assistant, or draft one from a sentence; the studio to draw them

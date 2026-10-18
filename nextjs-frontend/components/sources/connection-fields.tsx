@@ -12,10 +12,12 @@ import {
   S3_PROVIDERS,
   SIGNIN_SERVICE,
   WEBDAV_VENDORS,
+  WRITE_OPTIONS,
   type BackendSpec,
   type ConnForm,
   type SignInWith,
   type SourceType,
+  calendarScope,
   gmailScope,
   imapHost,
   parseServiceAccountKey,
@@ -110,8 +112,8 @@ export function ConnectionFields({
       )}
     </Field>
   );
-  const select = (k: string, options: { value: string; label: string }[]) => (
-    <Field key={k} label={FIELD_LABEL[k] ?? k} error={errors[k]}>
+  const select = (k: string, options: { value: string; label: string }[], hint?: string) => (
+    <Field key={k} label={FIELD_LABEL[k] ?? k} hint={hint} error={errors[k]}>
       {({ id, describedBy }) => (
         <Select
           id={id}
@@ -346,7 +348,7 @@ export function ConnectionFields({
           <summary className="cursor-pointer font-semibold text-fg-secondary">Or paste an authorized user JSON</summary>
           <div className="mt-2">
             <Field
-              hint={`client_id, client_secret and refresh_token of an OAuth client of yours with the ${gmail ? (p.via === "imap" ? "https://mail.google.com/" : "gmail.readonly") : "calendar.readonly"} scope, as gcloud auth application-default login --client-id-file writes it. Never shown again after saving`}
+              hint={`client_id, client_secret and refresh_token of an OAuth client of yours with the ${gmail ? gmailScope(p.via, p.write) : calendarScope(p.write)} scope, as gcloud auth application-default login --client-id-file writes it. Never shown again after saving`}
               error={pasted.trim() ? errors.token : undefined}
             >
               {({ id, describedBy, invalid }) => (
@@ -370,6 +372,16 @@ export function ConnectionFields({
       </div>
     );
   })();
+
+  /** Whether the assistant may also send mail or add events (Gmail, Google Calendar): each waits for a yes. Turning it
+   * on asks Google for that access too, so a connected account connects again. */
+  const writes = select(
+    "write",
+    WRITE_OPTIONS[type] ?? [],
+    p.write === "yes" && editing && isSet("token")
+      ? "Connect again so Google allows it. Each message or event waits for your yes, with all of it shown"
+      : "Each message or event waits for your yes, with all of it shown",
+  );
 
   const googleAuth = (
     <Segmented
@@ -593,7 +605,7 @@ export function ConnectionFields({
           {form.driveAuth === "service_account" ? (
             <>
               {serviceAccountKey(
-                `A Workspace admin lets ${clientId} use ${gmailScope(p.via)} (Admin console › Security › API controls › Domain-wide delegation).`,
+                `A Workspace admin lets ${clientId} use ${gmailScope(p.via, p.write)} (Admin console › Security › API controls › Domain-wide delegation).`,
               )}
               {text("user", {
                 label: "Mailbox",
@@ -614,9 +626,10 @@ export function ConnectionFields({
             </>
           )}
           {select("via", GMAIL_VIA)}
+          {writes}
           <p className="text-[12.5px] leading-normal text-fg-secondary">
-            Labels are folders and each message becomes an email document, with its attachments. Lens only reads: mail
-            stays unread.
+            Labels are folders and each message becomes an email document, with its attachments. Lens reads without
+            changing anything: mail stays unread.
           </p>
         </div>
       );
@@ -627,7 +640,11 @@ export function ConnectionFields({
           {googleAuth}
           {form.driveAuth === "service_account" ? (
             <>
-              {serviceAccountKey("Share the calendars Lens should read with that address, and enter their IDs below.")}
+              {serviceAccountKey(
+                p.write === "yes"
+                  ? `Share the calendars with that address (Make changes to events), and enter their IDs below. In Workspace, an admin allows ${calendarScope(p.write)}.`
+                  : "Share the calendars Lens should read with that address, and enter their IDs below.",
+              )}
               {text("impersonate", {
                 optional: true,
                 placeholder: "you@company.com",
@@ -648,9 +665,10 @@ export function ConnectionFields({
             placeholder: "365",
             hint: "Leave out events that ended more than this many days ago. Empty: every event",
           })}
+          {writes}
           <p className="text-[12.5px] leading-normal text-fg-secondary">
             Each calendar is a folder and each event becomes text: its title, when and where, who, how it repeats, and
-            its description. Lens only reads; an event that changes is read again.
+            its description. Reading changes nothing; an event that changes is read again.
           </p>
         </div>
       );

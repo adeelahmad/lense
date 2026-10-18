@@ -50,8 +50,9 @@ TYPES = {
     },
     "gmail": {
         "label": "Gmail or Google Workspace",
-        # user: the mailbox's address (the person a service account acts as)
-        "fields": {"user": "", "via": "api"},
+        # user: the mailbox's address (the person a service account acts as); write "yes": the assistant may send mail
+        # and save drafts, each once the person approves it
+        "fields": {"user": "", "via": "api", "write": ""},
         "secrets": ["token", "service_account_credentials"],  # a Google account (OAuth), or a service account
         "google": True,  # signs in through google_auth.py
     },
@@ -96,6 +97,8 @@ def check_params(typ, params):
     via = str((params or {}).get("via") or "api")
     if typ == "gmail" and via not in VIA:
         raise ValueError(f"via is one of: {', '.join(VIA)}")
+    if typ in ("gmail", "gcal") and str((params or {}).get("write") or "") not in ("", "yes"):
+        raise ValueError('write is "yes" (the assistant may send or add, after the person approves) or empty')
 
 
 def _secret(cfg, src, k):
