@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import "@testing-library/jest-dom";
 import type { ReactNode } from "react";
 
-import { Activities } from "@/app/openapi-client";
+import { Activities, Chats } from "@/app/openapi-client";
 import type { ActivityPage, StreamActivity } from "@/app/openapi-client/types.gen";
 import { ASK_ABOUT_EVENT } from "@/components/page-chat/page-chat-model";
 import { LatestCard } from "@/components/timeline/latest-card";
@@ -22,7 +22,9 @@ jest.mock("@/app/openapi-client", () => ({
     deleteActivityComment: jest.fn(),
     listActivityMutes: jest.fn(),
     muteActivities: jest.fn(),
+    activityCaused: jest.fn(),
   },
+  Chats: { decideApproval: jest.fn() },
 }));
 const replace = jest.fn();
 let search = "";
@@ -136,6 +138,7 @@ beforeEach(() => {
   );
   m(Activities.listActivityComments).mockReturnValue(ok([COMMENT]));
   m(Activities.listActivityMutes).mockReturnValue(ok({ mutes: [] }));
+  m(Activities.activityCaused).mockReturnValue(ok({ runs: [], approvals: [] }));
   m(Activities.muteActivities).mockImplementation(({ body }) =>
     ok({
       mutes: body.on
@@ -427,4 +430,54 @@ test("Home's Latest card lists what you haven't reviewed", async () => {
   expect(m(Activities.listActivities).mock.calls[0][0].query).toEqual({ reviewed: false, hidden: false, limit: 5 });
   expect(screen.getByRole("link", { name: "Timeline" })).toHaveAttribute("href", "/timeline?unreviewed=1");
   expect(screen.queryByRole("button", { name: /Mark/ })).not.toBeInTheDocument();
+});
+
+test("an opened item shows what it caused, and a waiting approval is approved there", async () => {
+  const RUN = {
+    id: 9,
+    automation: 4,
+    name: "Shopping lists",
+    status: "waiting",
+    counts: { done: 1, waiting: 1, scheduled: 0, failed: 0 },
+  };
+  const WAITING = {
+    id: 12,
+    tool: "action",
+    summary: "Post “A list came in” to the family room",
+    status: "pending",
+    automation: "Shopping lists",
+    can: { approve: true, decline: true, edit: false, always: false },
+  };
+  m(Activities.activityCaused).mockImplementation(({ path }) =>
+    ok(path.activity_id === "u1" ? { runs: [RUN], approvals: [WAITING] } : { runs: [], approvals: [] }),
+  );
+  m(Chats.decideApproval).mockReturnValue(ok({ status: "done" }));
+  wrap(<TimelinePage />);
+  const rows = within(await screen.findByRole("list", { name: "Timeline" })).getAllByTestId("timeline-row");
+  // an email that caused nothing shows no such block
+  fireEvent.click(within(rows[0]).getByRole("button", { name: "Show the 3" }));
+  await waitFor(() => expect(m(Activities.activityCaused)).toHaveBeenCalled());
+  expect(within(rows[0]).queryByTestId("caused")).toBeNull();
+  // the upload started a run and left an approval waiting: the run links to the automation, the approval is decided here
+  fireEvent.click(within(rows[1]).getByRole("button", { name: "Show details" }));
+  const caused = await within(rows[1]).findByTestId("caused");
+  expect(caused).toHaveTextContent("What this caused");
+  expect(within(caused).getByRole("link", { name: "Shopping lists" })).toHaveAttribute(
+    "href",
+    "/automations/4?tab=runs",
+  );
+  expect(caused).toHaveTextContent("Waiting");
+  expect(within(caused).getByRole("link", { name: "Post “A list came in” to the family room" })).toHaveAttribute(
+    "href",
+    "/approvals?id=12",
+  );
+  await act(async () => {
+    fireEvent.click(within(caused).getByRole("button", { name: "Approve" }));
+  });
+  await waitFor(() =>
+    expect(m(Chats.decideApproval)).toHaveBeenCalledWith(
+      expect.objectContaining({ path: { aid: 12 }, body: { decision: "approve" } }),
+    ),
+  );
+  expect(await screen.findByText("Done")).toBeInTheDocument();
 });

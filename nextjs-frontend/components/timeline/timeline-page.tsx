@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { ActivityMark, Reaction } from "@/app/openapi-client/types.gen";
 import { askAbout } from "@/components/page-chat/page-chat-model";
+import { Caused } from "@/components/timeline/caused";
 import { FiltersBar, type Actor } from "@/components/timeline/filters";
 import { TimelineRow, groupMark } from "@/components/timeline/item";
 import {
@@ -385,6 +386,7 @@ export function TimelinePage() {
                 reactionsOf={reactions.of}
                 commentsOf={counts.of}
                 whyOf={whyOf}
+                caused={(a) => <Caused a={a} />}
                 social={(a) => (
                   <Social
                     a={a}

@@ -128,7 +128,7 @@ export function ActivityDetail({
   onMute,
 }: {
   a: Activity;
-  /** What this activity caused (automation runs, approvals), from the modules that know. */
+  /** What this activity caused (automation runs, approvals), with its own heading (timeline/caused.tsx). */
   caused?: ReactNode;
   /** Its reactions and comments (timeline/social.tsx). */
   social?: ReactNode;
@@ -157,12 +157,7 @@ export function ActivityDetail({
           {cause.run != null && `, run ${cause.run}`}.
         </p>
       )}
-      {caused && (
-        <div className="flex flex-col gap-1">
-          <span className="font-semibold text-fg-secondary">What this caused</span>
-          {caused}
-        </div>
-      )}
+      {caused}
       {social}
       {/* the item's actions: Open, Hide, and what other modules add (Share) */}
       <div className="flex flex-wrap gap-2">
@@ -418,9 +413,9 @@ function SubItem({
         </span>
         <MarkToggles mark={mark} onMark={onMark} />
       </div>
+      {caused}
       {social}
       <div className="flex flex-wrap gap-2">
-        {caused}
         <AskButton items={[a]} />
         {onHide && (
           <Button size="xs" variant="ghost" icon={<EyeOff />} onClick={onHide}>

@@ -7,6 +7,8 @@ from typing import Any, Literal
 
 from pydantic import ConfigDict, Field
 
+from app.schemas.automations import AutomationRun
+from app.schemas.chats import Approval
 from app.schemas.common import RequestModel, ResponseModel
 
 
@@ -145,3 +147,11 @@ class ActivityKind(ResponseModel):
     untrusted: list[str] = Field(default_factory=list)
     noisy: bool = Field(False, description="left out of the timeline unless named")
     sample: dict[str, Any] | None = None
+
+
+class Caused(ResponseModel):
+    """What an activity caused, for the person asking: the runs it started of the automations they manage, and the
+    approvals those runs asked them for (on an approval.waiting activity, that approval itself)."""
+
+    runs: list[AutomationRun] = Field(default_factory=list, description="the automation runs it started, newest first")
+    approvals: list[Approval] = Field(default_factory=list, description="the approvals it led to, newest first, with what you can do")

@@ -204,14 +204,15 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   asset and a document's pages image assets, and Read steps that pick their own converter, such as anytopdf), routines on a schedule, batch runs over a collection, and
   notifications to webhooks, Slack, Discord and Matterbridge, including when a routine's run fails or leaves graph
   changes to review. Everything that happens in Lens (new assets, emails,
-  calendar events, files, feed posts, what people say to Lens, sensor readings, notes, graph changes, runs, budget
-  warnings) is kept as a stream of activities in W3C Activity Streams form, which agents read through the API, MCP and
+  calendar events, files, feed posts, what people say to Lens, sensor readings, sensors switched on or off, notes,
+  moves between namespaces, graph changes, runs, budget warnings) is kept as a stream of activities in W3C Activity Streams form, which agents read through the API, MCP and
   the assistant, and people review on the Timeline page (and Latest on Home), marking what they've seen, reacting with
   an emoji and commenting in threads everyone who sees the item shares (agents too, over MCP), and asking the
   assistant about any item from the item; a comment that tags @lens gets the agent's answer in the thread, with
   every change it proposes waiting for a yes, a For you order learned from each person's own reactions, comments
-  and marks says why each item is where it is, and each person mutes a source or a kind for themselves, with nothing
-  deleted. Automations act
+  and marks says why each item is where it is, each person mutes a source or a kind for themselves, with nothing
+  deleted, and an opened item shows what it caused, the runs and approvals, with Approve and Decline right there.
+  Automations act
   on that stream, on a schedule, at a time or when their own webhook is called, alone or with their triggers joined (all
   of them, a number of times, one that doesn't come in time, or a batch): they test conditions (text, patterns,
   numbers, lists, times, days, whether a value changed and whether something like it happened before in their
@@ -247,8 +248,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   its terms there; agents propose and manage groups over the API, MCP and the assistant, and never approve one. It
   runs more workers on this machine today; AWS EC2 (spot or on demand), DigitalOcean, Hetzner Cloud, Proxmox VE and
   Linux hosts over SSH providers are in progress (built, with machines that join over the mesh to transcribe and tell
-  voices apart, not yet tried on a real cloud), so are RunPod GPUs and Hugging Face Inference Endpoints that serve
-  Lens's model calls while they run, and more model hosts are planned. ([Auto scaling](docs/scaling.md); [checks](docs/requirements.md#scale-out))
+  voices apart, not yet tried on a real cloud), so are RunPod GPUs, Hugging Face Inference Endpoints and Amazon
+  SageMaker endpoints that serve Lens's model calls while they run, and more model hosts are planned. ([Auto scaling](docs/scaling.md); [checks](docs/requirements.md#scale-out))
 - **Run on more machines.** Add a Mac with a GPU, a box for the assistant's code or a server with more disk, and
   Lens joins it over a private network of its own, a Nebula mesh it issues the certificates for: one install line
   with a one-time token, and the machine needs nothing else. Worker nodes run jobs as their own user of the
@@ -271,12 +272,14 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   OpenTelemetry traces and metrics, and a Prometheus `/metrics` endpoint, both off until you turn them on, and sending
   nothing anywhere else. On a Docker install, one switch in the web app (or one API call from an agent) starts
   Prometheus, node-exporter and Grafana next to Lens, already connected, with the Lens dashboard as Grafana's home.
-  Activity clears the job queue, reorders it by drag and drop and retries every failed run at once; agents do the same
-  through the API and MCP. The Analytics page shows admins active people, churn, retention and which features get
-  used, worked out on this machine; the same daily events can also go to a Google Analytics 4 property of your own
-  (off unless you turn it on).
+  Activity clears the job queue, reorders it by drag and drop and retries every failed run at once; agents do the
+  same through the API and MCP.
+  The Analytics page shows admins active people, churn, retention and which features get used, worked out on this
+  machine; the same daily events can also go to a Google Analytics 4 property of your own (off unless you turn it on).
+  System health shows the space each source takes, its files and what Lens made of them.
   ([Logging](docs/logging.md), [telemetry](docs/telemetry.md), [Prometheus](docs/prometheus.md),
-  [usage analytics](docs/analytics.md); [checks](docs/requirements.md#watch-it-run))
+  [usage analytics](docs/analytics.md), [storage per source](docs/api.md#resources);
+  [checks](docs/requirements.md#watch-it-run))
 - **Stay private and safe.** Passkeys instead of passwords (one at Lens's remote address added from a signed-in one with
   Open signed in), encryption at rest with a key per namespace, roles per namespace (viewer, editor, owner, or custom
   roles made of permissions), who sees each asset, set for many at once from the Library, email invitations, removing
@@ -323,7 +326,6 @@ Open pull requests, not yet part of Lens, are listed here; none right now.
 
 Next, and not in a pull request yet; each links to where it is tracked:
 
-- **Timeline:** what each item caused, and Approve and Decline on waiting approvals ([timeline](docs/timeline.md)).
 - **Notes:** nesting a note under its project or area without a click, pages in the graph, and wiki addresses for
   topics, recordings and the other things that have pages ([notes](docs/notes.md)).
 - **Local models:** GPU builds of llama.cpp fetched by Lens, and local embedding models

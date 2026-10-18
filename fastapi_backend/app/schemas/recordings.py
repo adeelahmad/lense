@@ -136,6 +136,12 @@ class OriginCount(ResponseModel):
     origin: str = Field(description="source:<id>, upload, paste, iiif, folder (the archive's own folders) or file")
     name: str
     recordings: int
+    media_bytes: int | None = Field(
+        None, description="with storage=true: the bytes their own files take (media or document, and supplementary files)"
+    )
+    made_bytes: int | None = Field(
+        None, description="with storage=true: the bytes of what Lens made of them (frames, pages, reports, exports, caches)"
+    )
 
 
 class LanguageCount(ResponseModel):

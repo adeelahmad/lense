@@ -181,9 +181,8 @@ def _activity(db: Any, cfg: Any, user: Principal, acl: Any, activity_id: str | N
     return None
 
 
-@router.get("/runs")
-def runs_caused(user: CurrentUser, acl: Acl, db: Db, activity: str = Query(description="an activity's id")) -> list[AutomationRun]:
-    """What an activity caused: the runs of your automations it started (it was their event, or one of a join's)."""
+def caused_runs(db: Any, user: Principal, acl: Any, activity: str) -> list[AutomationRun]:
+    """The runs an activity started, of the automations this person manages (the timeline's "what this caused" too)."""
     editable = _editable(db, user, acl)
     out = []
     for r in automations.caused(db, activity):
@@ -194,6 +193,12 @@ def runs_caused(user: CurrentUser, acl: Acl, db: Db, activity: str = Query(descr
         if automations.manages(a, editable, user.admin):
             out.append(AutomationRun(**r))
     return out
+
+
+@router.get("/runs")
+def runs_caused(user: CurrentUser, acl: Acl, db: Db, activity: str = Query(description="an activity's id")) -> list[AutomationRun]:
+    """What an activity caused: the runs of your automations it started (it was their event, or one of a join's)."""
+    return caused_runs(db, user, acl, activity)
 
 
 @router.get("/runs/{run:int}")

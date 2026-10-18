@@ -14,11 +14,12 @@ Status: in progress. The studio's timeline is built in steps; only what is merge
 | A Latest card on Home with the newest unreviewed items | built |
 | Reactions and comments on any item, shared by everyone who sees it; `react_to_activity`, `activity_comments` and `comment_on_activity` for agents | built |
 | Ask about an item: talk to the assistant about it from the item, in the chat beside the page | built |
-| What each item caused (automation runs, approvals), and Approve and Decline on waiting approvals | planned |
+| What each item caused (the automation runs it started, the approvals they asked for), with Approve and Decline on waiting approvals from the item; `activity_caused` for agents | built |
 | Tagging the agent in a comment, so it answers in the thread | built |
 | Sources, sensors, people and agents as actors in the graph: a Source node with ADDED links, on the canvas, in the explorer and in Cypher | built |
 | A For you order learned from what each person reacts to, comments on, marks important and hides, each item saying why | built |
 | Muting a source, person or kind, for good or until a time, for yourself alone; `mute_activities` for agents | built |
+| Moves and switches as their own verbs: an asset moved to another namespace (`asset.moved`, a Move) and a sensor paused, ignored or resumed (`sensor.changed`, an Update with what it was) | built |
 
 ## What shows
 
@@ -39,8 +40,8 @@ unless you ask for them by kind.
 - A run of the same source or person and the same kind, each within 30 minutes of the one before, is one line
   ("Work Gmail received 37 emails"), so a first mailbox sync reads as one line. A click opens it to its items.
 - Each line has an icon by kind, the summary (a link to what it is about), who did it, the namespace, the kind and
-  how long ago. Opened, an item shows its object's fields, the automation run that caused it if one did, **Open**,
-  **Ask about this** and **Hide**.
+  how long ago. Opened, an item shows its object's fields, the automation run that caused it if one did, **What
+  this caused** ([below](#what-an-item-caused)), **Open**, **Ask about this** and **Hide**.
 - Filters: words in the summary (Enter applies), **Unreviewed only**, **Important**, kinds by family (Email,
   Calendar, Files, Notes, Sensors, Chat, Automations, System; noisy kinds like sensor readings only when picked),
   source or person (from those on the timeline), namespace, entity (as activities tag it), a date range, and an
@@ -160,11 +161,30 @@ Marks change nothing else: an activity you hid still triggers automations and st
   `mark_activities` marks them for the person. After it has read text from outside Lens (the timeline's own titles count), hiding or marking reviewed
   waits for the person's yes, since that text may have asked for it; marking important or bringing things back acts
   at once ([Chat](assistant.md)).
+- MCP: `activity_caused` (`id`) is what an item caused, the runs and approvals ([What an item caused](#what-an-item-caused));
+  `approvals` and the assistant's `approvals` take `activity` to list the approvals one item led to.
 - MCP, on the feed: `react_to_activity` (`id`, `emoji`, `on`) reacts for the person it acts for, `activity_comments`
   (`id`) reads an item's threads, and `comment_on_activity` (`id`, `text`, `parent`) writes a comment or a reply,
   with a token that has the write scope. The `timeline` page carries `reactions` and `comments` too. Comments are
   what people wrote: agents read them as data, never as instructions. A comment an agent writes with `@lens` in it
   gets the assistant's answer like anyone's, as the person the token acts for.
+
+## What an item caused
+
+An opened item shows what happened because of it: each automation run it started (of the automations you manage,
+with its status and a link to the automation's runs) and each approval those runs asked you for, with what it would
+do and its status. An approval still waiting has **Approve** and **Decline** right there, so the pick is made where it
+was caused, and the item's line on the Approvals page is the same approval. An approval's own line on the timeline
+("School emails asks for your pick") lists that approval under **Your pick**. Items that caused nothing show no such
+block.
+
+- `GET /api/v1/activities/{id}/caused` is `{runs, approvals}` for the person asking: the runs of the automations they
+  manage ([Automations](automations.md)), and their own approvals, each with `can` (approve, decline) as
+  `GET /api/v1/approvals` shows them; `POST /api/v1/approvals/{id}` decides one. `GET /api/v1/approvals?activity=<id>`
+  lists the approvals an activity caused on its own. On an `ask-approval-<id>` activity, the approval itself.
+- `activity_caused` over MCP (`id`) reads the same, with each approval as `approvals` shows it; `approvals` takes
+  `activity` too, and so does the assistant's `approvals`. Approving stays the person's: an agent can list and
+  decline ([Agents](#agents)).
 
 ## Muting
 
@@ -226,6 +246,8 @@ per source page; they go when the person is removed. Nothing of this costs a mod
 - For you counts opens too, once the page reports them, and could cache each person's affinity for a minute rather
   than summing it on every read.
 - Muting a kind, or for a day, from the page (a menu on Mute), and a muted actor's own line in the Filters.
+- A file changed in its source and read again is `asset.added` once more; linking the new activity to the
+  asset's earlier one as a `file.changed` Update, rather than a second Create, is to come.
 - Saved filter views.
 - A daily digest of unreviewed items, as an automation starter.
 - Marks on activities whose rows are gone (an event log entry past `events.keep_days`, a deleted asset) stay until
