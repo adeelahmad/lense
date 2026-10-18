@@ -59,15 +59,26 @@ def host_name(host: str) -> str:
     return (host.split("]")[0] + "]" if host.startswith("[") else host.rsplit(":", 1)[0]).lower()
 
 
+def mesh_call(request: Request, cfg: dict[str, Any]) -> bool:
+    """A node's own call over the mesh (docs/mesh.md, After joining): addressed to the primary's mesh address, which
+    only the mesh reaches, on the paths nodes use, while the mesh is on. Each still carries its node token."""
+    from app.domain import mesh
+
+    if not request.url.path.startswith(mesh.NODE_PATHS) or not mesh.conf(cfg)["enabled"]:
+        return False
+    return host_name(request.headers.get("host", "")) == mesh.primary_ip(cfg)
+
+
 def install(app: FastAPI) -> None:
     @app.middleware("http")
     async def guard(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         # The Host header must be one we serve: this stops DNS-rebinding attacks against a server on localhost.
         conf = getattr(request.app.state, "settings", None)
         if conf is not None:
-            server = conf.current()["server"]
+            current = conf.current()
+            server = current["server"]
             allowed = [h.lower() for h in server["allowed_hosts"]]
-            if "*" not in allowed and host_name(request.headers.get("host", "")) not in allowed:
+            if "*" not in allowed and host_name(request.headers.get("host", "")) not in allowed and not mesh_call(request, current):
                 return PlainTextResponse("Invalid host header", status_code=400)
             frames = " ".join(server["embed_frame_ancestors"]) or "'none'"
         else:

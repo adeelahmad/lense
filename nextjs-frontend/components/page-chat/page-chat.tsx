@@ -18,6 +18,7 @@ import { ToolSteps } from "@/components/chat/steps";
 import { applyEvent, newTurn, savedSteps, sharedFiles, type ToolStep, type TurnState } from "@/components/chat/stream";
 import { useAskPlace } from "@/components/page-chat/ask-place";
 import {
+  ASK_ABOUT_EVENT,
   hiddenOn,
   INITIAL,
   PAGE_CHAT_KEY,
@@ -100,6 +101,16 @@ export function PageChat() {
     },
     [update],
   );
+
+  // A page's own "Ask about this" (askAbout): a timeline item, say.
+  useEffect(() => {
+    const onAsk = (e: Event) => {
+      const quote = (e as CustomEvent<unknown>).detail;
+      if (typeof quote === "string" && quote.trim()) open(quote.trim());
+    };
+    window.addEventListener(ASK_ABOUT_EVENT, onAsk);
+    return () => window.removeEventListener(ASK_ABOUT_EVENT, onAsk);
+  }, [open]);
 
   // On a phone the panel covers the page: following a link (a citation, the page a question was asked on) shows it.
   const lastPath = useRef(pathname);

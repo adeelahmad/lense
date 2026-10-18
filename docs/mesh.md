@@ -2,9 +2,9 @@
 
 Status: **in progress**. Built: Lens as the mesh's certificate authority, join tokens, joining without sending the
 token, each machine's Nebula config, a node's renewals and reports, removing a node, the `mesh` settings, the API
-under `/api/v1/mesh`, and Nebula running on the primary in the `mesh` container, relaying the database and the API.
-Coming in their own pull requests: `lens node` and the install line that joins another machine, Settings › Network and
-Nodes in the web app, and running code on compute nodes.
+under `/api/v1/mesh`, Nebula running on the primary in the `mesh` container, relaying the database and the API, and
+`lens node` with the install line that joins another machine, and worker nodes running jobs. Coming in their own pull
+requests: Settings › Network and Nodes in the web app, and running code on compute nodes.
 
 Lens runs on one machine until you add another: a Mac with a GPU to transcribe on, a box to run the assistant's code
 on, a server with more disk. Those machines talk to this install over a private network of Lens's own, a
@@ -21,7 +21,7 @@ install.
 | Role | What it does | What it reaches on the primary |
 | --- | --- | --- |
 | **primary** | This install: the lighthouse other machines find each other through, the relay for machines that can't reach each other directly, and the certificate authority | |
-| **worker** | Runs jobs (transcription, OCR, the model steps it can) against this install's database, as `lens worker` does on this machine | the database port (8000) and the API (8080) |
+| **worker** | Runs jobs against this install's database, as `lens worker` does on this machine: transcribing and telling voices apart with the models on that machine ([Worker nodes](#worker-nodes)) | the database port (8000) and the API (8080) |
 | **compute** | Runs code in sandboxes for the assistant. It gets nothing of Lens's: no database, no keys | the API (8080) |
 
 A worker node needs this install's database to be a SurrealDB server, which Docker installs have (`SURREAL_URL`);
@@ -38,7 +38,10 @@ default), and withdrawn before that. The machine joins at this install's address
 curl -fsSL https://raw.githubusercontent.com/adeelahmad/lense/main/install.sh | LENS_JOIN=http://lens.home:3000 LENS_JOIN_TOKEN=lensjoin1.… sh
 ```
 
-*(the install line's node path lands in its own pull request; the API it calls is here)*
+`LENS_JOIN` is this install's address, the web app's (the one Settings › Nodes shows); with it the install line makes
+the machine a node (below) instead of installing Lens. `LENS_NODE_NAME` names it (default: the machine's own name, or
+for a unit an [auto scaling group](scaling.md) starts, `LENS_SCALING_UNIT`, which is kept with `LENS_WORKER_STEPS` for
+the node's worker). `POST /api/v1/mesh/tokens` answers with the whole line (`install_line`).
 
 The token never crosses the wire. The machine makes its own Nebula key pair (`nebula-cert keygen`; the private key
 never leaves it) and sends `POST /api/v1/mesh/join` with the token's id, a random nonce, its name, its public key and
@@ -63,7 +66,55 @@ Over the mesh, with its node token (`Authorization: Bearer lensnode1.…`):
 | `POST /api/v1/mesh/node/renew` | a new certificate for its public key (the same or a new one), with the groups its row has now. A node renews at a third of `mesh.cert_days` before its certificate runs out |
 | `POST /api/v1/mesh/node/beat` | its report, every minute: whether Nebula runs, its peers, its machine, the sandboxes it can run, Nebula's last lines. Shown on the Nodes page |
 
-A removed node is refused on all three.
+A removed node is refused on all three. Nodes make these calls at the primary's mesh address (`10.73.0.1:8080` by
+default), which isn't a host name the web app is served at: the API admits it for these paths alone, while the mesh
+is on, and each call still needs its node token.
+
+## On a node
+
+The install line with `LENS_JOIN` makes the machine a node, in `~/lens-node` (`LENS_DIR` for another folder), with
+Docker, which it installs as for Lens. It asks nothing, publishes no port and starts two containers
+(`docker-compose.node.yml`, in the smaller `lean` image by default):
+
+- **`mesh`**, the same container as on the primary (`mesh/sidecar.py`): it makes the node's key pair and runs Nebula
+  with the config it's given. Nothing listens on the node but Nebula, on a port it picks.
+- **`node`** runs `lens node`, in the `mesh` container's network, with the folder the two share. It needs no database
+  and no settings. It turns the mesh on in that folder, so the container makes its key pair; joins with the token (as
+  above); keeps its node token and agent key in its own volume (`node.json`, readable only by it); and writes the
+  config for the container. Then, every minute, over the mesh only: it fetches its config (a removed machine's
+  certificate on the blocklist reaches it within the minute), renews its certificate when a third of its life is
+  left or the container's key changed, and sends its report.
+
+The install line waits until the node has joined and says its mesh address. A token that was used, expired or
+withdrawn isn't tried again: the line says why, and is run again with a new token. The token is in the first start's
+environment only, never in `.env`, and isn't needed again: running the line again updates the node, which stays the
+same node. A node that's removed keeps asking, so an undo in Settings › Nodes brings it back; `docker compose -f
+docker-compose.node.yml exec node lens node status` says what it is on the mesh, without its credentials.
+
+## Worker nodes
+
+On a worker node, `lens node` also runs `lens worker` once the node is on the mesh, and keeps it running: it's started
+again when it stops, stopped while the node is removed, and started with the new password after an undo. Its errors
+and its last lines are in the node's report on the Nodes page.
+
+- **The database through the mesh.** It reaches this install's SurrealDB at the primary's mesh address (port 8000,
+  open to worker nodes only), signed in as a user of that one database made for the node (`lens_node_<id>`, its
+  owner): never the server's root, and nothing on the server beyond Lens's database. The node asks for it
+  (`GET /api/v1/mesh/node/worker`, with its node token) and hands it to the worker's environment only; it isn't kept
+  on the node's disk. Removing the node removes the user, and an undo makes it again with a new password.
+  `SURREAL_AUTH=database` is what makes `lens worker` sign in so ([Configuration](configuration.md)).
+- **Files from here.** A job's file is fetched from the primary over the mesh (`GET /api/v1/mesh/node/media/<id>`),
+  plain, and kept on the node in `data_dir/cache/mesh` until it's unused for 6 hours; it's fetched again only when it
+  changed. A vault's files never leave this machine, nor those of a namespace the node doesn't serve, whose jobs it
+  doesn't take either.
+- **No secrets of Lens's.** It never gets the archive's secret (`ARCHIVE_SECRET_KEY`): namespace keys and settings'
+  secrets (a cloud speech or chat model's key) stay sealed. So by default it runs the steps that need neither and
+  write only to the database: `transcribe` and `diarize`, with the models on that machine (fetched there on first
+  use). `LENS_WORKER_STEPS` on the install line picks among those; any other step it names is skipped (the node's
+  report says so), since its jobs would fail there, and stays with this machine's worker. An auto scaling group on
+  machines elsewhere counts only the jobs these steps run, so it never launches a machine for work it wouldn't take.
+- **Its name** is the node's, or the auto scaling unit's (`LENS_SCALING_UNIT`), and it runs only the steps it's
+  given, never routines or the other services this machine's worker runs.
 
 ## On this machine
 
@@ -143,20 +194,29 @@ removes it (undo with `POST /nodes/{id}/restore` while its certificate is good).
 - Only a machine with a token an admin made joins; the token is spent on use, expires, and never crosses the wire.
 - A machine's certificate names only its own address, role and namespaces; it can't widen them by renewing.
 - Nebula's firewall, rendered by Lens, opens only what each role needs. Lens itself never trusts the mesh's address:
-  a worker node signs in to the database with its credential, a node's calls carry its node token, and the primary's
-  calls to a node carry its agent key.
+  a worker node signs in to the database as its own user of Lens's database, a node's calls carry its node token, and
+  the primary's calls to a node carry its agent key.
+- A worker node never gets the archive's secret, a vault's files or another namespace's: it reads the files of the
+  namespaces it serves, plain, over the mesh.
 - Removing a node blocks every certificate it was given, on every machine, and its credentials stop at once.
 - The CA's key and the tokens' secrets are sealed in the database like any setting's secret (`ARCHIVE_SECRET_KEY` or
   `secret.key`); node tokens are kept only as hashes.
 - Nebula's download is pinned to one version with its checksum kept in Lens, unlike programs fetched from a "latest"
   release.
 
-What it doesn't do: a worker node holds the database credential, so it is a trusted peer as a worker on this machine
-is; a compute node is not, and gets no database. The lighthouse must be reachable on UDP `mesh.port` from the nodes
+What it doesn't do: a worker node owns Lens's database (its rows, which aren't encrypted by Lens) and keeps plain
+copies of the files it worked on for a few hours, so it is a trusted peer as a worker on this machine is; a compute
+node is not, and gets no database. The lighthouse must be reachable on UDP `mesh.port` from the nodes
 (a Raspberry Pi behind a carrier's NAT can be a node, not the primary a node reaches directly, unless `mesh.hosts`
 names an address that forwards to it). Nebula's own isolation is upstream's.
 
 ## Refine later
+
+- The upgrade agent on nodes: today a node is updated by running its install line again.
+- Worker nodes running steps that write files (pages, frames, renditions), once those go through the file store, and
+  steps that need a provider's key, through calls to the primary rather than the key.
+- A job a worker node can't do (a cloud speech provider set since it started) handed back to this machine.
+- An auto scaling unit draining its worker on a spot instance's two-minute notice.
 
 - A second transport for networks that block UDP.
 - Rotating the CA.

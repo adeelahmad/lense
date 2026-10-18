@@ -62,6 +62,12 @@ class ProjectUpdate(RequestModel):
 class ThreadCreate(RequestModel):
     title: str | None = Field(None, max_length=120, description="left out, Lens titles it after its first answer")
     chat: int | None = Field(None, description="bring in one of your conversations instead of starting a new one")
+    brief: str | None = Field(
+        None,
+        max_length=4000,
+        description="what to do: asked as the thread's first question and answered in the background, with your tools and "
+        "approvals (follow it with GET /chats/{id})",
+    )
 
 
 class ThreadUpdate(RequestModel):

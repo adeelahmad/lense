@@ -373,6 +373,63 @@ def test_graph_workflows_retype_and_hide(client, db, cfg, env, llm):
     assert not client.get("/api/v1/graph-changes", params={"status": "applied"}, headers=h).json()
 
 
+GROUP_GRAPH = {
+    "nodes": [
+        {"id": "in", "type": "input", "config": {}},
+        {"id": "groups", "type": "candidates", "config": {"kind": "cluster"}},
+        {"id": "judge", "type": "llm_judge", "config": {}},
+        {"id": "apply", "type": "apply_changes", "config": {"apply_above": 0.95}},
+    ],
+    "edges": [{"source": "in", "target": "groups"}, {"source": "groups", "target": "judge"}, {"source": "judge", "target": "apply"}],
+}
+
+
+def test_graph_workflows_group_topics(client, db, cfg, env, llm):
+    from app.domain import topics
+
+    h = env["admin"]
+    pods = store.ns_id(db, "pods")
+    made = {label: topics.create(db, pods, label) for label in ("Learning", "Machine learning", "Deep learning", "Sales calls")}
+    made |= {label: topics.create(db, pods, label) for label in ("Support calls", "Team calls", "Cold calls", "Weather")}
+    found = organize.topic_groups(db, {pods})
+    by_name = {g["a"]["name"]: g for g in found}
+    assert set(by_name) == {"Learning", "Calls"}, found
+    assert by_name["Learning"]["a"]["id"] == made["Learning"] and by_name["Calls"]["a"]["id"] is None
+    assert {t["name"] for t in by_name["Calls"]["topics"]} == {"Sales calls", "Support calls", "Team calls", "Cold calls"}
+    assert by_name["Learning"]["confidence"] == 0.85 and by_name["Calls"]["confidence"] == 0.75
+
+    wid = workflows.create(db, "Group topics", GROUP_GRAPH, "", "test", "graph")
+    _, totals = organize.run(db, cfg, wid, {pods})
+    assert totals == {"applied": 2, "proposed": 0, "skipped": 0}, totals
+    calls = db.one("SELECT record::id(id) AS id FROM topic WHERE tkey = $k", k=f"{pods}:calls")["id"]
+    assert topics._topic(db, made["Deep learning"])["broader"] == [made["Learning"]]
+    assert topics._topic(db, made["Cold calls"])["broader"] == [calls]
+    assert topics._topic(db, made["Weather"])["broader"] == []
+
+    changes = client.get("/api/v1/graph-changes", params={"status": "applied"}, headers=h).json()
+    group = next(c for c in changes if c["created"])
+    assert (group["kind"], group["parent"], group["b"]) == ("cluster", calls, None) and len(group["grouped"]) == 4
+    assert client.post(f"/api/v1/graph-changes/{group['id']}/undo", headers=h).status_code == 200
+    assert not db.one("SELECT id FROM $r", r=R("topic", calls))  # the group made it, and nothing else uses it
+    assert topics._topic(db, made["Cold calls"])["broader"] == []
+    _, again = organize.run(db, cfg, wid, {pods})
+    assert again == {"applied": 0, "proposed": 0, "skipped": 0}, again  # taken back, so not made again
+
+    # proposed: accepted under a label someone gives, or refused when nothing can go under it any more
+    db.q("DELETE graph_change WHERE status = 'undone'")
+    _, got = organize.run(db, cfg, wid, {pods}, propose_only=True)
+    assert got["proposed"] == 1, got
+    ch = client.get("/api/v1/graph-changes", params={"status": "proposed"}, headers=h).json()[0]
+    assert client.post(f"/api/v1/graph-changes/{ch['id']}/accept", headers=h, json={"to": "ORG"}).status_code == 400
+    assert client.post(f"/api/v1/graph-changes/{ch['id']}/accept", headers=h, json={"label": "Phone calls"}).status_code == 200
+    phone = db.one("SELECT record::id(id) AS id FROM topic WHERE tkey = $k", k=f"{pods}:phone calls")["id"]
+    assert topics._topic(db, made["Sales calls"])["broader"] == [phone]
+    topics.tag(db, phone, [db.values("SELECT VALUE record::id(id) FROM recording WHERE space = $s", s=pods)[0]])
+    assert client.post(f"/api/v1/graph-changes/{ch['id']}/undo", headers=h).status_code == 200
+    assert db.one("SELECT id FROM $r", r=R("topic", phone))  # a recording is about it now: it stays
+    assert topics._topic(db, made["Sales calls"])["broader"] == []
+
+
 def test_new_recordings_advance_only_as_far_as_queued(db, cfg, env):
     pods = store.ns_id(db, "pods")
     rid = routines.create(db, "Small batches", [{"type": "pipeline", "steps": ["analyze"], "limit": 1}], namespaces=[pods])

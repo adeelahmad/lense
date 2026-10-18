@@ -2,8 +2,6 @@
 
 The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are versioned together.
 
-## Unreleased
-
 ## 0.16.0 <small>October 18, 2026</small> {id="0.16.0"}
 
 ### Features

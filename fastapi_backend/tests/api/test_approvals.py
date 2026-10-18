@@ -476,3 +476,54 @@ def test_the_assistant_lists_and_declines_but_never_approves(db, cfg, people, po
     assert json.loads(fresh.call("decline_approval", {"id": second})[0]) == {"approval": second, "status": "declined"}
     assert "not waiting" in fresh.call("decline_approval", {"id": second})[0]
     assert "decline_approval" in actions_ai.LEFT_OUT  # an automation's agent doesn't get to decline its person's picks
+
+
+def test_only_the_person_approves_what_the_assistant_asks(client, db, cfg, people, monkeypatch):
+    """Sending mail, adding an event, writing a file: an API key, an app and MCP only decline them; signed in, the
+    person approves."""
+    from app.domain import connection_tools
+    from tests.api.test_mcp import tool, tool_error
+    from tests.api.test_oauth import _bearer, _grant
+
+    done = []
+    monkeypatch.setattr(connection_tools, "carry_out", lambda db, cfg, name, args, user, admin: done.append(name) or {"sent": name})
+
+    def asked(name):
+        aid = db.next_id("approval")
+        db.q(
+            "CREATE $r CONTENT $d",
+            r=store.R("approval", aid),
+            d={"chat": 5, "account": people["me"], "tool": name, "args": {"to": ["a@x.io"]}, "summary": name, "status": "pending"},
+        )
+        return aid
+
+    h = login(client, "me@x.io", "my password 1")
+    _, key = auth.create_token(db, people["me"], "script", scope="write")
+    hk = {"Authorization": f"Bearer {key}"}
+    ho = _bearer(_grant(client, h, scope="write")[1])
+    mail, event, file = asked("send_mail"), asked("add_event"), asked("write_file")
+    for hdr in (hk, ho):  # an API key and an app see they can only decline, and can't approve or sample
+        assert client.get(f"/api/v1/approvals/{mail}", headers=hdr).json()["can"] == {
+            "approve": False,
+            "decline": True,
+            "edit": False,
+            "always": False,
+        }
+        for aid in (mail, event, file):
+            for decision in ("approve", "sample"):
+                r = client.post(f"/api/v1/approvals/{aid}", headers=hdr, json={"decision": decision})
+                assert r.status_code == 403 and "only decline" in r.json()["detail"], (aid, decision, r.text)
+    with pytest.raises(PermissionError):  # nor MCP or the assistant, however they reach it
+        ai_tools.approve(db, cfg, mail, {"id": people["me"], "email": "me@x.io"}, {people["pods"]}, "approve", via="agent")
+    assert not done and approvals.get(db, mail)["status"] == "pending"
+    assert client.get(f"/api/v1/approvals/{mail}", headers=h).json()["can"]["approve"] is True
+    # declining works from each of them
+    assert client.post(f"/api/v1/approvals/{event}", headers=hk, json={"decision": "decline"}).json()["status"] == "declined"
+    assert client.post(f"/api/v1/approvals/{file}", headers=ho, json={"decision": "decline"}).json()["status"] == "declined"
+    later = asked("send_mail")
+    assert tool(client, ho, "decline_approval", id=later) == {"approval": later, "status": "declined"}
+    assert "not waiting" in tool_error(client, ho, "decline_approval", id=later)
+    # and the person, signed in, approves
+    out = client.post(f"/api/v1/approvals/{mail}", headers=h, json={"decision": "approve"})
+    assert out.status_code == 200 and out.json()["status"] == "done" and done == ["send_mail"]
+    assert approvals.get(db, mail)["decided_by"] == "me@x.io"

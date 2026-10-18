@@ -104,6 +104,7 @@ class MeshTokenCreated(ResponseModel):
     token: MeshToken
     secret: str = Field(description="the join token itself, shown this once")
     join_url: str = Field(description="this install's address the machine joins at")
+    install_line: str = Field(description="the line to run on the machine: install.sh with LENS_JOIN and LENS_JOIN_TOKEN")
 
 
 class MeshJoin(RequestModel):
@@ -126,6 +127,15 @@ class MeshNodeConfig(ResponseModel):
     not_after: str | None = None
     renew_days: int = Field(description="how many days before its certificate runs out it renews it")
     crt: str | None = Field(None, description="the new certificate (renew)")
+
+
+class MeshWorkerAccess(ResponseModel):
+    url: str = Field(description="the database through the mesh: ws://<the primary's mesh address>:8000")
+    namespace: str
+    database: str
+    user: str = Field(description="the node's own user of this database (removed with the node)")
+    password: str
+    steps: list[str] = Field(description="the steps a worker node runs unless LENS_WORKER_STEPS says otherwise")
 
 
 class MeshRenew(RequestModel):

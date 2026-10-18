@@ -86,30 +86,31 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   run opens under the answer with its code and output, and a file it makes downloads from there. An admin's assistant
   searches and reads the mail, calendars and files connected to Lens (Gmail, Google Calendar, Google Drive, S3 and the
   rest), cites messages and events, and brings them in once you approve; where an admin allows it, it sends mail, adds
-  events and writes files, each only after you read all of it and say yes. Give it a goal that needs many look-ups and
-  deep research comes back with a plan to approve, edit or revise, then runs in the background and returns a cited
-  report, checked against its sources, to keep as a note, hear aloud or turn into a podcast. Regenerating an answer or
-  editing a question makes a new version beside the old one, and nothing is lost. Each answer keeps a record of what
-  produced it (the model, its tools, how long it took and what it cost), opened from its header. Copy an answer as
-  Markdown or plain text, a question or a code block, and export a conversation as Markdown, PDF or JSON, its citations
-  as footnotes that link back to the moment in Lens. It reads answers aloud with a speech provider, macOS `say` or
-  StyleTTS2 on this machine (opt-in), any message in one click. Long conversations are summarised before they fill the
-  model's context, and `/clear` and `/compact` start afresh or summarise now. Conversations title themselves after their
-  first answer, unless you name them. Each namespace can have its own assistant with its own name, instructions and
-  memory, answering in Telegram and Slack (built in, with voice notes and files), in Discord, Matrix, WhatsApp and other
-  chat rooms through Matterbridge, and by email at an address of its own that you email or forward things to.
-  ([Chat](docs/assistant.md), [questions about Lens](docs/assistant.md#questions-about-lens-itself),
-  [choosing tools](docs/assistant.md#choosing-tools-namespaces-and-a-limit),
-  [web search](docs/assistant.md#web-search-and-reading-pages), [code sandbox](docs/assistant.md#code-sandbox),
-  [the gateway](docs/assistant.md#the-gateway), [mail, calendars and files](docs/assistant.md#mail-calendars-and-files),
-  [deep research](docs/assistant.md#deep-research), [answer records](docs/assistant.md#what-each-answer-records),
-  [copy and export](docs/assistant.md#copy-and-export), [chat rooms](docs/chat-rooms.md),
-  [email](docs/assistant-email.md), [speech providers](docs/speech-providers.md);
-  [checks](docs/requirements.md#ask-and-get-cited-answers))
+  events and writes files, each only after you read all of it and say yes yourself (an API key, an app or an agent can
+  only decline). Give it a goal that needs many look-ups and deep research comes back with a plan to approve, edit or
+  revise, then runs in the background and returns a cited report, checked against its sources, to keep as a note, hear
+  aloud or turn into a podcast. Regenerating an answer or editing a question makes a new version beside the old one, and
+  nothing is lost. Each answer keeps a record of what produced it (the model, its tools, how long it took and what it
+  cost), opened from its header. Copy an answer as Markdown or plain text, a question or a code block, and export a
+  conversation as Markdown, PDF or JSON, its citations as footnotes that link back to the moment in Lens. It reads
+  answers aloud with a speech provider, macOS `say` or StyleTTS2 on this machine (opt-in), any message in one click.
+  Long conversations are summarised before they fill the model's context, and `/clear` and `/compact` start afresh or
+  summarise now. Conversations title themselves after their first answer, unless you name them. Each namespace can have
+  its own assistant with its own name, instructions and memory, answering in Telegram and Slack (built in, with voice
+  notes and files), in Discord, Matrix, WhatsApp and other chat rooms through Matterbridge, and by email at an address
+  of its own that you email or forward things to. ([Chat](docs/assistant.md), [questions about
+  Lens](docs/assistant.md#questions-about-lens-itself), [choosing
+  tools](docs/assistant.md#choosing-tools-namespaces-and-a-limit), [web
+  search](docs/assistant.md#web-search-and-reading-pages), [code sandbox](docs/assistant.md#code-sandbox), [the
+  gateway](docs/assistant.md#the-gateway), [mail, calendars and files](docs/assistant.md#mail-calendars-and-files),
+  [deep research](docs/assistant.md#deep-research), [answer records](docs/assistant.md#what-each-answer-records), [copy
+  and export](docs/assistant.md#copy-and-export), [chat rooms](docs/chat-rooms.md), [email](docs/assistant-email.md),
+  [speech providers](docs/speech-providers.md); [checks](docs/requirements.md#ask-and-get-cited-answers))
 - **Work toward a goal in projects.** A project has a name, a goal in your words, instructions and the namespaces it
-  draws on. Its coordinator conversation looks at the project as a whole and is told about every thread; each thread is
-  a conversation about one part of the work, scoped to the project's namespaces and marked done when finished. Every
-  answer in a project reads its goal and instructions. Agents start and change projects over MCP and the API.
+  draws on. Its coordinator conversation looks at the project as a whole: it is told about every thread, starts threads
+  with a brief that the assistant answers there in the background, reads them and marks them done. Each thread is a
+  conversation about one part of the work, scoped to the project's namespaces. Every answer in a project reads its goal
+  and instructions. Agents start and change projects over MCP and the API.
   ([Projects](docs/projects.md); [checks](docs/requirements.md#work-toward-a-goal-in-projects))
 - **Extend the assistant.** Add tools (a prompt, a web request, a graph drawn on the canvas, or sandboxed Python),
   skills, hooks and MCP servers, by code, on the canvas or just by asking. Remote MCP servers connect by address, and
@@ -147,7 +148,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [the assistant in your browser](docs/browser-assistant.md); [checks](docs/requirements.md#clip-from-the-browser))
 - **Understand it.** Transcription, which can expect the names your namespace knows (off by default), people
   recognised by voice (long recordings go to a speech provider in pieces that fit its limits), text on screen and in scans, faces (off by default), NSFW pictures flagged by a model on your own
-  server (off by default, per namespace), entities and topics in a knowledge graph you can explore, query with Cypher or
+  server (off by default, per namespace), low quality images enhanced before they're read (off by default), entities
+  and topics in a knowledge graph you can explore, query with Cypher or
   SPARQL, and see as it was at any version. Every entity has its own page at a wiki address
   (`/wiki/<namespace>/<Name>`), and entities, topics and people are edited and merged from their lists, the graph or an
   asset, with Undo instead of a confirm. Names get their real types (people, places, organisations, events, works) by
@@ -160,7 +162,7 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   ([Graph](docs/graph.md), [entity pages](docs/notes.md#entity-pages),
   [similar content](docs/processing.md#similar-content), [graph history](docs/graph-history.md),
   [topics](docs/topics.md), [video](docs/video.md), [NSFW classification](docs/nsfw.md),
-  [long recordings](docs/speech-providers.md#long-recordings),
+  [enhancing images](docs/enhance.md), [long recordings](docs/speech-providers.md#long-recordings),
   [your own names](docs/processing.md#your-own-names-in-transcription),
   [cleaning up transcripts](docs/processing.md#cleaning-up-transcripts), [dates](docs/processing.md#dates);
   [checks](docs/requirements.md#understand-it))
@@ -180,10 +182,12 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [checks](docs/requirements.md#learn-from-it))
 - **Automate it.** Pipelines and workflows on a canvas (with Convert steps that make a video's soundtrack an audio
   asset and a document's pages image assets), routines on a schedule, batch runs over a collection, and
-  notifications to webhooks, Slack, Discord and Matterbridge. Everything that happens in Lens (new assets, emails,
+  notifications to webhooks, Slack, Discord and Matterbridge, including when a routine's run fails or leaves graph
+  changes to review. Everything that happens in Lens (new assets, emails,
   calendar events, files, feed posts, what people say to Lens, sensor readings, notes, graph changes, runs, budget
   warnings) is kept as a stream of activities in W3C Activity Streams form, which agents read through the API, MCP and
-  the assistant, and people review on the Timeline page (and Latest on Home), marking what they've seen. Automations act
+  the assistant, and people review on the Timeline page (and Latest on Home), marking what they've seen and asking the
+  assistant about any item from the item. Automations act
   on that stream, on a schedule, at a time or when their own webhook is called, alone or with their triggers joined (all
   of them, a number of times, one that doesn't come in time, or a batch): they test conditions (text, patterns,
   numbers, lists, times, days, whether a value changed and whether something like it happened before in their
@@ -193,13 +197,14 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   automation schedule and the backup in one list with when each runs next and last, to switch, re-time or run now, and
   agents do the same over the API and MCP. A Classify node in a workflow sorts an asset into labels, content types or
   topics, acting only on a sure answer, and an Entity filter node keeps the entities you want. Graph workflows tidy the
-  entities on a routine: look-alikes to merge or link, types the rules now read differently, and noise to hide, making
-  the changes they're sure of and proposing the rest, each one undoable. Anything that reaches outside Lens or changes
+  entities on a routine: look-alikes to merge or link, types the rules now read differently, noise to hide and topics
+  to group under a broader one, making the changes they're sure of and proposing the rest, each one undoable. Anything that reaches outside Lens or changes
   more than what set it off asks first, until you let it run on its own: on the Approvals page or, for a change inside
   Lens, with a yes in the chat it told you in; agents can decline an approval but never give one. Each automation has
   limits and budgets, and agents make, try and run them over MCP and in the assistant, or draft one from a sentence. An
-  automation's workflow is drawn and tried on the workflow canvas, with its actions in the palette; the studio's
-  builder is planned. ([Processing](docs/processing.md#workflows-and-the-canvas),
+  automation's workflow is drawn and tried on the workflow canvas, with its actions in the palette, and the studio
+  lists your automations and builds one in When, If and Then, tested on a recent activity before you save it.
+  ([Processing](docs/processing.md#workflows-and-the-canvas),
   [converting assets](docs/processing.md#converting-assets), [notifications](docs/notifications.md),
   [automations](docs/automations.md), [approvals](docs/automations.md#approvals), [schedules](docs/schedules.md),
   [timeline](docs/timeline.md); [checks](docs/requirements.md#automate-it))
@@ -213,8 +218,9 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   schedule rules, within min and max and a monthly budget, with every launch, join and hour of cost in the activity
   ledger. A group launches nothing until you approve its terms in Settings › Auto scaling; agents propose and manage
   groups over the API, MCP and the assistant, and never approve one. It runs more workers on this machine today;
-  DigitalOcean, Hetzner Cloud and Proxmox VE providers are in progress (built, launching once the mesh's install
-  line lands), and AWS, Linux and model hosts are planned. ([Auto scaling](docs/scaling.md);
+  AWS EC2 (spot or on demand), DigitalOcean, Hetzner Cloud and Proxmox VE providers are in progress (built, with
+  machines that join over the mesh to transcribe and tell voices apart, not yet tried on a real cloud), and Linux and
+  model hosts are planned. ([Auto scaling](docs/scaling.md);
   [checks](docs/requirements.md#scale-out))
 - **Keep it up to date and backed up.** Lens checks for a new release once a day and tells admins by email or a
   notification. One click in Settings › Updates (or one API call) upgrades it through a small agent on the machine,
@@ -230,6 +236,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   server. OpenTelemetry traces and metrics, and a Prometheus `/metrics` endpoint, both off until you turn them on, and
   sending nothing anywhere else. On a Docker install, one switch in the web app (or one API call from an agent) starts
   Prometheus, node-exporter and Grafana next to Lens, already connected, with the Lens dashboard as Grafana's home.
+  Activity clears the job queue, reorders it by drag and drop and retries every failed run at once; agents do the
+  same through the API and MCP.
   The Analytics page shows admins active people, churn, retention and which features get used, worked out on this
   machine; the same daily events can also go to a Google Analytics 4 property of your own (off unless you turn it on).
   ([Logging](docs/logging.md), [telemetry](docs/telemetry.md), [Prometheus](docs/prometheus.md),
@@ -274,24 +282,23 @@ These are open pull requests, not yet part of Lens:
 
 - **Voice:** answers and podcasts read aloud with Kokoro on this machine
   ([#538](https://github.com/adeelahmad/lense/pull/538)).
-- **Pictures:** low-quality images enhanced before they're read ([#479](https://github.com/adeelahmad/lense/pull/479)).
 - **Nodes:** Lens's own private network between the machines it runs on, a Nebula mesh it issues the certificates
-  for: its certificate authority, join tokens and Nebula on the primary are built, and another machine joining with
-  the install line and `lens node` is next ([#591](https://github.com/adeelahmad/lense/pull/591);
-  [nodes and the mesh](docs/mesh.md)).
+  for: its certificate authority, join tokens, Nebula on the primary and another machine joining with the install line
+  and `lens node` are built, and Settings › Nodes and Network in the web app is next
+  ([#602](https://github.com/adeelahmad/lense/pull/602); [nodes and the mesh](docs/mesh.md)).
 
 ## Planned
 
 Next, and not in a pull request yet; each links to where it is tracked:
 
-- **The automations studio:** a When, If and Then builder for automations, with their runs and costs, in the web app
+- **The automations studio:** each automation's runs, what's coming up, its variables and its costs, in tabs
   ([automations](docs/automations.md)).
 - **Timeline:** what each item caused, and Approve and Decline on waiting approvals ([timeline](docs/timeline.md)).
 - **Notes:** nesting a note under its project or area without a click, pages in the graph, and wiki addresses for
   topics, recordings and the other things that have pages ([notes](docs/notes.md)).
 - **Local models:** GPU builds of llama.cpp fetched by Lens, and local embedding models
   ([local models](docs/local-models.md)).
-- **Auto scaling:** providers for AWS and Linux hosts over SSH, joining over the Nebula mesh, model hosts
+- **Auto scaling:** providers for Linux hosts over SSH, joining over the Nebula mesh, model hosts
   (RunPod, Lambda, Hugging Face, SageMaker, Bedrock), and making providers and groups in Settings
   ([auto scaling](docs/scaling.md)).
 - **Speech providers:** their summaries, chapters and entities as optional imports, and per-minute prices in the
@@ -327,8 +334,8 @@ The guides are on the [docs site](https://adeelahmad.github.io/lense/) and in th
   [the assistant by email](docs/assistant-email.md), [podcasts](docs/podcasts.md), [notes](docs/notes.md),
   [web clipper](docs/web-clipper.md), [the assistant in your browser](docs/browser-assistant.md),
   [sensors](docs/sensors.md), [processing](docs/processing.md), [video](docs/video.md),
-  [NSFW classification](docs/nsfw.md), [notifications](docs/notifications.md), [automations](docs/automations.md),
-  [timeline](docs/timeline.md), [published feeds](docs/feeds.md)
+  [NSFW classification](docs/nsfw.md), [enhancing images](docs/enhance.md), [notifications](docs/notifications.md),
+  [automations](docs/automations.md), [timeline](docs/timeline.md), [published feeds](docs/feeds.md)
 - **Knowledge:** [graph and Cypher](docs/graph.md), [graph history](docs/graph-history.md), [topics](docs/topics.md),
   [the graph as files](docs/file-tree.md), [NFS share](docs/file-shares.md), [SMB share](docs/smb.md),
   [linked data (RDF)](docs/rdf.md), [IIIF](docs/iiif.md), [Fedora](docs/fedora.md)
