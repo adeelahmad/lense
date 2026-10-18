@@ -4,13 +4,15 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
-- **Kokoro reads aloud on this machine.** Pick **Kokoro** as the voice in Settings → AI assistant → Voice, and spoken
-  answers and podcast hosts are read by Kokoro v1.0 on the server's own CPU, in any of its 54 voices across nine
-  languages, with nothing sent anywhere and nothing billed. It's fetched once picked (the `kokoro` extra with
-  kokoro-onnx and ONNX Runtime, the model in `voice.kokoro_model`, full or 8-bit, and the voices: about 450 MB,
-  checked against their SHA-256); podcast episodes wait for it, and the browser reads answers until it's here. A
-  podcast's second host gets a voice in the first host's language. Agents pick it through the settings API and list the
-  voices with `GET /api/v1/voice/voices?provider=kokoro` ([Kokoro](docs/speech-providers.md#kokoro)).
+## 0.16.0 <small>October 18, 2026</small> {id="0.16.0"}
+
+### Features
+
+- **web:** SchemaForm, a form generated from a JSON Schema with a variable picker ([#566](https://github.com/adeelahmad/lense/pull/566))
+- **chat:** recover when the model's context is full, and show what a summary covers ([#558](https://github.com/adeelahmad/lense/pull/558))
+- **pipelines:** convert steps that make a video's soundtrack an audio asset and a document's pages image assets ([#568](https://github.com/adeelahmad/lense/pull/568))
+- **scaling:** DigitalOcean and Hetzner Cloud providers ([#573](https://github.com/adeelahmad/lense/pull/573))
+- **workflows:** draw an automation's workflow on the canvas, with action and decide nodes ([#576](https://github.com/adeelahmad/lense/pull/576))
 
 ## 0.15.0 <small>October 18, 2026</small> {id="0.15.0"}
 
