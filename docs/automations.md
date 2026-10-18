@@ -25,7 +25,7 @@ merged is called built.
 | Review marks on the timeline (reviewed, important, hidden), their filters and `mark_activities` ([Timeline](timeline.md)) | built |
 | The shapes of triggers, joins, an If, policy and intents, checked (`app/domain/automation_spec.py`) | built |
 | The event workflow scope: what an automation does, drawn with action nodes and tried on an activity (`app/domain/automation_nodes.py`) | built |
-| The decide node (the decision model picks a branch) | planned |
+| The decide node: the decision model picks a branch, one port per option and `unsure` ([The decide node](#the-decide-node)) | built |
 | The action registry with risk from each action's effect, and one action, `log_line` (`app/domain/actions.py`) | built |
 | Telling a person: the `notify` action and `channels.tell` (their own chat, a notification target, a Matterbridge room) | built |
 | The model and the agent: the `ask_model`, `call_tool` and `ask_agent` actions, and prompts with outside text marked | built |
@@ -546,8 +546,7 @@ its own:
   nothing on, so the nodes after it are skipped and the run's log says where it stopped and why. An action that
   fails is marked failed on its node, and the rest of the graph goes on.
 - **Decide** (`decide`, configured `{question, options, input?, min_confidence?}`): the decision model picks one of
-  its options, with an output port per option and `unsure`. Planned with the decision model; until then a decide node
-  is refused when the workflow is saved, as coming soon. Use a condition or switch node.
+  its options, with an output port per option and `unsure` ([The decide node](#the-decide-node)).
 
 Checked when it is saved, on every path (create, a new version, a body):
 
@@ -567,6 +566,34 @@ sent: each action says what it would do (`would write “New: Call with the scho
 lists each one with its params, effect, risk, status (`done`, `waiting`, `scheduled` or `failed`) and what it gave
 back. Text from outside Lens (`lens.untrusted` on the activity, or what a node passed on when its output says
 `untrusted`, like a web page's answer) that reaches an action's params marks its intent `untrusted`.
+
+#### The decide node
+
+Built (`match.check_decide`, `match.run_decide`). A decide node asks the decision model (Jev, then Laya, then the
+language model as a fallback, as in [Routine choices](assistant.md#routine-choices)) a judgement call, and the run
+goes on along the port of the option it chose:
+
+```json
+{"id": "n4", "type": "decide", "config": {"question": "Does this need me today?",
+ "options": {"urgent": "Needs an answer today.", "later": "Can wait."}, "min_confidence": 0.8}}
+```
+
+- `options` names 2 to 10 options, in lowercase letters, digits and `_`, each with what it means. The node's ports
+  are the options, then `unsure`; wire an edge from each port you want to act on.
+- `input` is a template of what the model reads, rendered as [prompts](#prompts) are (each value from outside Lens
+  marked as data), with `input` holding what reached the node: `Subject: {{ event.object.subject }}`. With none, it
+  reads the event's summary and its outside text (the fields in `lens.untrusted`), marked as outside text
+  (`untrusted.wrap`). Either way instructions in an email are read as content.
+- The run goes along the chosen option when the model is sure enough: `min_confidence`, else
+  `decisions.act_above` (default 0.8). Otherwise it goes along `unsure`, as it does when no decision model or
+  language model is set up, or the budget's hard limit is reached. Along the port passes the decision, `{choice,
+  confidence, ranked, by, sure}`, and `steps.<node id>` gets `{port, choice, confidence, sure}` (`choice` is its best
+  guess when it went along `unsure`): `{{ steps.n4.choice }}`.
+- The call is made inside the run's activity scope, so it shows in the activity ledger under the automation and
+  the run, and counts towards budgets. An answer is kept for 7 days per activity and question (in
+  `automation_state`), so a retry or a dry run (Try it) of the same activity doesn't pay again; a dry run does call
+  the model the first time. No model is called unless an automation has a decide node, and then only for activities
+  that reach it.
 
 ### Actions and intents
 

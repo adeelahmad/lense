@@ -32523,6 +32523,448 @@
           }
         }
       }
+    },
+    "/api/v1/mesh": {
+      "get": {
+        "tags": [
+          "mesh"
+        ],
+        "summary": "Mesh Status",
+        "description": "Whether the mesh is on, its network and port, where other machines reach it, its CA and how many machines are\non it.",
+        "operationId": "mesh_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mesh/nodes": {
+      "get": {
+        "tags": [
+          "mesh"
+        ],
+        "summary": "Mesh Nodes",
+        "description": "Every machine: this one (the primary) first, then each node with its role, address, certificate, last report\nand the workers running on it. Removed nodes are listed too, with when.",
+        "operationId": "mesh_nodes",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MeshNode"
+                  },
+                  "type": "array",
+                  "title": "Response Mesh-Mesh Nodes"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mesh/nodes/{node_id}": {
+      "patch": {
+        "tags": [
+          "mesh"
+        ],
+        "summary": "Change Node",
+        "description": "Rename a node, or change the namespaces it serves (its certificate's groups follow when it next renews).",
+        "operationId": "change_node",
+        "parameters": [
+          {
+            "name": "node_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Node Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MeshNodeChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshNode"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "mesh"
+        ],
+        "summary": "Remove Node",
+        "description": "Take a node off the mesh: its certificates go on every machine's blocklist and its credentials stop working.\nPOST /mesh/nodes/{id}/restore undoes it while its certificate is good.",
+        "operationId": "remove_node",
+        "parameters": [
+          {
+            "name": "node_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Node Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshNode"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mesh/nodes/{node_id}/restore": {
+      "post": {
+        "tags": [
+          "mesh"
+        ],
+        "summary": "Restore Node",
+        "description": "Undo removing a node.",
+        "operationId": "restore_node",
+        "parameters": [
+          {
+            "name": "node_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Node Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshNode"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mesh/tokens": {
+      "get": {
+        "tags": [
+          "mesh"
+        ],
+        "summary": "Mesh Tokens",
+        "description": "Join tokens that can still be used (their secrets are shown only when made).",
+        "operationId": "mesh_tokens",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MeshToken"
+                  },
+                  "type": "array",
+                  "title": "Response Mesh-Mesh Tokens"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "mesh"
+        ],
+        "summary": "Make Mesh Token",
+        "description": "Add a node: a token another machine joins the mesh with, shown this once. Makes the mesh's CA the first time,\nand turns the mesh on.",
+        "operationId": "make_mesh_token",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MeshTokenCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshTokenCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mesh/tokens/{token_id}": {
+      "delete": {
+        "tags": [
+          "mesh"
+        ],
+        "summary": "Withdraw Mesh Token",
+        "description": "Withdraw a join token: no machine can join with it any more (those that did stay).",
+        "operationId": "withdraw_mesh_token",
+        "parameters": [
+          {
+            "name": "token_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Token Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mesh/join": {
+      "post": {
+        "tags": [
+          "mesh"
+        ],
+        "summary": "Join Mesh",
+        "description": "A machine joins the mesh with a join token, without sending it: the token's id, the machine's public key, and\nan HMAC of the request keyed with the token's secret. The answer is sealed with a key from that secret\n(docs/mesh.md, Joining). Too many wrong tries from one address are turned away for a while.",
+        "operationId": "join_mesh",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MeshJoin"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshJoined"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mesh/node/config": {
+      "get": {
+        "tags": [
+          "mesh"
+        ],
+        "summary": "Node Config",
+        "description": "The calling node's Nebula config as it is now (the blocklist, the lighthouse's addresses): it reloads when the\nversion changes.",
+        "operationId": "node_config",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshNodeConfig"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mesh/node/renew": {
+      "post": {
+        "tags": [
+          "mesh"
+        ],
+        "summary": "Renew Node",
+        "description": "A new certificate for the calling node's public key, with the groups it has now.",
+        "operationId": "renew_node",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MeshRenew"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshNodeConfig"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mesh/node/beat": {
+      "post": {
+        "tags": [
+          "mesh"
+        ],
+        "summary": "Node Beat",
+        "description": "The calling node's report, every minute: Nebula, its peers, its machine.",
+        "operationId": "node_beat",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MeshBeat"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -53513,6 +53955,744 @@
         "additionalProperties": true,
         "type": "object",
         "title": "MentionMoved"
+      },
+      "MeshAuthority": {
+        "properties": {
+          "fingerprint": {
+            "type": "string",
+            "title": "Fingerprint",
+            "description": "the CA certificate's fingerprint: every machine on the mesh trusts it"
+          },
+          "not_after": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Not After",
+            "description": "when the CA runs out"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "fingerprint"
+        ],
+        "title": "MeshAuthority"
+      },
+      "MeshBeat": {
+        "properties": {
+          "nebula": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nebula",
+            "description": "running, starting, stopped or failed"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "the Lens version it runs"
+          },
+          "peers": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array",
+                "maxItems": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peers",
+            "description": "the machines it has tunnels to"
+          },
+          "machine": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Machine",
+            "description": "its processors, memory and system"
+          },
+          "sandbox": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sandbox",
+            "description": "the sandboxes it can run"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "log": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Log",
+            "description": "Nebula's last lines"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "MeshBeat"
+      },
+      "MeshJoin": {
+        "properties": {
+          "token_id": {
+            "type": "integer",
+            "title": "Token Id",
+            "description": "the number in the join token (lensjoin1.<id>.<secret>)"
+          },
+          "nonce": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 16,
+            "title": "Nonce",
+            "description": "random, made for this request"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 63,
+            "minLength": 1,
+            "title": "Name",
+            "description": "the machine's name"
+          },
+          "public_key": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Public Key",
+            "description": "its Nebula public key (nebula-cert keygen): its private key never leaves it"
+          },
+          "proof": {
+            "type": "string",
+            "maxLength": 128,
+            "title": "Proof",
+            "description": "HMAC-SHA256 of the request, keyed with the token's secret (docs/mesh.md)"
+          },
+          "info": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Info",
+            "description": "about the machine: os, arch, cpus, memory"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "token_id",
+          "nonce",
+          "name",
+          "public_key",
+          "proof"
+        ],
+        "title": "MeshJoin"
+      },
+      "MeshJoined": {
+        "properties": {
+          "node": {
+            "type": "integer",
+            "title": "Node"
+          },
+          "sealed": {
+            "type": "string",
+            "title": "Sealed",
+            "description": "the answer, sealed with a key from the token's secret: certificate, config, credentials"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "node",
+          "sealed"
+        ],
+        "title": "MeshJoined"
+      },
+      "MeshNode": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "primary",
+              "worker",
+              "compute"
+            ],
+            "title": "Role"
+          },
+          "ip": {
+            "type": "string",
+            "title": "Ip",
+            "description": "its address on the mesh"
+          },
+          "groups": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Groups",
+            "description": "its certificate's groups: role and namespaces, for the firewall"
+          },
+          "namespaces": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Namespaces",
+            "description": "the namespaces it serves (none: every one)"
+          },
+          "fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fingerprint",
+            "description": "its current certificate's fingerprint"
+          },
+          "not_after": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Not After",
+            "description": "when its certificate runs out (it renews it at two thirds)"
+          },
+          "joined_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Joined At"
+          },
+          "joined_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Joined By",
+            "description": "the admin who made the token it joined with"
+          },
+          "last_seen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Seen",
+            "description": "its last report, every minute while it runs"
+          },
+          "status": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Status",
+            "description": "what it last reported: Nebula, its peers, its machine"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At",
+            "description": "when it was taken off the mesh"
+          },
+          "revoked_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked By"
+          },
+          "hosts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Hosts",
+            "description": "the address it reached this install at to join"
+          },
+          "workers": {
+            "items": {
+              "$ref": "#/components/schemas/WorkerInfo"
+            },
+            "type": "array",
+            "title": "Workers",
+            "description": "the job workers running on it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "role",
+          "ip"
+        ],
+        "title": "MeshNode"
+      },
+      "MeshNodeChange": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 63
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "namespaces": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespaces",
+            "description": "the namespaces it serves (empty: every one)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "MeshNodeChange"
+      },
+      "MeshNodeConfig": {
+        "properties": {
+          "config": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Config",
+            "description": "its Nebula config, without its private key"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version",
+            "description": "changes whenever the config does"
+          },
+          "not_after": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Not After"
+          },
+          "renew_days": {
+            "type": "integer",
+            "title": "Renew Days",
+            "description": "how many days before its certificate runs out it renews it"
+          },
+          "crt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crt",
+            "description": "the new certificate (renew)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "config",
+          "version",
+          "renew_days"
+        ],
+        "title": "MeshNodeConfig"
+      },
+      "MeshRenew": {
+        "properties": {
+          "public_key": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Public Key",
+            "description": "its Nebula public key, the same or a new one"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "public_key"
+        ],
+        "title": "MeshRenew"
+      },
+      "MeshStatus": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "the mesh is on (mesh.enabled): adding a node turns it on"
+          },
+          "network": {
+            "type": "string",
+            "title": "Network",
+            "description": "the mesh's addresses (mesh.network)"
+          },
+          "port": {
+            "type": "integer",
+            "title": "Port",
+            "description": "the UDP port the primary listens on (mesh.port)"
+          },
+          "hosts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Hosts",
+            "description": "where other machines reach that port (mesh.hosts); empty: where each joined"
+          },
+          "primary_ip": {
+            "type": "string",
+            "title": "Primary Ip",
+            "description": "this machine's address on the mesh"
+          },
+          "ca": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MeshAuthority"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the mesh's certificate authority, once made"
+          },
+          "nodes": {
+            "type": "integer",
+            "title": "Nodes",
+            "description": "machines on the mesh besides this one"
+          },
+          "removed": {
+            "type": "integer",
+            "title": "Removed",
+            "description": "machines taken off it"
+          },
+          "tokens": {
+            "type": "integer",
+            "title": "Tokens",
+            "description": "join tokens that can still be used"
+          },
+          "nebula": {
+            "type": "string",
+            "title": "Nebula",
+            "description": "the Nebula version Lens runs"
+          },
+          "tools": {
+            "type": "boolean",
+            "title": "Tools",
+            "description": "Nebula's programs are on this server (else they're fetched when first needed)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "network",
+          "port",
+          "hosts",
+          "primary_ip",
+          "nodes",
+          "removed",
+          "tokens",
+          "nebula",
+          "tools"
+        ],
+        "title": "MeshStatus"
+      },
+      "MeshToken": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "worker",
+              "compute"
+            ],
+            "title": "Role"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "namespaces": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Namespaces"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "uses": {
+            "type": "integer",
+            "title": "Uses",
+            "description": "how many machines may join with it",
+            "default": 1
+          },
+          "used": {
+            "type": "integer",
+            "title": "Used",
+            "description": "how many have",
+            "default": 0
+          },
+          "expired": {
+            "type": "boolean",
+            "title": "Expired",
+            "default": false
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "role"
+        ],
+        "title": "MeshToken"
+      },
+      "MeshTokenCreate": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "worker",
+              "compute"
+            ],
+            "title": "Role",
+            "description": "worker: runs jobs against this install's database; compute: runs sandboxes only",
+            "default": "worker"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 63
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "the name it shows as (none: the name the machine sends)"
+          },
+          "namespaces": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Namespaces",
+            "description": "the namespaces it serves (empty: every one)"
+          },
+          "hours": {
+            "type": "integer",
+            "title": "Hours",
+            "description": "how long the token can be used",
+            "default": 24
+          },
+          "uses": {
+            "type": "integer",
+            "title": "Uses",
+            "description": "how many machines may join with it",
+            "default": 1
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "MeshTokenCreate"
+      },
+      "MeshTokenCreated": {
+        "properties": {
+          "token": {
+            "$ref": "#/components/schemas/MeshToken"
+          },
+          "secret": {
+            "type": "string",
+            "title": "Secret",
+            "description": "the join token itself, shown this once"
+          },
+          "join_url": {
+            "type": "string",
+            "title": "Join Url",
+            "description": "this install's address the machine joins at"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "token",
+          "secret",
+          "join_url"
+        ],
+        "title": "MeshTokenCreated"
       },
       "MessageCreate": {
         "properties": {

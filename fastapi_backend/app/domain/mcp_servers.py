@@ -308,6 +308,31 @@ def presets():
     ]
 
 
+def filled(spec, values):
+    """A server's spec with the values typed in for its ${NAME}s put in their place (address, args, headers, env), and
+    the names still missing a value."""
+    missing = []
+
+    def put(text):
+        def one(m):
+            if isinstance(values.get(m.group(1)), str) and values[m.group(1)]:
+                return values[m.group(1)]
+            missing.append(m.group(1))
+            return m.group(0)
+
+        return PLACEHOLDER_RX.sub(one, text) if isinstance(text, str) else text
+
+    out = dict(spec)
+    if out.get("url"):
+        out["url"] = put(out["url"])
+    if out.get("args"):
+        out["args"] = [put(a) for a in out["args"]]
+    for field, _ in FIELDS:
+        if out.get(field):
+            out[field] = {k: put(v) for k, v in out[field].items()}
+    return out, sorted(set(missing))
+
+
 # ---------- upgrading ----------
 def migrate_seal(db):
     """Upgrade step: seal the credentials MCP servers kept in plain text in their headers and env, in every version of

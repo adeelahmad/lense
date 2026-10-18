@@ -121,7 +121,7 @@
       "entry_points": [
         "chat, /graph/ask, MCP tools",
         "extensions (prompt, graph and http tools, hooks), custom nodes including template nodes",
-        "MCP servers: POST /extensions/mcp/read and /mcp/test, GET /extensions/mcp/presets, saving an extension of kind mcp, PATCH /extensions/{id}/tools",
+        "MCP servers: POST /extensions/mcp/read and /mcp/test, GET /extensions/mcp/presets, saving an extension of kind mcp, PATCH /extensions/{id}/tools, MCP mcp_servers and add_mcp_server",
         "Python code tools, shipped and admin-created templates, workflows, pipelines, routines",
         "Lens extension side panel",
         "automations",
@@ -143,7 +143,10 @@
         "GET /feeds/public/{token}, /feeds/public/{token}/items/{item}/audio (a published feed)",
         "automations' params and prompts, POST /automations/preview and /automations/variables",
         "MQTT 1883, syslog 5514, POST /sensors/push/{token}/{stream}",
-        "SMB share (port 1445 on the host, 4445 in the worker)"
+        "SMB share (port 1445 on the host, 4445 in the worker)",
+        "POST /api/v1/mesh/join (a machine joining the mesh)",
+        "/api/v1/mesh/node/config, /node/renew, /node/beat (a node's own calls, with its node token)",
+        "POST /api/v1/mesh/tokens, PATCH and DELETE /api/v1/mesh/nodes/{id}, PUT /api/v1/settings/mesh"
       ],
       "touches": [
         "network",
@@ -535,7 +538,7 @@
       "source": "docs/assistant.md \"other people's run only when an admin shared them\""
     },
     {
-      "entry_point": "MCP servers: POST /extensions/mcp/read and /mcp/test, GET /extensions/mcp/presets, saving an extension of kind mcp, PATCH /extensions/{id}/tools",
+      "entry_point": "MCP servers: POST /extensions/mcp/read and /mcp/test, GET /extensions/mcp/presets, saving an extension of kind mcp, PATCH /extensions/{id}/tools, MCP mcp_servers and add_mcp_server",
       "parameter": "config text (JSON or YAML), a server's address and headers, or a command, its arguments and env; a tool name and its switches",
       "attacker_controllable": "no",
       "component": "assistant",
@@ -740,6 +743,33 @@
       "caller_must_enforce": "the start script installs only libreoffice or chromium, each a fixed list of signed Debian packages, answers in a folder only root writes, and reads nothing but the name",
       "provenance": "documented",
       "source": "docs/microsandbox.md"
+    },
+    {
+      "entry_point": "POST /api/v1/mesh/join (a machine joining the mesh)",
+      "parameter": "a join token's id, a nonce, the machine's name and Nebula public key, an HMAC of those keyed with the token's secret, facts about the machine",
+      "attacker_controllable": "yes",
+      "component": "optional",
+      "caller_must_enforce": "no sign-in: the token's secret never crosses the wire, the HMAC is checked in constant time, wrong proofs throttled per address (8 in 15 minutes), a token is spent on use and expires, and the answer is sealed with a key derived from the secret",
+      "provenance": "documented",
+      "source": "docs/mesh.md \"Joining\""
+    },
+    {
+      "entry_point": "/api/v1/mesh/node/config, /node/renew, /node/beat (a node's own calls, with its node token)",
+      "parameter": "a public key to certify; a status report: whether Nebula runs, its peers, its machine, its log lines",
+      "attacker_controllable": "yes",
+      "component": "optional",
+      "caller_must_enforce": "the node token is 256 random bits kept only as a hash; a node gets its own config and a certificate for its own address and groups only; reports are capped",
+      "provenance": "documented",
+      "source": "docs/mesh.md \"After joining\""
+    },
+    {
+      "entry_point": "POST /api/v1/mesh/tokens, PATCH and DELETE /api/v1/mesh/nodes/{id}, PUT /api/v1/settings/mesh",
+      "parameter": "a node's role, name, namespaces, token hours and uses; the mesh's network, port, hosts, cipher",
+      "attacker_controllable": "no",
+      "component": "optional",
+      "caller_must_enforce": "admin is trusted; audited (mesh.token.create, mesh.join, mesh.node.*); the network can't change once machines have addresses in it",
+      "provenance": "documented",
+      "source": "docs/mesh.md \"Settings\""
     }
   ],
   "environment": {
@@ -960,6 +990,14 @@
       "discouraged": false,
       "provenance": "documented",
       "source": "maintainer ruling, 2026-10"
+    },
+    {
+      "name": "mesh.enabled",
+      "default": "off",
+      "effect": "enables P-MESH",
+      "discouraged": false,
+      "provenance": "documented",
+      "source": "docs/mesh.md \"Off until an admin adds a node\""
     }
   ],
   "adversaries": {
@@ -1202,7 +1240,7 @@
       "property": "P-RETRIEVAL",
       "violation_symptom": "info-leak, hang",
       "severity_tier": "security",
-      "conditions": "chat, assistant tools and MCP return only what the person can read, within the conversation's scope, and the tool loop stops at ai.max_steps and ai.max_transcript_reads; a namespace's chat completions answer from that namespace alone, with only the read tools its owners offered",
+      "conditions": "chat, assistant tools and MCP return only what the person can read, within the conversation's scope, and the tool loop stops at ai.max_steps (or the tool calls a question allows, at most ai.max_tool_calls) and ai.max_transcript_reads; a namespace's chat completions answer from that namespace alone, with only the read tools its owners offered",
       "provenance": "documented",
       "source": "docs/assistant.md \"limited to what the person can read\""
     },
@@ -1453,6 +1491,14 @@
       "conditions": "a new key makes stored credentials and encrypted files unreadable (keep keys stable; §1.13)",
       "provenance": "documented",
       "source": "docs/deployment.md \"Stable secrets\""
+    },
+    {
+      "property": "P-MESH",
+      "violation_symptom": "info-leak, integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "the mesh (mesh.enabled, off until an admin adds a node) admits only machines that joined with a token an admin made, spent on use and expiring, which never crosses the wire (HMAC proof; answer sealed with a key derived from it); each machine's certificate names only its own address, role and namespaces; the rendered firewall opens the database port to worker nodes and the API port to every node on the primary, a node's agent port to the primary only; removing a node blocklists every certificate it was given on every machine and stops its node token; nodes still sign in to Lens as any client does",
+      "provenance": "documented",
+      "source": "docs/mesh.md \"What keeps it safe\""
     }
   ],
   "properties_not_provided": [
