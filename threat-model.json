@@ -710,10 +710,10 @@
     },
     {
       "entry_point": "code sandbox",
-      "parameter": "assistant run_python, run_bash, sandbox_files, share_sandbox_file and import_sandbox_file: code the model writes, attachment ids, a path in the sandbox; sandbox.* settings (admins)",
+      "parameter": "assistant run_python, run_bash, sandbox_files, sandbox_nodes, share_sandbox_file and import_sandbox_file: code the model writes, attachment ids, a path in the sandbox, a compute node's id or name; sandbox.* settings (admins)",
       "attacker_controllable": "yes",
       "component": "assistant",
-      "caller_must_enforce": "none — off by default; the code runs in the conversation's own OpenShell sandbox with none of Lens's data or keys and no network unless sandbox.network allows it (P-SANDBOX); with the network on, a run after outside text asks first (P-INJECTION-EGRESS); files in only from the person's attachments, out only through an approved import or as a download for that person",
+      "caller_must_enforce": "none — off by default; the code runs in the conversation's own OpenShell sandbox with none of Lens's data or keys and no network unless sandbox.network allows it (P-SANDBOX); with the network on, a run after outside text asks first (P-INJECTION-EGRESS); files in only from the person's attachments, out only through an approved import or as a download for that person; with compute nodes registered by the mesh, a run may go to a ready compute node's own gateway, reached only over the mesh, with the same sandbox settings, and only where the model passed node or the conversation's sandbox already is",
       "provenance": "documented",
       "source": "docs/assistant.md \"Code sandbox\""
     },
