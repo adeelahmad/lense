@@ -57054,6 +57054,11 @@
             "type": "string",
             "title": "Join Url",
             "description": "this install's address the machine joins at"
+          },
+          "install_line": {
+            "type": "string",
+            "title": "Install Line",
+            "description": "the line to run on the machine: install.sh with LENS_JOIN and LENS_JOIN_TOKEN"
           }
         },
         "additionalProperties": true,
@@ -57061,7 +57066,8 @@
         "required": [
           "token",
           "secret",
-          "join_url"
+          "join_url",
+          "install_line"
         ],
         "title": "MeshTokenCreated"
       },
