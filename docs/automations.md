@@ -68,8 +68,9 @@ When the school's next email arrives:
   (`/approvals`; a badge in the top bar counts what waits), and your chat app gets a message with a link to it.
   Approve, edit or decline it there. A yes in your chat app decides only actions that stay inside Lens, so for a post
   to a room the reply points you to the page.
-- The run shows on the [Timeline](timeline.md) (filter it by the automation to see what it did and caused) and on
-  the automation's **Runs** tab, with what each action did and what it cost.
+- The run shows on the [Timeline](timeline.md) (filter it by the automation to see what it did and caused; the
+  email, opened, lists the run and the waiting post under **What this caused**, with **Approve** and **Decline**
+  right there) and on the automation's **Runs** tab, with what each action did and what it cost.
 
 Everything else in this guide builds on this one: more [triggers](#automations-triggers-and-joins), sharper
 [conditions](#match-trees), other [actions](#actions-and-intents), and [time](#time).

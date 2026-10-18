@@ -380,13 +380,17 @@ def decide(db, cfg, row, user, decision="approve", params=None, via="web"):
 
 
 # ---------- the inbox ----------
-def listing(db, account, status=None, origin=None, automation=None, chat=None, before=None, limit=50, space=None):
+def listing(db, account, status=None, origin=None, automation=None, chat=None, before=None, limit=50, space=None, activity=None):
     """The person's approvals, newest first, `limit` at a time before the id `before`: those with `status`, from
-    automations or chats (`origin`), from one automation, asked in one chat, or about one namespace (`space`)."""
+    automations or chats (`origin`), from one automation, asked in one chat, about one namespace (`space`), or
+    caused by one activity (`activity`, its id)."""
     where, v = ["account = $a"], {"a": account, "limit": max(1, min(int(limit or 50), 200))}
     if space is not None:
         where.append("space = $sp")
         v["sp"] = int(space)
+    if activity:
+        where.append("why.activity = $act")
+        v["act"] = str(activity)
     if status:
         where.append("status = $s")
         v["s"] = status

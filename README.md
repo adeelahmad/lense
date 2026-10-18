@@ -210,8 +210,9 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   an emoji and commenting in threads everyone who sees the item shares (agents too, over MCP), and asking the
   assistant about any item from the item; a comment that tags @lens gets the agent's answer in the thread, with
   every change it proposes waiting for a yes, a For you order learned from each person's own reactions, comments
-  and marks says why each item is where it is, and each person mutes a source or a kind for themselves, with nothing
-  deleted. Automations act
+  and marks says why each item is where it is, each person mutes a source or a kind for themselves, with nothing
+  deleted, and an opened item shows what it caused, the runs and approvals, with Approve and Decline right there.
+  Automations act
   on that stream, on a schedule, at a time or when their own webhook is called, alone or with their triggers joined (all
   of them, a number of times, one that doesn't come in time, or a batch): they test conditions (text, patterns,
   numbers, lists, times, days, whether a value changed and whether something like it happened before in their
@@ -324,7 +325,6 @@ Open pull requests, not yet part of Lens, are listed here; none right now.
 
 Next, and not in a pull request yet; each links to where it is tracked:
 
-- **Timeline:** what each item caused, and Approve and Decline on waiting approvals ([timeline](docs/timeline.md)).
 - **Notes:** nesting a note under its project or area without a click, pages in the graph, and wiki addresses for
   topics, recordings and the other things that have pages ([notes](docs/notes.md)).
 - **Local models:** GPU builds of llama.cpp fetched by Lens, and local embedding models

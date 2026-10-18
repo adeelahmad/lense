@@ -892,13 +892,14 @@ def list_approvals(
     status: Literal["pending", "running", "done", "failed", "declined", "expired"] | None = None,
     origin: Literal["automation", "chat"] | None = None,
     automation: int | None = None,
+    activity: str | None = Query(default=None, max_length=120, description="those an activity caused, by its id"),
     before: int | None = Query(default=None, description="ids below this one: the last id of the page before"),
     limit: int = Query(default=100, ge=1, le=200),
 ) -> list[Approval]:
     """What waits for your pick (and what became of it), newest first: the assistant's proposals and automations'
-    actions. Filter by `status` (pending is waiting), `origin` (automation or chat), one `automation` or one chat
-    (`chat_id`); page with `before`."""
-    rows = approvals.listing(db, user.id, status, origin, automation, chat_id, before, limit)
+    actions. Filter by `status` (pending is waiting), `origin` (automation or chat), one `automation`, one chat
+    (`chat_id`) or the `activity` that caused them; page with `before`."""
+    rows = approvals.listing(db, user.id, status, origin, automation, chat_id, before, limit, activity=activity)
     return [approval_view(a, _via(user), cfg) for a in rows]
 
 
