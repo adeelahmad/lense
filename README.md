@@ -29,7 +29,9 @@ in PowerShell; or skip the terminal and double-click the launcher for your syste
 [Lens.app](docs/get-started.md#the-mac-app) from the same release installs Lens, runs it without Docker and keeps it in
 the menu bar (built, early: not signed yet).
 [Deployment](docs/deployment.md) covers servers and Cloudron; there are also packages for
-[Synology](packaging/synology/README.md), [QNAP](packaging/qnap/README.md) and [Proxmox](proxmox/README.md).
+[Synology](packaging/synology/README.md), [QNAP](packaging/qnap/README.md) and [Proxmox](proxmox/README.md), and each
+release publishes Lens's images for amd64 and arm64 (a Raspberry Pi) to GHCR ([prebuilt
+images](docs/deployment.md#prebuilt-images)).
 The [checks](docs/requirements.md#install) say which of these CI proves.
 
 To work on the code instead, `make run` builds and runs everything from a checkout, `make setup-code` prints the
