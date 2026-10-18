@@ -1,9 +1,9 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useMemo, useState } from "react";
+import { useState } from "react";
 
 import { Routines } from "@/app/openapi-client";
 import type { Routine, Watch } from "@/app/openapi-client/types.gen";
@@ -23,6 +23,7 @@ import {
   type Preset,
   type RoutineAction,
 } from "@/components/routines/routine-model";
+import { browserZone, SchedulePreview, ZoneInput } from "@/components/routines/schedule-fields";
 import { Banner } from "@/components/ui/banner";
 import { Button, IconButton } from "@/components/ui/button";
 import { Checkbox, Field, Input, Select, Switch, Textarea } from "@/components/ui/field";
@@ -32,88 +33,6 @@ import { Segmented } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/toast";
 import { data, useApiClient } from "@/lib/api/browser";
 import { useArchive } from "@/lib/hooks/session";
-
-function browserZone(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-  } catch {
-    return "UTC";
-  }
-}
-
-function zones(): string[] {
-  try {
-    const f = (Intl as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf;
-    return f ? ["UTC", ...f("timeZone")] : ["UTC"];
-  } catch {
-    return ["UTC"];
-  }
-}
-
-/** "Fri 3 Oct, 03:00" in the routine's time zone. */
-function when(iso: string, tz: string): string {
-  const o: Intl.DateTimeFormatOptions = {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  };
-  try {
-    return new Date(iso).toLocaleString("en-GB", { ...o, timeZone: tz });
-  } catch {
-    return new Date(iso).toLocaleString("en-GB", o);
-  }
-}
-
-function useDebounced<T>(value: T, ms = 400): T {
-  const [v, setV] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setV(value), ms);
-    return () => clearTimeout(t);
-  }, [value, ms]);
-  return v;
-}
-
-/** What the schedule means and its next five runs, from the server, as it's typed. */
-function SchedulePreview({ schedule, timezone }: { schedule: string | null; timezone: string }) {
-  const client = useApiClient();
-  const s = useDebounced(schedule);
-  const tz = useDebounced(timezone);
-  const q = useQuery({
-    queryKey: ["schedule-preview", s, tz],
-    queryFn: () => data(Routines.previewSchedule({ client, query: { schedule: s!, timezone: tz || "UTC" } })),
-    enabled: Boolean(s),
-    retry: false,
-    staleTime: 60_000,
-  });
-  if (!schedule) return <p className="text-[12.5px] text-fg-muted">Runs only when someone presses Run now.</p>;
-  if (q.isLoading || s !== schedule || tz !== timezone)
-    return <p className="text-[12.5px] text-fg-muted">Checking the schedule…</p>;
-  if (q.error)
-    return (
-      <p role="alert" className="text-[12.5px] text-red-dark">
-        {(q.error as Error).message}
-      </p>
-    );
-  if (!q.data) return null;
-  return (
-    <div className="rounded-sm border border-border bg-surface px-3 py-2 text-[12.5px]">
-      <p className="font-semibold text-fg">Runs {q.data.text}</p>
-      {q.data.next.length ? (
-        <ul className="mt-1 flex flex-col gap-0.5 text-fg-secondary">
-          {q.data.next.map((t) => (
-            <li key={t} className="tabular">
-              {when(t, q.data.timezone)}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="mt-1 text-fg-muted">It never comes round.</p>
-      )}
-    </div>
-  );
-}
 
 function PickSelect({ value, onChange }: { value: Pick | undefined; onChange: (v: Pick) => void }) {
   return (
@@ -302,7 +221,6 @@ export function RoutineEditor({ routine, onSaved }: { routine?: Routine; onSaved
   const { namespaces } = useArchive();
   const watches = useWatches();
   const workflows = useWorkflowCatalog();
-  const zoneList = useId();
   const creating = !routine;
 
   const [name, setName] = useState(routine?.name ?? "");
@@ -316,7 +234,6 @@ export function RoutineEditor({ routine, onSaved }: { routine?: Routine; onSaved
     (routine?.actions as RoutineAction[] | undefined) ?? [newAction("sync")],
   );
   const [error, setError] = useState<string | null>(null);
-  const allZones = useMemo(zones, []);
 
   const schedule = scheduleFor(preset, custom);
   const graphWorkflow = (id: number) => workflows.data?.workflows.find((w) => w.id === id)?.scope === "graph";
@@ -409,16 +326,7 @@ export function RoutineEditor({ routine, onSaved }: { routine?: Routine; onSaved
             </Field>
             {preset !== "manual" && (
               <Field label="Time zone" className="w-[240px]">
-                {({ id }) => (
-                  <>
-                    <Input id={id} list={zoneList} value={timezone} onChange={(e) => setTimezone(e.target.value)} />
-                    <datalist id={zoneList}>
-                      {allZones.map((z) => (
-                        <option key={z} value={z} />
-                      ))}
-                    </datalist>
-                  </>
-                )}
+                {({ id }) => <ZoneInput id={id} value={timezone} onChange={setTimezone} />}
               </Field>
             )}
           </div>
