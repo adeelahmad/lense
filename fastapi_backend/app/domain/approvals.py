@@ -35,7 +35,7 @@ STATUSES = ("pending", "running", "done", "failed", "declined", "expired")
 DECISIONS = ("approve", "sample", "decline", "edit", "always")
 DROPPED = f"dropped: {CAP} approvals already wait for this automation; decide some in Approvals"
 FIELDS = (
-    "record::id(id) AS id, chat, account, tool, args, summary, estimate, status, created_at, result, error, origin, "
+    "record::id(id) AS id, chat, account, tool, args, summary, preview, estimate, status, created_at, result, error, origin, "
     "intent, space, expires_at, decided_by, decided_at, told, why, automation"
 )
 _swept = {"at": 0.0}
@@ -414,6 +414,7 @@ def brief(a, web=""):
         "id": a["id"],
         "status": a.get("status"),
         "summary": a.get("summary"),
+        "preview": a.get("preview"),
         "from": "automation" if o else "chat",
         "automation": o.get("automation"),
         "automation_name": a.get("automation"),

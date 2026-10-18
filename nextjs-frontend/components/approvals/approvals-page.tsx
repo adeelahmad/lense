@@ -168,6 +168,7 @@ export function ApprovalsPage() {
                     id: a.id,
                     tool: a.tool,
                     summary: a.summary,
+                    preview: a.preview ?? null,
                     status: a.status,
                     estimate: (a.estimate as Estimate | null) ?? null,
                   }}

@@ -1,5 +1,5 @@
 {
-  "surveyed": "2026-10-18T02:52:10.420Z",
+  "surveyed": "2026-10-18T06:19:01.743Z",
   "commit": "",
   "viewport": "Pixel 7, 412x839, touch",
   "device": "phone",
@@ -47,7 +47,7 @@
         }
       ],
       "id": "install",
-      "ms": 2929,
+      "ms": 2488,
       "ok": true
     },
     {
@@ -85,7 +85,7 @@
         }
       ],
       "id": "first-admin",
-      "ms": 735,
+      "ms": 699,
       "ok": true
     },
     {
@@ -107,7 +107,7 @@
         }
       ],
       "id": "setup-wizard",
-      "ms": 512,
+      "ms": 517,
       "ok": true
     },
     {
@@ -137,7 +137,7 @@
         }
       ],
       "id": "first-question",
-      "ms": 1302,
+      "ms": 1217,
       "ok": true
     },
     {
@@ -184,7 +184,7 @@
         }
       ],
       "id": "import-paste",
-      "ms": 4128,
+      "ms": 4534,
       "ok": true
     },
     {
@@ -222,7 +222,7 @@
         }
       ],
       "id": "library-open",
-      "ms": 3310,
+      "ms": 3105,
       "ok": true
     },
     {
@@ -268,7 +268,7 @@
         }
       ],
       "id": "search-word",
-      "ms": 4155,
+      "ms": 3688,
       "ok": true
     },
     {
@@ -306,7 +306,7 @@
         }
       ],
       "id": "jump-to",
-      "ms": 2753,
+      "ms": 2604,
       "ok": true
     },
     {
@@ -360,7 +360,7 @@
         }
       ],
       "id": "chat-ask",
-      "ms": 6712,
+      "ms": 6838,
       "ok": true
     },
     {
@@ -422,7 +422,7 @@
         }
       ],
       "id": "note-create",
-      "ms": 4734,
+      "ms": 4180,
       "ok": true
     },
     {
@@ -476,7 +476,7 @@
         }
       ],
       "id": "topic-add",
-      "ms": 4125,
+      "ms": 3733,
       "ok": true
     },
     {
@@ -522,7 +522,7 @@
         }
       ],
       "id": "pipeline-create",
-      "ms": 4247,
+      "ms": 3016,
       "ok": true
     },
     {
@@ -568,7 +568,7 @@
         }
       ],
       "id": "routine-create",
-      "ms": 3207,
+      "ms": 3000,
       "ok": true
     },
     {
@@ -614,7 +614,7 @@
         }
       ],
       "id": "extension-add",
-      "ms": 3443,
+      "ms": 3116,
       "ok": true
     },
     {
@@ -660,7 +660,7 @@
         }
       ],
       "id": "sensor-webhook",
-      "ms": 3208,
+      "ms": 3104,
       "ok": true
     },
     {
@@ -723,7 +723,7 @@
         }
       ],
       "id": "settings-change",
-      "ms": 4500,
+      "ms": 4883,
       "ok": true
     },
     {
@@ -793,7 +793,7 @@
         }
       ],
       "id": "person-add",
-      "ms": 3867,
+      "ms": 4170,
       "ok": true
     },
     {
@@ -831,7 +831,7 @@
         }
       ],
       "id": "api-token",
-      "ms": 3348,
+      "ms": 3500,
       "ok": true
     },
     {
@@ -869,7 +869,7 @@
         }
       ],
       "id": "namespace-switch",
-      "ms": 2821,
+      "ms": 2885,
       "ok": true
     },
     {
@@ -915,7 +915,7 @@
         }
       ],
       "id": "agent-connect",
-      "ms": 3312,
+      "ms": 3279,
       "ok": true
     },
     {
@@ -953,7 +953,7 @@
         }
       ],
       "id": "import-file",
-      "ms": 4019,
+      "ms": 3977,
       "ok": true
     },
     {
@@ -1007,7 +1007,7 @@
         }
       ],
       "id": "source-folder",
-      "ms": 4586,
+      "ms": 4547,
       "ok": true
     },
     {
@@ -1053,7 +1053,7 @@
         }
       ],
       "id": "entity-find",
-      "ms": 12531,
+      "ms": 12666,
       "ok": true
     },
     {
@@ -1107,7 +1107,7 @@
         }
       ],
       "id": "graph-find",
-      "ms": 5444,
+      "ms": 5100,
       "ok": true
     },
     {
@@ -1169,7 +1169,7 @@
         }
       ],
       "id": "podcast-create",
-      "ms": 5830,
+      "ms": 4089,
       "ok": true
     },
     {
@@ -1223,7 +1223,7 @@
         }
       ],
       "id": "report-pdf",
-      "ms": 4340,
+      "ms": 3974,
       "ok": true
     },
     {
@@ -1277,7 +1277,7 @@
         }
       ],
       "id": "workflow-create",
-      "ms": 4261,
+      "ms": 3675,
       "ok": true
     },
     {
@@ -1331,7 +1331,7 @@
         }
       ],
       "id": "template-create",
-      "ms": 4331,
+      "ms": 3634,
       "ok": true
     },
     {
@@ -1393,7 +1393,7 @@
         }
       ],
       "id": "namespace-create",
-      "ms": 3884,
+      "ms": 3712,
       "ok": true
     },
     {
@@ -1455,7 +1455,7 @@
         }
       ],
       "id": "speaker-rename",
-      "ms": 4583,
+      "ms": 4916,
       "ok": true
     },
     {
@@ -1517,7 +1517,7 @@
         }
       ],
       "id": "entity-merge",
-      "ms": 6642,
+      "ms": 6989,
       "ok": true
     },
     {
@@ -1603,7 +1603,7 @@
         }
       ],
       "id": "graph-merge",
-      "ms": 8775,
+      "ms": 8087,
       "ok": true
     },
     {
@@ -1657,7 +1657,7 @@
         }
       ],
       "id": "chat-regenerate",
-      "ms": 4643,
+      "ms": 3954,
       "ok": true
     },
     {
@@ -1679,7 +1679,7 @@
         }
       ],
       "id": "chat-copy",
-      "ms": 267,
+      "ms": 249,
       "ok": true
     },
     {
@@ -1709,7 +1709,7 @@
         }
       ],
       "id": "chat-export-pdf",
-      "ms": 8511,
+      "ms": 4463,
       "ok": true
     },
     {
@@ -1755,7 +1755,85 @@
         }
       ],
       "id": "chat-tools",
-      "ms": 2192,
+      "ms": 1174,
+      "ok": true
+    },
+    {
+      "module": "Chat",
+      "feature": "Research a goal, approve its plan and save the report as a note",
+      "note": "A new conversation in one namespace: the Deep research switch beside the composer, the goal and Enter; the plan comes back as a card to approve (Approve, or Enter in it), then the run's progress, then the cited report with Save as note. The stand-in model plans three sub-questions without asking anything first.",
+      "clicks": 6,
+      "keys": 34,
+      "prompts": 0,
+      "swipes": 0,
+      "steps": [
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Open navigation (menu)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Chat",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/chat",
+          "kind": "tap",
+          "what": "New conversation",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/chat",
+          "kind": "tap",
+          "what": "Deep research",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/chat",
+          "kind": "type",
+          "what": "the goal",
+          "clicks": 0,
+          "keys": 33,
+          "prompts": 0
+        },
+        {
+          "page": "/chat",
+          "kind": "key",
+          "what": "Enter to plan it",
+          "clicks": 0,
+          "keys": 1,
+          "prompts": 0
+        },
+        {
+          "page": "/chat/:id",
+          "kind": "tap",
+          "what": "Approve",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/chat/:id",
+          "kind": "tap",
+          "what": "Save as note",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        }
+      ],
+      "id": "chat-research",
+      "ms": 11121,
       "ok": true
     },
     {
@@ -1825,7 +1903,7 @@
         }
       ],
       "id": "cloud-model",
-      "ms": 6081,
+      "ms": 4192,
       "ok": true
     }
   ],
@@ -1862,14 +1940,14 @@
       "page": "/notes",
       "label": "Notes",
       "reach": 2,
-      "controls": 10,
+      "controls": 11,
       "askCovers": []
     },
     {
       "page": "/timeline",
       "label": "Timeline",
       "reach": 2,
-      "controls": 55,
+      "controls": 71,
       "askCovers": []
     },
     {
@@ -1995,7 +2073,7 @@
       "page": "/costs",
       "label": "Costs",
       "reach": 2,
-      "controls": 12,
+      "controls": 13,
       "askCovers": []
     },
     {
@@ -2030,7 +2108,7 @@
       "page": "/settings/ai",
       "label": "Settings › AI assistant",
       "reach": 3,
-      "controls": 19,
+      "controls": 22,
       "askCovers": []
     },
     {
@@ -2051,7 +2129,7 @@
       "page": "/settings/analysis",
       "label": "Settings › Analysis",
       "reach": 3,
-      "controls": 5,
+      "controls": 6,
       "askCovers": []
     },
     {
