@@ -765,6 +765,10 @@ A pipeline runs a workflow as a Workflow step, pinned to the workflow's publishe
 means "runs after", and the graph is put in order (ties left to right) and kept as the version's steps, so runs and
 Activity work as before. A pipeline saved as a list is drawn as a chain.
 
+An automation's workflow (scope `event`) is drawn on the same canvas, from What happened (the run) to Action and
+Decide nodes, with every action in the catalog listed in the palette and its settings drawn from the action's params
+([On the canvas](automations.md#on-the-canvas)).
+
 ## Content types
 
 Every resource is video, audio, image or text (transcripts, documents, web pages, emails and calendar events are

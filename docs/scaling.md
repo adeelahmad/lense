@@ -8,9 +8,11 @@ launched. Everything it does is in the [activity ledger](activity.md), and its c
 
 Status: in progress. Built: groups, rules, approvals, budgets, the scaler, the API, MCP and assistant tools,
 Settings › Auto scaling (the switch, and each group's terms to approve or pause), and **This machine**, a provider that
-runs more `lens worker` processes where Lens runs. Planned: providers for AWS, DigitalOcean, Hetzner, Proxmox and any
-Linux host over SSH, joining Lens over its Nebula mesh network; model hosts (RunPod, Lambda, Hugging Face, SageMaker,
-Bedrock) for models; and making providers and groups in Settings.
+runs more `lens worker` processes where Lens runs. In progress: **DigitalOcean** and **Hetzner Cloud** providers are
+built (credentials checked, list prices, launching, watching and deleting machines), and launch once the mesh's
+install line, which another machine joins Lens with, lands ([the mesh](mesh.md)). Planned: providers for AWS, Proxmox
+and any Linux host over SSH; model hosts (RunPod, Lambda, Hugging Face, SageMaker, Bedrock) for models; and making
+providers and groups in Settings.
 
 Auto scaling is **off** until an admin turns it on, and a group launches nothing until a person approves its terms
 signed in to the web app. Agents can propose and manage groups, but never approve one.
@@ -53,9 +55,23 @@ carries none of them.
 | Driver | Units | Costs | Template |
 | --- | --- | --- | --- |
 | `local` (This machine) | more `lens worker` processes where the scaler runs | nothing | `steps`: the steps they run (none: every step) |
+| `digitalocean` | droplets in `region`, with `token` (sealed), optional `ssh_keys` and `vpc_uuid` | DigitalOcean's hourly list price | `size` (`s-1vcpu-2gb`), `image` (`ubuntu-24-04-x64`), `steps` |
+| `hetzner` (Hetzner Cloud) | servers in `location`, with `token` (sealed), optional `ssh_keys` | Hetzner's hourly gross price in euros, times `usd_per_eur` (1.1; set your rate) | `server_type` (`cx22`), `image` (`ubuntu-24.04`), `steps` |
 
 A worker on This machine stops with the process that started it, and the scaler that takes over starts them again where
 it runs.
+
+### Machines elsewhere
+
+A cloud provider's unit is a new machine. Its first boot runs a script (user-data) that sets `LENS_SCALING_UNIT` (its
+name) and `LENS_WORKER_STEPS` (the template's steps), then the mesh's install line with a join token made for that
+unit, usable once within an hour. The machine joins Lens over the [mesh](mesh.md) and starts `lens worker`; the
+database credential travels inside the sealed join answer, so the user-data holds no long-lived secret. Each machine
+carries Lens's tag (`scaling.tag`: a DigitalOcean tag, a Hetzner label `lens=<tag>`), so Lens's machines can be told
+apart. Letting a unit go deletes its machine; a machine switched off at the provider counts as gone and is deleted.
+
+Until the mesh is on and has its install line, a group on these providers waits (`waiting_for` says so) and launches
+nothing, since its machines couldn't join. They call the providers' REST APIs with httpx, so they install nothing.
 
 ## Groups
 
@@ -145,5 +161,7 @@ Turning scaling on (`change_settings scaling`) always asks.
 
 ## Refine later
 
-Providers beyond This machine; spot and preemptible instances; warm pools; predictive scaling; health checks beyond
+Providers for Proxmox, SSH hosts and model hosts; the AWS provider (in its own pull request); revoking a unit's mesh
+certificate when it goes; reporting machines with Lens's tag that Lens has no unit for (`listing`); a live euro
+rate; spot and preemptible instances; warm pools; predictive scaling; health checks beyond
 joining; prices fetched from providers' pricing APIs.
