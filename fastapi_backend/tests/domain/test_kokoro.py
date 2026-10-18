@@ -110,10 +110,10 @@ def test_the_model_size_is_a_setting(db, here):
     assert kokoro._loaded["model"].endswith("kokoro-v1.0.int8.onnx")
     rows = [r for r in db.rows("SELECT * FROM activity") if r["action"] == "model.speech"]
     assert [r["model"] for r in rows] == ["kokoro:kokoro-v1.0-int8"]
-    voice.speak(picked(db, here, kokoro_model="fp16"), "Hello")  # the other one is let go
-    assert kokoro._loaded["model"].endswith("kokoro-v1.0.fp16.onnx")
-    with pytest.raises(ValueError):
-        settings.save(db, here, "voice", {"kokoro_model": "fp64"}, "t")
+    voice.speak(picked(db, here, kokoro_model="fp32"), "Hello")  # the other one is let go
+    assert kokoro._loaded["model"].endswith("kokoro-v1.0.onnx")
+    with pytest.raises(ValueError):  # kokoro-onnx's fp16 export isn't offered: it reads nothing on arm64
+        settings.save(db, here, "voice", {"kokoro_model": "fp16"}, "t")
 
 
 def test_the_model_is_let_go_when_nothing_is_read(db, here, monkeypatch):

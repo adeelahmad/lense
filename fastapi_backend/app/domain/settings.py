@@ -174,7 +174,7 @@ ENUMS = {
     ("voice", "input"): {"auto", "server", "browser"},
     ("voice", "stt"): {"same", "sensevoice", "whisper", "mlx-whisper", "openai", "elevenlabs", "assemblyai", "deepgram"},
     ("voice", "tts_provider"): {"openai", "elevenlabs", "deepgram", "gemini", "say", "kokoro", "styletts2"},
-    ("voice", "kokoro_model"): {"fp32", "fp16", "int8"},
+    ("voice", "kokoro_model"): {"fp32", "int8"},
     ("mail", "security"): {"starttls", "ssl", "none"},
     ("bridge", "answer"): {"mention", "all"},
     ("bridge", "approve"): {"off", "low_risk"},

@@ -1826,7 +1826,6 @@ export const FIELDS: FieldSpec[] = [
     kind: "select",
     options: [
       { value: "fp32", label: "Full (326 MB, the best, and fastest on most machines)" },
-      { value: "fp16", label: "Half precision (164 MB)" },
       { value: "int8", label: "8-bit (114 MB, for a small disk)" },
     ],
   },

@@ -6,8 +6,9 @@ It runs through kokoro-onnx (MIT): espeak-ng turns the text into phonemes, and t
 its 54 voices. espeak-ng and phonemizer, which kokoro-onnx calls it through, are GPL-3.0, so all of it is the `kokoro`
 extra: components.py fetches it, with the model and its voices, only once Kokoro is picked. The files are the ones
 kokoro-onnx publishes (its model-files-v1.1 release), checked against their SHA-256: the model, voice.kokoro_model
-(fp32, 326 MB, the best and on most CPUs the fastest; fp16, 164 MB; int8, 114 MB, for a small disk), and
-voices-v1.0.bin (28 MB), every voice.
+(fp32, 326 MB, the best and on most CPUs the fastest; int8, 114 MB, for a small disk), and voices-v1.0.bin (28 MB),
+every voice. kokoro-onnx's fp16 export isn't offered: ONNX Runtime's CPU provider on arm64 read nothing with it (an
+empty waveform, which kokoro-onnx's pause insertion then trips over), and on x64 it was no faster than fp32.
 
 A voice's first letter is its language and its second whether it's a woman's or a man's (af_heart: American English,
 female); espeak-ng reads the text as that language. The model stays loaded while it's reading and is let go when
@@ -21,7 +22,7 @@ import time
 
 from . import components
 
-MODELS = {"fp32": "kokoro-v1.0.onnx", "fp16": "kokoro-v1.0.fp16.onnx", "int8": "kokoro-v1.0.int8.onnx"}
+MODELS = {"fp32": "kokoro-v1.0.onnx", "int8": "kokoro-v1.0.int8.onnx"}
 VOICES_FILE = "voices-v1.0.bin"
 DEFAULT_VOICE = "af_heart"
 # the voice a podcast's second host gets, by language and sex, when there's more than one to pick from
@@ -129,7 +130,7 @@ def _load(cfg):
 
             _loaded.clear()  # another size's model goes: one is enough memory
             opts = onnxruntime.SessionOptions()
-            opts.log_severity_level = 3  # the fp16 model warns about every node it can't fold
+            opts.log_severity_level = 3  # errors only: its node-by-node warnings would fill the worker's log
             session = onnxruntime.InferenceSession(model, opts, providers=["CPUExecutionProvider"])
             _loaded.update(model=model, kokoro=Kokoro.from_session(session, voices_path))
         _loaded["used"] = time.time()

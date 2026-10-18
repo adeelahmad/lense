@@ -111,8 +111,9 @@ What is fetched, once, into the data folder:
 - the `kokoro` extra: [kokoro-onnx](https://github.com/thewh1teagle/kokoro-onnx) (MIT) and ONNX Runtime, about 95 MB.
   kokoro-onnx turns text into phonemes with espeak-ng through phonemizer, which are GPL-3.0, so they are in this
   opt-in extra only, never in Lens's own install;
-- the model, `voice.kokoro_model`: `fp32` (326 MB, the default: the best, and on most CPUs the fastest), `fp16`
-  (164 MB) or `int8` (114 MB, for a small disk);
+- the model, `voice.kokoro_model`: `fp32` (326 MB, the default: the best, and on most CPUs the fastest) or `int8`
+  (114 MB, for a small disk). kokoro-onnx's half-precision export is not offered: on arm64, ONNX Runtime reads nothing
+  with it, and on x64 it is no faster than `fp32`;
 - `voices-v1.0.bin` (28 MB): all 54 voices.
 
 The model and voices files are the ones kokoro-onnx publishes (its `model-files-v1.1` release), checked against their

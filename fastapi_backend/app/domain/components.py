@@ -95,10 +95,10 @@ FILES = {
     ),
 }
 # Kokoro v1.0 (hexgrad's Kokoro-82M, Apache-2.0) as kokoro-onnx exports it, from its model-files-v1.1 release
-# (kokoro.py): the model at three precisions, and every voice: {file: (sha256, size in MB)}
+# (kokoro.py): the model in full precision and 8-bit (its fp16 export reads nothing on arm64, see kokoro.py), and every
+# voice: {file: (sha256, size in MB)}
 KOKORO = {
     "kokoro-v1.0.onnx": ("beb0d1848dee9a49da392cc3df26958d46cfa35d321edf434f52949153f0df3a", 326),
-    "kokoro-v1.0.fp16.onnx": ("f3a290d384fbb27966d462905c71a46cef9e5fd00516b40df32a0b4afe77ac96", 164),
     "kokoro-v1.0.int8.onnx": ("ae315a79b623f244700e4afb9246c46a26066782e049ba174bf3ba433970ee9c", 114),
     "voices-v1.0.bin": ("bca610b8308e8d99f32e6fe4197e7ec01679264efed0cac9140fe9c29f1fbf7d", 28),
 }
