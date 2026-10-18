@@ -190,7 +190,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   workflow, pipeline or routine, or change assets and notes. The Schedules page is Lens's crontab: every routine,
   automation schedule and the backup in one list with when each runs next and last, to switch, re-time or run now, and
   agents do the same over the API and MCP. A Classify node in a workflow sorts an asset into labels, content types or
-  topics, acting only on a sure answer, and an Entity filter node keeps the entities you want. Graph workflows tidy the
+  topics, acting only on a sure answer, and an Entity filter node keeps the entities you want. An HTTP call node calls
+  a web address through the same guard as the assistant's web tools, with its keys sealed to their host. Graph workflows tidy the
   entities on a routine: look-alikes to merge or link, types the rules now read differently, noise to hide and topics
   to group under a broader one, making the changes they're sure of and proposing the rest, each one undoable. Anything that reaches outside Lens or changes
   more than what set it off asks first, until you let it run on its own: on the Approvals page or, for a change inside
@@ -280,7 +281,7 @@ These are open pull requests, not yet part of Lens:
   ([#406](https://github.com/adeelahmad/lense/pull/406)).
 - **Automations:** more operators for conditions ([#434](https://github.com/adeelahmad/lense/pull/434)).
 - **Nodes:** Lens's own private network between the machines it runs on, a Nebula mesh it issues the certificates
-  for ([#602](https://github.com/adeelahmad/lense/pull/602)).
+  for ([#607](https://github.com/adeelahmad/lense/pull/607)).
 
 ## Planned
 

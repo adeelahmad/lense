@@ -546,9 +546,9 @@ people it's turned on for: those who can edit a namespace, and admins (`sandbox.
 
 ### Compute nodes
 
-In progress: the seam is built, and the mesh that joins the nodes is being built in its own pull request. Once the
-install's mesh registers compute nodes (its other machines, each with its own sandbox gateway, reached only over the
-mesh's own network), the assistant can run a conversation's code on one of them:
+Once a compute node on the install's [mesh](mesh.md#compute-nodes) has its own sandbox gateway (its install line
+starts one, and hands Lens the gateway's certificate), the assistant can run a conversation's code on it, reached
+only over the mesh's own network:
 
 - **`sandbox_nodes`** lists where code can run: this machine (`here`) and each compute node, with whether it can run
   code now and, if not, why (it hasn't reported in the last 3 minutes, it isn't on the mesh, its sandbox gateway isn't

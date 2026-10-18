@@ -35,7 +35,7 @@ const ROLES = [
   {
     value: "compute",
     label: "Compute",
-    hint: "Runs the assistant’s code in sandboxes, and gets nothing of Lens’s: no database, no keys.",
+    hint: "Runs the assistant’s code in sandboxes on a gateway of its own (Linux 6.2 or newer, with Docker), and gets nothing of Lens’s: no database, no keys.",
   },
 ];
 const ROLE_LABEL: Record<string, string> = { primary: "This machine", worker: "Worker", compute: "Compute" };
@@ -48,6 +48,7 @@ type Report = {
   info?: Machine | null;
   error?: string | null;
   log?: string[] | null;
+  sandbox?: { gateway?: string } | null;
 };
 
 const upper = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
@@ -127,9 +128,9 @@ export function NodesBody() {
       </section>
       {(tokens.data ?? []).length > 0 && <Tokens list={tokens.data ?? []} />}
       <p className="text-[12.5px] leading-[1.45] text-fg-muted">
-        Agents do the same over <code className="font-mono">/api/v1/mesh</code>: nodes, tokens and the network. In
-        progress: compute nodes running the assistant’s code. Today a node joins, renews its certificate and reports
-        here, and a worker node takes this install’s jobs.
+        Agents do the same over <code className="font-mono">/api/v1/mesh</code>: nodes, tokens and the network. A node
+        joins, renews its certificate and reports here; a worker node takes this install’s jobs, and a compute node runs
+        the assistant’s code.
       </p>
     </>
   );
@@ -259,6 +260,7 @@ function NodeRow({ node: n }: { node: MeshNode }) {
     machineText(r.machine ?? r.info),
     n.not_after ? `certificate until ${shortDate(n.not_after)}` : null,
     n.workers?.length ? `${n.workers.length} worker${n.workers.length === 1 ? "" : "s"}` : null,
+    n.role === "compute" && !removed ? (r.sandbox?.gateway ? "sandbox gateway running" : "no sandbox gateway") : null,
   ].filter(Boolean);
   const served = n.namespaces ?? [];
   const error = remove.error ?? restore.error ?? serve.error;
