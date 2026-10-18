@@ -26,6 +26,7 @@ dependencies = [
     "opentelemetry-exporter-otlp-proto-http>=1.45.1,<2",
     "webauthn>=3.0.1,<4",
     "feedparser>=6.0.11,<7",
+    "regex>=2024.11",  # patterns in automations' conditions, with a time limit (Apache-2.0; fastapi-mail needs it too)
 ]
 
 [project.optional-dependencies]

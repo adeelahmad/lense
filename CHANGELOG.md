@@ -24,6 +24,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   question's words. A title someone gives it is kept. `title_by` says who titled it, `POST /api/v1/chats/<id>/title`
   and the MCP tool `rename_chat` (without a title) have Lens title it again, and `rename_chat` with a title renames it.
   Settings → AI assistant → Title conversations (on) turns it off ([Titles](docs/assistant.md#titles)).
+- **More tests for automations' conditions.** An If, a trigger's where and a condition node can now test that text
+  starts or ends with something or matches a pattern, that a value is in a list, that a number or a time is between
+  two, before or after a time or within a duration, falls on certain days or times of day, and whether a value changed
+  since the last activity. Each value is checked when it's saved, and patterns that could tie up the worker are refused
+  ([Operators](docs/automations.md#operators)).
 - **Specs from transcripts.** Turn a voice session or a meeting into a technical spec, saved as a note linked to it:
   the model writes the spec, then lists every named decision, every "no" and "not that, this", every constraint and
   every gap the speaker left to decide later, each with its quote and a link to the moment it was said; a quote the
