@@ -1611,6 +1611,9 @@ import type {
   TestTelemetryResponses,
   TestTikaData,
   TestTikaResponses,
+  TitleChatData,
+  TitleChatErrors,
+  TitleChatResponses,
   TodayPageData,
   TodayPageErrors,
   TodayPageResponses,
@@ -10254,7 +10257,7 @@ export class Chats {
    *
    * A conversation. Its answers may use what `tools` and `max_tool_calls` say, which become your latest choice;
    * left out, your latest choice (here or PATCH /chats/{cid}), else Auto: everything you may use, limited by the rounds
-   * alone.
+   * alone. A `title` is yours, and kept; without one, Lens titles it after its first answer (ai.auto_title).
    */
   public static createChat<ThrowOnError extends boolean = false>(
     options?: Options<CreateChatData, ThrowOnError>,
@@ -10402,6 +10405,23 @@ export class Chats {
   ): RequestResult<ExportChatResponses, ExportChatErrors, ThrowOnError> {
     return (options.client ?? client).get<ExportChatResponses, ExportChatErrors, ThrowOnError>({
       url: "/api/v1/chats/{cid}/export.{fmt}",
+      ...options,
+    });
+  }
+
+  /**
+   * Title Chat
+   *
+   * Have Lens title a conversation now, from how it starts (the version showing's first messages), even one you
+   * named: the title is Lens's again, as after a first answer. Written by the model for summaries (ai.compact_model)
+   * when set, else the chat's, in one call counted for the conversation in the activity ledger. 409 before the first
+   * question; 400 with no model, or when the model writes no title.
+   */
+  public static titleChat<ThrowOnError extends boolean = false>(
+    options: Options<TitleChatData, ThrowOnError>,
+  ): RequestResult<TitleChatResponses, TitleChatErrors, ThrowOnError> {
+    return (options.client ?? client).post<TitleChatResponses, TitleChatErrors, ThrowOnError>({
+      url: "/api/v1/chats/{cid}/title",
       ...options,
     });
   }

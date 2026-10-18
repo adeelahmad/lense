@@ -6,7 +6,7 @@
   "scope_subpath": null,
   "description": "Lens is a self-hosted archive for documents, recordings, photos and messages: it reads, transcribes, indexes and publishes them, and people search and chat over them. One operator (the instance admin) runs an instance for their own people: a FastAPI API, a Next.js web app that proxies the API and holds the sign-in session, and background workers, around one SurrealDB database, with content split into namespaces and per-namespace roles. Exposing an instance to the internet behind HTTPS (reverse proxy or Cloudflare tunnel) is supported. Only the instance admin (equivalent to host code execution) and the host operator are trusted; everyone else is trusted only as far as their role.",
   "confidence": {
-    "documented": 251,
+    "documented": 252,
     "inferred": 99
   },
   "components": [
@@ -437,7 +437,7 @@
       "parameter": "the feed's address (or a site's page that names its feed), user and password; the feed's XML and its posts' HTML",
       "attacker_controllable": "yes",
       "component": "outbound",
-      "caller_must_enforce": "admin creates sources; fetched as iCal feeds are; feedparser reads the XML with external entities off and drops scripts, styles and event handlers from a post's HTML; each post kept as an Atom entry Lens writes, without the feed's address; post text is marked untrusted in prompts",
+      "caller_must_enforce": "admins add them (web app, API, MCP subscribe_feed with a write-scope token, or the assistant's tool, which asks first outside a setup conversation or once it has read outside text); fetched as iCal feeds are; feedparser reads the XML with external entities off and drops scripts, styles and event handlers from a post's HTML; each post kept as an Atom entry Lens writes, without the feed's address; post text is marked untrusted in prompts",
       "provenance": "documented",
       "source": "docs/processing.md \"News feeds (RSS and Atom)\""
     },

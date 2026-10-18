@@ -25579,7 +25579,7 @@
           "chats"
         ],
         "summary": "Create Chat",
-        "description": "A conversation. Its answers may use what `tools` and `max_tool_calls` say, which become your latest choice;\nleft out, your latest choice (here or PATCH /chats/{cid}), else Auto: everything you may use, limited by the rounds\nalone.",
+        "description": "A conversation. Its answers may use what `tools` and `max_tool_calls` say, which become your latest choice;\nleft out, your latest choice (here or PATCH /chats/{cid}), else Auto: everything you may use, limited by the rounds\nalone. A `title` is yours, and kept; without one, Lens titles it after its first answer (ai.auto_title).",
         "operationId": "create_chat",
         "requestBody": {
           "content": {
@@ -26020,6 +26020,49 @@
               "text/markdown": {},
               "application/json": {},
               "application/pdf": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chats/{cid}/title": {
+      "post": {
+        "tags": [
+          "chats"
+        ],
+        "summary": "Title Chat",
+        "description": "Have Lens title a conversation now, from how it starts (the version showing's first messages), even one you\nnamed: the title is Lens's again, as after a first answer. Written by the model for summaries (ai.compact_model)\nwhen set, else the chat's, in one call counted for the conversation in the activity ledger. 409 before the first\nquestion; 400 with no model, or when the model writes no title.",
+        "operationId": "title_chat",
+        "parameters": [
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatTitle"
+                }
+              }
             }
           },
           "422": {
@@ -37241,6 +37284,22 @@
             "type": "string",
             "title": "Title"
           },
+          "title_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "assistant",
+                  "person"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title By",
+            "description": "who titled it: assistant (Lens, from its first question and answer; it titles it again when the first question is edited) or person (named by someone, so Lens leaves it); null: from before Lens kept who titled it"
+          },
           "kind": {
             "type": "string",
             "enum": [
@@ -37558,7 +37617,8 @@
                 "type": "null"
               }
             ],
-            "title": "Title"
+            "title": "Title",
+            "description": "yours, and kept; left out, Lens titles it after its first answer (ai.auto_title)"
           },
           "kind": {
             "type": "string",
@@ -37938,6 +37998,22 @@
             "type": "string",
             "title": "Title"
           },
+          "title_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "assistant",
+                  "person"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title By",
+            "description": "who titled it: assistant (Lens, from its first question and answer; it titles it again when the first question is edited) or person (named by someone, so Lens leaves it); null: from before Lens kept who titled it"
+          },
           "kind": {
             "type": "string",
             "enum": [
@@ -38025,6 +38101,30 @@
         ],
         "title": "ChatSummary"
       },
+      "ChatTitle": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "title_by": {
+            "type": "string",
+            "enum": [
+              "assistant",
+              "person"
+            ],
+            "title": "Title By",
+            "description": "who titled it: assistant (Lens, from its first question and answer; it titles it again when the first question is edited) or person (named by someone, so Lens leaves it); null: from before Lens kept who titled it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "title",
+          "title_by"
+        ],
+        "title": "ChatTitle"
+      },
       "ChatTools": {
         "properties": {
           "groups": {
@@ -38071,7 +38171,8 @@
                 "type": "null"
               }
             ],
-            "title": "Title"
+            "title": "Title",
+            "description": "rename it: yours from then on, so Lens doesn't retitle it (POST /chats/{cid}/title does)"
           },
           "scope": {
             "anyOf": [
@@ -54247,8 +54348,8 @@
               {
                 "type": "string",
                 "enum": [
-                  "person",
-                  "assistant"
+                  "assistant",
+                  "person"
                 ]
               },
               {
@@ -54292,8 +54393,8 @@
               {
                 "type": "string",
                 "enum": [
-                  "person",
-                  "assistant"
+                  "assistant",
+                  "person"
                 ]
               },
               {
@@ -54692,8 +54793,8 @@
               {
                 "type": "string",
                 "enum": [
-                  "person",
-                  "assistant"
+                  "assistant",
+                  "person"
                 ]
               },
               {
@@ -54737,8 +54838,8 @@
               {
                 "type": "string",
                 "enum": [
-                  "person",
-                  "assistant"
+                  "assistant",
+                  "person"
                 ]
               },
               {

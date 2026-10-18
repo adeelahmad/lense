@@ -14,7 +14,8 @@ then.
 - **Answers:** the model answers only from those excerpts and cites them as [n]. Each citation carries the asset
   and timestamp.
 - **Streaming:** answers arrive over server-sent events: `passages`, then `token`s, then `meta` (the answer's
-  record, [below](#what-each-answer-records)) and `done`.
+  record, [below](#what-each-answer-records)) and `done`; after a conversation's first answer, `title`
+  ([Titles](#titles)).
 - **Stopping:** Stop asks the server to end the answer after the piece or tool step it's on (whichever server process
   is writing it); what came before is saved, marked stopped. A model call already under way finishes first.
 - **Reopening:** a conversation's answers keep the tools the assistant used (and with what), any notice (the model
@@ -42,6 +43,18 @@ then.
   **Model for summaries** (`ai.compact_model`) writes them with a smaller, cheaper model on the same provider; empty,
   the chat's model does. Settings › AI assistant › Summarise long conversations (`ai.compact`, on) turns it off; off,
   or with no model, only the last six messages are read.
+- **Titles:**{#titles} a conversation nobody named is titled with its first question's words as soon as it's asked,
+  then, after the first answer, the model gives it a short title of a few words from the question and the answer
+  (streamed as `title` at the end of the answer's stream). It's one small call, written by **Model for summaries**
+  (`ai.compact_model`) when set, else the chat's model, and counted in the activity ledger for the conversation
+  (`chat:<id>`), not for the answer. Editing the first question titles it again. A conversation you name, when you
+  start it (`POST /api/v1/chats` with `title`) or later (rename in the list, `PATCH /api/v1/chats/<id>` with `title`),
+  keeps its name; `title_by` on a conversation says which it is (`assistant` or `person`). `POST
+  /api/v1/chats/<id>/title` has Lens title one now from how it starts, even one you named, and the title is Lens's
+  again; agents do both with the MCP tool `rename_chat` (a `title`, or none for Lens's). Settings › AI assistant ›
+  Title conversations (`ai.auto_title`, on) turns the model's titles off: a conversation then keeps its first
+  question's words. Without a model, or when the call fails or the budget's hard limit stops it, the first question's
+  words stay too. Chat rooms, setup conversations and automations' conversations keep the names Lens gives them.
 - **/clear and /compact:** typed as a message, in the app or in a chat room (`Lens /clear`). `/clear` makes the
   assistant start afresh: the messages stay to read, but the model no longer sees them or their summary.
   `/compact` folds the whole conversation into its summary now, and `/compact keep the dates and owners` tells the
@@ -695,8 +708,9 @@ switch shows the line to run on the machine instead. Agents use the same switche
 ## Setting up and running the server by chat
 
 Admins also get the server tools: `server_status` (what's set up and what's missing), `find_model_servers`,
-`read_settings` and `change_settings` (the processing and AI sections, not the server's hosts, cookies or tokens) and
-`create_namespace`, and the people tools: `list_people`, `invite_person` (an account, optionally with a role in one
+`read_settings` and `change_settings` (the processing and AI sections, not the server's hosts, cookies or tokens),
+`create_namespace`, the news feed tools: `news_feeds`, `subscribe_feed` (follow a feed into a namespace in one step,
+[News feeds](processing.md#news-feeds-rss-and-atom)) and `unsubscribe_feed`, and the people tools: `list_people`, `invite_person` (an account, optionally with a role in one
 namespace; Lens emails the sign-in link when mail is set up) and `change_person` (a role in a namespace, or disabling
 and enabling an account). Removing an account for good stays in the web app and the API. In an ordinary conversation
 their changes are approval cards. In a **setup conversation**

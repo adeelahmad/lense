@@ -361,7 +361,7 @@ entry_points:
         x-condition: "address and password: admins only, sealed and write-only; XML and HTML: whoever serves the feed or writes its posts"
         control_kinds: [data, x-prompt-injection, size]
         obligation_id: admin-creates-sources
-        caller_must_enforce: "admin creates sources; fetched as iCal feeds are; feedparser reads the XML with external entities off and drops scripts, styles and event handlers from a post's HTML; each post kept as an Atom entry Lens writes, without the feed's address; post text is marked untrusted in prompts"
+        caller_must_enforce: "admins add them (web app, API, MCP subscribe_feed with a write-scope token, or the assistant's tool, which asks first outside a setup conversation or once it has read outside text); fetched as iCal feeds are; feedparser reads the XML with external entities off and drops scripts, styles and event handlers from a post's HTML; each post kept as an Atom entry Lens writes, without the feed's address; post text is marked untrusted in prompts"
         provenance: {kind: documented, source: 'docs/processing.md "News feeds (RSS and Atom)"'}
   - id: "Connect with Google"
     component: outbound
