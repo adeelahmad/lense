@@ -473,6 +473,9 @@ activities' `published` times.
   without firing (the automation is switched off, or Lens was off past `automations.catch_up`) drops what it waited
   on, so the next activity starts afresh; one that can't be set (the automation has 1000 timers waiting) drops it
   too, with a line in the log.
+- `match.describe_trigger(t)` reads a trigger in words (“Email received”, where the subject contains “trip”; every
+  weekday at 07:00 (Europe/London); a call to its webhook), and `match.describe_triggers(triggers, join)` an
+  automation's triggers, then its join when there are several.
 - `match.describe_join(join)` reads a join in words: `all of the triggers within 10 minutes, for the same
   object.from`; `3 times login within 5 minutes`; `mail, then no reply within 2 days`.
 
@@ -821,6 +824,9 @@ automations}`, for a badge).
 
 Time is a trigger and a step: "every weekday at 7:00", "at 9:00 on the 20th", "30 minutes before a calendar event",
 "wait 2 hours, then...", and the clock behind a join's "if no reply within 2 days". All of it rests on timers.
+
+Every automation's schedule and at trigger is also a row on the [Schedules](schedules.md) page, next to the routines
+and the backup, where it is switched, re-timed and run now.
 
 ### Timers
 
@@ -1211,7 +1217,10 @@ held run until you pick.
 
 **Over the API** (`/api/v1/automations`; admins see every automation, anyone else the ones in namespaces they edit):
 
-- `GET /automations` lists them with their counters, last run, actions waiting and cost this month.
+- `GET /automations` lists them with their counters, last run, actions waiting and cost this month, and for the
+  list in the studio: `reads`, what sets each one off in words (`match.describe_triggers`: “Email received”, where
+  the subject contains “trip”; every weekday at 07:00 (Europe/London)), `runs_today` (since midnight UTC, tries left
+  out) and `next_at`, its soonest schedule, at, relative or join timer.
 - `GET /automations/{id}/runs?before=<run>` pages its runs, newest first; `GET /automations/runs/{run}` gives one with
   its trace, log and what its actions did (`intents`); `GET /automations/runs?activity=<id>` the runs an activity
   started.
