@@ -30,7 +30,7 @@ MB = 1024 * 1024
 ROOM = 512 * MB  # what an upload must leave free on the server's disk
 FIELDS = (
     "record::id(id) AS id, account, email, namespace, collection, filename, title, size, modified, attach, pipeline, content_type, "
-    "hold, state, recording, job, duplicate, created_at, touched_at"
+    "hold, await_pdf, state, recording, job, duplicate, created_at, touched_at"
 )
 # What runs once media is attached to a transcript: its waveform (the transcript is kept), speakers by voice unless the
 # transcript named them, shots, text on screen and faces for video, then the analysis and report pages again.
@@ -144,10 +144,11 @@ def _home(db, sid, collection):
         return store.default_collection(db, sid)
 
 
-def check(cfg, filename, size, attach=None):
+def check(cfg, filename, size, attach=None, await_pdf=False):
     """The name a file is kept under, once its type and size are ones that can be uploaded here (ValueError, or
     TooLarge, saying why not): what start() checks before anything is sent, for servers that ask before they read a
-    file (the file shares, share_import.py)."""
+    file (the file shares, share_import.py). With `await_pdf` a document this server can't read is taken too: its PDF
+    is to be handed back (import_hooks.hand_back)."""
     u = cfg["uploads"]
     name = clean_name(filename)
     ext = pathlib.Path(name).suffix
@@ -157,7 +158,7 @@ def check(cfg, filename, size, attach=None):
         raise ValueError(f"{kind} can't be uploaded here; these can: {', '.join(e[1:] for e in allowed)}")
     if attach and documents.kind_of(name):
         raise ValueError("only audio or video can be attached to a transcript")
-    why = convert.unavailable(cfg, name)
+    why = None if await_pdf else convert.unavailable(cfg, name)
     if why:
         instead = "; import it as text instead" if ext in TRANSCRIPT_EXT else ""
         raise ValueError(f"this {convert.word(name)} can't be read here: {why}{instead}")
@@ -169,7 +170,20 @@ def check(cfg, filename, size, attach=None):
 
 
 def start(
-    db, cfg, ns, filename, size, by, title=None, modified=None, attach=None, pipeline=None, collection=None, hold=False, content_type=None
+    db,
+    cfg,
+    ns,
+    filename,
+    size,
+    by,
+    title=None,
+    modified=None,
+    attach=None,
+    pipeline=None,
+    collection=None,
+    hold=False,
+    content_type=None,
+    await_pdf=False,
 ):
     """A new upload into namespace `ns`, by `by` ({id, email}). Its name, type and size are checked, and the disk
     must have room for it; nothing is in the archive until the last byte arrives. `modified` is the file's own time
@@ -179,9 +193,10 @@ def start(
     namespace's default. `hold` keeps it out of the archive once it's all here (state "held", no namespace yet), for
     the assistant to place with `place` (a file dropped into a conversation). `content_type` is the subtype its asset
     gets (one of the file's base type) instead of the one its file is recognised as, so its pipeline runs from the
-    start; an attached file keeps the asset's."""
+    start; an attached file keeps the asset's. `await_pdf` takes a document this server can't make into a PDF: its
+    resource waits for the PDF an import webhook hands back, instead of running its pipeline (import_hooks.hand_back)."""
     sweep(db, cfg)
-    name = check(cfg, filename, size, attach)
+    name = check(cfg, filename, size, attach, await_pdf)
     if content_type is not None:
         if attach:
             raise ValueError("the asset keeps its content type; one can't be chosen for audio attached to it")
@@ -209,6 +224,7 @@ def start(
                 "content_type": content_type,
                 "collection": collection,
                 "hold": hold or None,
+                "await_pdf": await_pdf or None,
                 "state": "receiving",
                 "created_at": t,
                 "touched_at": t,
@@ -445,10 +461,12 @@ def _as_text(dest):
 def _document(db, dest, st, fp, sid, row, kind, dup, by):
     """A document or an image: a resource of its own, or the one the file was before (imported as a transcript, or
     whose file went), which takes it as this kind; its pages are drawn and read by the namespace's pipeline (or the
-    one chosen)."""
+    one chosen). One whose PDF an import webhook hands back (`await_pdf`) waits for it instead, with no job."""
     d = {"path": str(dest), "source": kind, "size": st.st_size, "mtime": st.st_mtime, "media": {"kind": kind}, "status": "new"}
     if row.get("content_type"):
         d["content_type"] = row["content_type"]
+    if row.get("await_pdf"):
+        d["awaits_pdf"] = store.clean({"by": row["account"], "pipeline": row.get("pipeline"), "since": store.now()})
     if dup:
         rid = dup["id"]
         db.q("UPDATE $r MERGE $d", r=R("recording", rid), d=d)
@@ -468,6 +486,8 @@ def _document(db, dest, st, fp, sid, row, kind, dup, by):
                 "created_at": store.now(),
             },
         )
+    if row.get("await_pdf"):
+        return rid, None
     return rid, jobs.enqueue(db, rid, None, by=by, pipeline=row.get("pipeline"))
 
 
@@ -482,12 +502,26 @@ def _attach(db, cfg, rid, sid, dest, st, fp, by, probed):
     return jobs.add_steps(db, rid, ATTACH_STEPS, by=by)
 
 
-def take(db, cfg, ns, path, filename, by, title=None, pipeline=None, collection=None, hold=False, modified=None, content_type=None):
+def take(
+    db,
+    cfg,
+    ns,
+    path,
+    filename,
+    by,
+    title=None,
+    pipeline=None,
+    collection=None,
+    hold=False,
+    modified=None,
+    content_type=None,
+    await_pdf=False,
+):
     """A whole file that arrived some other way (an import webhook, a chat channel, a file share), at `path` on the same
     disk as the uploads folder, uploaded into namespace `ns` in one go: it's checked as start() checks a file, moved
     into place and finished as if its last chunk had just arrived. The namespace must exist; with `hold` there's none
     yet (ns ""): it's held for the assistant to place, as a file dropped into a conversation is. `modified` is the
-    file's own time and `content_type` the asset's subtype, as for start(). Returns the upload."""
+    file's own time and `content_type` the asset's subtype, as for start(), and `await_pdf` too. Returns the upload."""
     size = os.path.getsize(path)
     row = start(
         db,
@@ -502,6 +536,7 @@ def take(db, cfg, ns, path, filename, by, title=None, pipeline=None, collection=
         collection=collection,
         hold=hold,
         content_type=content_type,
+        await_pdf=await_pdf,
     )
     os.replace(path, _part(cfg, row["id"]))
     try:

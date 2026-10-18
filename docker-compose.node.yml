@@ -1,7 +1,9 @@
 # A machine on another Lens install's mesh (docs/mesh.md, Nodes): what install.sh starts with LENS_JOIN and
 # LENS_JOIN_TOKEN. No database, no web app, nothing published: `mesh` runs Nebula, and `node` (`lens node`) joins once,
 # then follows the primary's config over the mesh and reports every minute; on a worker node it runs `lens worker` too,
-# against the primary's database over the mesh.
+# against the primary's database over the mesh. A compute node (LENS_NODE_SANDBOX=1 in its install line, which sets
+# COMPOSE_PROFILES=sandbox) also runs an OpenShell gateway, which the primary reaches through the mesh container's relay
+# (port 7443 on the mesh address, open to the primary only) to run the assistant's code here.
 #   LENS_JOIN=http://lens.home:3000 LENS_JOIN_TOKEN=lensjoin1.… docker compose -p lens-node -f docker-compose.node.yml up -d --build
 name: lens-node
 
@@ -20,6 +22,7 @@ services:
     environment:
       LENS_MESH_DIR: /mesh
       LENS_MESH_STATE: /state
+      LENS_MESH_RELAYS: 7443=openshell-gateway:17670  # a compute node's sandbox gateway, for the primary
     volumes:
       - ./mesh/sidecar.py:/lens-mesh/sidecar.py:ro
       - mesh-data:/mesh
@@ -50,12 +53,88 @@ services:
       # a unit of an auto scaling group: its name, and the steps its worker runs (docs/scaling.md)
       LENS_SCALING_UNIT: ${LENS_SCALING_UNIT:-}
       LENS_WORKER_STEPS: ${LENS_WORKER_STEPS:-}
+      # a compute node's gateway: its client certificate, which `lens node` hands the primary once (docs/mesh.md)
+      LENS_SANDBOX_TLS_DIR: /sandbox-key
+      LENS_NODE_GATEWAY: openshell-gateway:17670
     volumes:
       - mesh-data:/mesh
       - node-data:/data
+      - sandbox-key:/sandbox-key:ro
+    restart: unless-stopped
+
+  # A compute node's NVIDIA OpenShell gateway, as on the primary (docker-compose.yml, profile `sandbox`): one sandbox
+  # container per conversation, made through this machine's Docker; Linux with Landlock (6.2 or newer) only.
+  # openshell-init makes its certificates once, openshell-key copies the client's for `lens node`, and the sandboxes'
+  # supervisors reach the gateway on this machine's 127.0.0.1:17670. Nothing else reaches it but the mesh's relay.
+  openshell-init:
+    image: ghcr.io/nvidia/openshell/gateway:0.1.4
+    profiles: [sandbox]
+    user: "0"
+    network_mode: none
+    command: ["generate-certs", "--output-dir", "/var/lib/openshell/tls", "--server-san", "openshell-gateway"]
+    environment:
+      HOME: /var/lib/openshell
+    volumes:
+      - &openshell-data
+        type: bind
+        source: /var/lib/openshell
+        target: /var/lib/openshell
+        bind:
+          create_host_path: true
+    restart: "no"
+
+  openshell-key:
+    image: python:3.12-slim
+    profiles: [sandbox]
+    user: "0"
+    network_mode: none
+    depends_on:
+      openshell-init:
+        condition: service_completed_successfully
+    command:
+      - python3
+      - -c
+      - |
+        import os, shutil
+        for src, dst in (("ca.crt", "ca.crt"), ("client/tls.crt", "tls.crt"), ("client/tls.key", "tls.key")):
+            shutil.copyfile("/tls/" + src, "/key/" + dst + ".new")
+            os.chown("/key/" + dst + ".new", 1000, 1000)
+            os.chmod("/key/" + dst + ".new", 0o400)
+            os.replace("/key/" + dst + ".new", "/key/" + dst)
+    volumes:
+      - /var/lib/openshell/tls:/tls:ro
+      - sandbox-key:/key
+    restart: "no"
+
+  openshell-gateway:
+    image: ghcr.io/nvidia/openshell/gateway:0.1.4
+    profiles: [sandbox]
+    user: "0"  # it drives Docker through its socket
+    command: ["--bind-address", "0.0.0.0", "--port", "17670"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs: [/tmp]
+    depends_on:
+      openshell-key:
+        condition: service_completed_successfully
+    environment:
+      OPENSHELL_GATEWAY_CONFIG: /etc/openshell/gateway.toml
+      OPENSHELL_DB_URL: "sqlite:/var/lib/openshell/gateway.db?mode=rwc"
+      OPENSHELL_LOCAL_TLS_DIR: /var/lib/openshell/tls
+      OPENSHELL_TELEMETRY_ENABLED: "false"
+      XDG_DATA_HOME: /var/lib/openshell
+      HOME: /var/lib/openshell
+    ports:
+      - "127.0.0.1:17670:17670"  # this machine only: the sandboxes' supervisors, on the host's network
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - *openshell-data
+      - ./sandbox/gateway.toml:/etc/openshell/gateway.toml:ro
     restart: unless-stopped
 
 volumes:
   mesh-data:
   mesh-state:
   node-data:
+  sandbox-key:

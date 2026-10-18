@@ -44,6 +44,7 @@
 #                   default, with Docker: no web app, no database, nothing published
 #   LENS_JOIN_TOKEN the join token, used once and never written down
 #   LENS_NODE_NAME  the name it joins with (default: LENS_SCALING_UNIT, an auto scaling unit's, else this machine's)
+#   LENS_NODE_SANDBOX 1 on a compute node's line: it also runs the assistant's code sandbox gateway. Kept for later runs
 set -eu
 
 # All in a function, so nothing runs until the whole script has arrived (curl | sh streams it).
@@ -416,6 +417,11 @@ if [ "$NODE" = 1 ]; then
     eval "v=\${$k:-}"
     [ -z "$v" ] || setenv "$k" "$v"
   done
+  # a compute node also runs the sandbox gateway (docker-compose.node.yml, profile sandbox), kept for later runs
+  if [ "${LENS_NODE_SANDBOX:-}" = 1 ] || grep -qx 'LENS_NODE_SANDBOX=1' .env; then
+    setenv LENS_NODE_SANDBOX 1
+    setenv COMPOSE_PROFILES sandbox
+  fi
   name="${LENS_NODE_NAME:-$(grep '^LENS_NODE_NAME=' .env | cut -d= -f2- || true)}"
   name="${name:-${LENS_SCALING_UNIT:-}}"
   setenv LENS_NODE_NAME "${name:-$(hostname 2>/dev/null || uname -n)}"

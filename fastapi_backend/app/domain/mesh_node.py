@@ -16,11 +16,16 @@ the two share. It needs no database and no settings of its own:
    database through the mesh as the node's own user of it (mesh.worker_access), started again when it stops or that
    user's password changes, and stopped while the node is removed. The worker's jobs read their files from the primary
    over the mesh (media()).
+4. **A compute node runs sandboxes.** Its install line starts an OpenShell gateway beside it (docker-compose.node.yml,
+   profile `sandbox`). It hands the primary that gateway's client certificate once (Gateway, mesh.sandbox_gateway) and
+   reports the gateway in each beat while it answers, so the assistant can run code here; the primary reaches the
+   gateway through the mesh container's relay, never anything else on this machine.
 """
 
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import json
 import os
 import pathlib
@@ -104,6 +109,7 @@ class Agent:
         self.last_beat = 0.0
         self._reported = None
         self.worker = Worker(self)
+        self.gateway = Gateway(self)
 
     # ---------- what's kept ----------
     @property
@@ -216,16 +222,21 @@ class Agent:
         if got["version"] != self.node.get("version") or got.get("not_after") != self.node.get("not_after"):
             self.node.update(config=got["config"], version=got["version"], not_after=got.get("not_after"), renew_days=got.get("renew_days"))
             self.save()
-        if self.node["node"]["role"] == "worker":
+        role = self.node["node"]["role"]
+        if role == "worker":
             self.worker.sync()
+        sandbox = self.gateway.sync() if role == "compute" else None
         s = self.service()
+        mine = self.worker.error or self.gateway.error
         report = {
             "nebula": s.get("state") or ("running" if s.get("nebula") else "stopped"),
             "version": updates.current(),
             "machine": machine(),
-            # this call reached the primary: its own errors are past; the mesh container's and the worker's aren't
-            "error": (str(s["error"]) if s.get("error") else self.worker.error or "")[:500] or None,
-            "log": ([str(x) for x in (s.get("log") or [])] + self.worker.log)[-40:],
+            "sandbox": sandbox,
+            # this call reached the primary: its own errors are past; the mesh container's, the worker's and the
+            # gateway's aren't
+            "error": (str(s["error"]) if s.get("error") else mine or "")[:500] or None,
+            "log": ([str(x) for x in (s.get("log") or [])] + self.worker.log + self.gateway.log)[-40:],
         }
         self.http.post(self.api("/node/beat"), json={k: v for k, v in report.items() if v is not None}, headers=self._headers())
 
@@ -394,6 +405,63 @@ class Worker:
             self._say("stopped lens worker")
         self.proc = None
         self.key = None
+
+
+class Gateway:
+    """A compute node's sandbox gateway (the module's docstring, 4): Agent.follow syncs it every minute. Hands the
+    primary the gateway's client certificate when it's new, and says whether the gateway answers."""
+
+    FILES = {"ca": "ca.crt", "cert": "tls.crt", "key": "tls.key"}
+
+    def __init__(self, agent, connect=socket.create_connection):
+        self.agent, self.connect = agent, connect
+        self.error = None
+        self.log = []
+
+    def _say(self, msg):
+        say(msg)
+        self.log = (self.log + [f"{_now().strftime('%H:%M:%S')} {msg}"])[-10:]
+
+    def _fail(self, msg):
+        if msg != self.error:  # said once, not every minute
+            self._say(msg)
+        self.error = msg
+
+    def bundle(self):
+        """The gateway's client certificate as openshell-key left it, {ca, cert, key}; None before it has."""
+        d = pathlib.Path(os.environ.get("LENS_SANDBOX_TLS_DIR") or "/sandbox-key")
+        try:
+            return {k: (d / f).read_text() for k, f in self.FILES.items()}
+        except OSError:
+            return None
+
+    def sync(self):
+        """The report's `sandbox`: {gateway: "running"} while the gateway answers, None otherwise (error says why)."""
+        a = self.agent
+        found = self.bundle()
+        if not found:
+            self._fail("this compute node runs no sandbox gateway yet: its install line starts it (LENS_NODE_SANDBOX=1)")
+            return None
+        digest = hashlib.sha256(json.dumps(found, sort_keys=True).encode()).hexdigest()
+        if a.node.get("sandbox_sent") != digest:
+            r = a.http.put(a.api("/node/sandbox"), json=found, headers=a._headers())
+            if r.status_code in (400, 403):
+                self._fail(f"the install didn't take the gateway's certificate: {_detail(r)}")
+                return None
+            r.raise_for_status()
+            a.node["sandbox_sent"] = digest
+            a.save()
+            self._say("gave the install the sandbox gateway's certificate")
+        host, _, port = (os.environ.get("LENS_NODE_GATEWAY") or "openshell-gateway:17670").rpartition(":")
+        try:
+            self.connect((host, int(port)), timeout=3).close()
+        except (OSError, ValueError) as e:
+            self._fail(f"the sandbox gateway isn't answering at {host}:{port}: {getattr(e, 'strerror', None) or e}")
+            return None
+        if self.error:
+            self._say("the sandbox gateway answers")
+        self.error = None
+        return {"gateway": "running"}
 
 
 # ---------- in a worker node's `lens worker`: the files its jobs read ----------

@@ -2133,6 +2133,46 @@ export type AutomationStarted = {
 };
 
 /**
+ * AutomationStarter
+ */
+export type AutomationStarter = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Description
+   *
+   * what it does, and what to change before turning it on
+   */
+  description: string;
+  /**
+   * Draft
+   *
+   * what POST /automations takes, switched off
+   */
+  draft: {
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+};
+
+/**
+ * AutomationStarters
+ */
+export type AutomationStarters = {
+  /**
+   * Starters
+   */
+  starters: Array<AutomationStarter>;
+  [key: string]: unknown;
+};
+
+/**
  * AutomationSwitch
  */
 export type AutomationSwitch = {
@@ -2352,6 +2392,26 @@ export type AutomationVarsIn = {
   vars: {
     [key: string]: unknown;
   };
+};
+
+/**
+ * AwaitsPdf
+ *
+ * A document an import webhook brought in that this server can't make into a PDF: it waits for the hook to hand
+ * its PDF back.
+ */
+export type AwaitsPdf = {
+  /**
+   * Hook
+   *
+   * the import webhook it waits on
+   */
+  hook?: number | null;
+  /**
+   * Since
+   */
+  since?: string | null;
+  [key: string]: unknown;
 };
 
 /**
@@ -10131,8 +10191,10 @@ export type HookCalled = {
 export type HookItem = {
   /**
    * Kind
+   *
+   * pdf: a PDF handed back for a document (?for=)
    */
-  kind: "file" | "url" | "text";
+  kind: "file" | "url" | "text" | "pdf";
   /**
    * Name
    *
@@ -10157,6 +10219,12 @@ export type HookItem = {
    * the namespace had this file already; it's that asset
    */
   duplicate?: boolean;
+  /**
+   * Needs Pdf
+   *
+   * this server can't make it into a PDF, and the hook hands PDFs back: push its PDF with ?for=<recording> and its pipeline runs
+   */
+  needs_pdf?: boolean;
   [key: string]: unknown;
 };
 
@@ -10594,6 +10662,12 @@ export type ImportHook = {
    */
   enabled: boolean;
   /**
+   * Hand Back
+   *
+   * hand PDFs back: a document this server can't make into a PDF itself is kept and waits for the service that sent it to push its PDF with ?for=<recording> (off by default)
+   */
+  hand_back?: boolean;
+  /**
    * Token Tail
    *
    * the token's last four characters, to tell tokens apart
@@ -10638,6 +10712,12 @@ export type ImportHookCreate = {
    * Pipeline
    */
   pipeline?: number | null;
+  /**
+   * Hand Back
+   *
+   * hand PDFs back: a document this server can't make into a PDF itself is kept and waits for the service that sent it to push its PDF with ?for=<recording> (off by default)
+   */
+  hand_back?: boolean;
 };
 
 /**
@@ -10693,6 +10773,12 @@ export type ImportHookUpdate = {
    * Enabled
    */
   enabled?: boolean | null;
+  /**
+   * Hand Back
+   *
+   * hand PDFs back (see ImportHook.hand_back)
+   */
+  hand_back?: boolean | null;
 };
 
 /**
@@ -10825,7 +10911,13 @@ export type ImportResult = {
   /**
    * Job
    */
-  job: number;
+  job?: number | null;
+  /**
+   * Duplicate
+   *
+   * the namespace already had this page or video: `id` is that resource
+   */
+  duplicate?: boolean;
   [key: string]: unknown;
 };
 
@@ -13106,7 +13198,7 @@ export type MeshBeat = {
   /**
    * Sandbox
    *
-   * the sandboxes it can run
+   * a compute node's sandbox gateway, when it answers: {gateway}
    */
   sandbox?: {
     [key: string]: unknown;
@@ -13375,6 +13467,30 @@ export type MeshRenew = {
    * its Nebula public key, the same or a new one
    */
   public_key: string;
+};
+
+/**
+ * MeshSandboxGateway
+ */
+export type MeshSandboxGateway = {
+  /**
+   * Ca
+   *
+   * the gateway's CA certificate, PEM
+   */
+  ca: string;
+  /**
+   * Cert
+   *
+   * the client certificate Lens shows the gateway, PEM
+   */
+  cert: string;
+  /**
+   * Key
+   *
+   * its private key, PEM: kept sealed
+   */
+  key: string;
 };
 
 /**
@@ -18078,6 +18194,12 @@ export type Project = {
    * its threads, the most recently added to first
    */
   thread_list?: Array<ProjectThread>;
+  /**
+   * Schedules
+   *
+   * prompts it asks on a schedule
+   */
+  schedules?: Array<ProjectSchedule>;
   [key: string]: unknown;
 };
 
@@ -18107,6 +18229,149 @@ export type ProjectCreate = {
    * the namespaces it draws on (ones you can read)
    */
   namespaces: Array<string>;
+};
+
+/**
+ * ProjectSchedule
+ */
+export type ProjectSchedule = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Prompt
+   *
+   * what it asks each time, as a brief
+   */
+  prompt: string;
+  /**
+   * Cron
+   *
+   * when: five cron fields (minute hour day-of-month month day-of-week)
+   */
+  cron: string;
+  /**
+   * Timezone
+   */
+  timezone?: string;
+  /**
+   * Thread
+   *
+   * new: a new thread each time; same: always the same one
+   */
+  thread?: string;
+  /**
+   * On
+   */
+  on?: boolean;
+  /**
+   * Chat
+   *
+   * its thread, when it asks in the same one (made on its first run)
+   */
+  chat?: number | null;
+  /**
+   * When
+   *
+   * the schedule in words
+   */
+  when?: string;
+  /**
+   * Next At
+   *
+   * its next time (none while off or the project is archived)
+   */
+  next_at?: string | null;
+  last?: ProjectScheduleRun | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ProjectScheduleCreate
+ */
+export type ProjectScheduleCreate = {
+  /**
+   * Prompt
+   *
+   * what to ask each time, answered in the background
+   */
+  prompt: string;
+  /**
+   * Cron
+   *
+   * when: five cron fields, like 0 8 * * 1-5 (8:00 on weekdays), or @daily
+   */
+  cron: string;
+  /**
+   * Timezone
+   *
+   * the time zone the schedule is in, like Europe/London
+   */
+  timezone?: string;
+  /**
+   * Thread
+   *
+   * new: a new thread each time; same: always the same one
+   */
+  thread?: "new" | "same";
+};
+
+/**
+ * ProjectScheduleRun
+ */
+export type ProjectScheduleRun = {
+  /**
+   * At
+   *
+   * the time it was for
+   */
+  at?: string | null;
+  /**
+   * Ok
+   */
+  ok?: boolean;
+  /**
+   * Error
+   *
+   * why it didn't ask, or what went wrong
+   */
+  error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ProjectScheduleUpdate
+ *
+ * Only the fields you send change.
+ */
+export type ProjectScheduleUpdate = {
+  /**
+   * Prompt
+   */
+  prompt?: string | null;
+  /**
+   * Cron
+   */
+  cron?: string | null;
+  /**
+   * Timezone
+   */
+  timezone?: string | null;
+  /**
+   * Thread
+   */
+  thread?: "new" | "same" | null;
+  /**
+   * On
+   *
+   * switched off, it waits until it's switched on again
+   */
+  on?: boolean | null;
 };
 
 /**
@@ -19602,6 +19867,10 @@ export type Recording = {
    */
   rendition?: Rendition | null;
   /**
+   * waiting for the PDF the import webhook that sent it hands back
+   */
+  awaits_pdf?: AwaitsPdf | null;
+  /**
    * a document: what it says about itself (title, authors, dates), read by Tika
    */
   described?: Described | null;
@@ -20258,8 +20527,10 @@ export type Rendition = {
   from: string;
   /**
    * By
+   *
+   * pushed: handed back by the import webhook that sent it (docs/api.md#import-webhooks)
    */
-  by: "libreoffice" | "chromium" | "anytopdf";
+  by: "libreoffice" | "chromium" | "anytopdf" | "pushed";
   [key: string]: unknown;
 };
 
@@ -22540,7 +22811,7 @@ export type SearchCreate = {
   /**
    * Q
    *
-   * words, "phrases", OR between alternatives
+   * words, "phrases", OR between alternatives, NOT or -word to leave out
    */
   q: string;
   /**
@@ -32565,6 +32836,22 @@ export type CallAutomationHookResponses = {
 
 export type CallAutomationHookResponse = CallAutomationHookResponses[keyof CallAutomationHookResponses];
 
+export type ListStartersData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/automations/starters";
+};
+
+export type ListStartersResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationStarters;
+};
+
+export type ListStartersResponse = ListStartersResponses[keyof ListStartersResponses];
+
 export type GetAutomationVarsData = {
   body?: never;
   path: {
@@ -38556,7 +38843,7 @@ export type SearchTranscriptsData = {
     /**
      * Q
      *
-     * words, "phrases", OR between alternatives
+     * words, "phrases", OR between alternatives, NOT or -word to leave out
      */
     q: string;
     /**
@@ -45828,6 +46115,104 @@ export type UpdateThreadResponses = {
 
 export type UpdateThreadResponse = UpdateThreadResponses[keyof UpdateThreadResponses];
 
+export type AddScheduleData = {
+  body: ProjectScheduleCreate;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/projects/{pid}/schedules";
+};
+
+export type AddScheduleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type AddScheduleError = AddScheduleErrors[keyof AddScheduleErrors];
+
+export type AddScheduleResponses = {
+  /**
+   * Successful Response
+   */
+  200: ProjectSchedule;
+};
+
+export type AddScheduleResponse = AddScheduleResponses[keyof AddScheduleResponses];
+
+export type RemoveScheduleData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+    /**
+     * Sid
+     */
+    sid: string;
+  };
+  query?: never;
+  url: "/api/v1/projects/{pid}/schedules/{sid}";
+};
+
+export type RemoveScheduleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RemoveScheduleError = RemoveScheduleErrors[keyof RemoveScheduleErrors];
+
+export type RemoveScheduleResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RemoveScheduleResponse = RemoveScheduleResponses[keyof RemoveScheduleResponses];
+
+export type UpdateScheduleData = {
+  body: ProjectScheduleUpdate;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+    /**
+     * Sid
+     */
+    sid: string;
+  };
+  query?: never;
+  url: "/api/v1/projects/{pid}/schedules/{sid}";
+};
+
+export type UpdateScheduleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateScheduleError = UpdateScheduleErrors[keyof UpdateScheduleErrors];
+
+export type UpdateScheduleResponses = {
+  /**
+   * Successful Response
+   */
+  200: ProjectSchedule;
+};
+
+export type UpdateScheduleResponse = UpdateScheduleResponses[keyof UpdateScheduleResponses];
+
 export type StartResearchData = {
   body: ResearchStart;
   path: {
@@ -46738,7 +47123,7 @@ export type SearchPublicData = {
     /**
      * Q
      *
-     * words, "phrases", OR between alternatives
+     * words, "phrases", OR between alternatives, NOT or -word to leave out
      */
     q?: string;
     /**
@@ -48596,6 +48981,12 @@ export type PushToImportHookData = {
      * with your own token: the namespace it goes into (default: the only one you can import into)
      */
     namespace?: string | null;
+    /**
+     * For
+     *
+     * hand back a document's PDF: the recording a push with needs_pdf became (the hook's own documents only)
+     */
+    for?: number | null;
   };
   url: "/api/v1/hooks/import";
 };
@@ -48659,6 +49050,12 @@ export type PushToImportHookTokenData = {
      * Title
      */
     title?: string | null;
+    /**
+     * For
+     *
+     * hand back a document's PDF: the recording a push with needs_pdf became (the hook's own documents only)
+     */
+    for?: number | null;
   };
   url: "/api/v1/hooks/import/{token}";
 };
@@ -50499,6 +50896,31 @@ export type NodeMediaResponses = {
    */
   200: unknown;
 };
+
+export type NodeSandboxData = {
+  body: MeshSandboxGateway;
+  path?: never;
+  query?: never;
+  url: "/api/v1/mesh/node/sandbox";
+};
+
+export type NodeSandboxErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type NodeSandboxError = NodeSandboxErrors[keyof NodeSandboxErrors];
+
+export type NodeSandboxResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type NodeSandboxResponse = NodeSandboxResponses[keyof NodeSandboxResponses];
 
 export type NodeBeatData = {
   body: MeshBeat;

@@ -48,7 +48,7 @@ that take a namespace use this one when none is named, `list_namespaces` and `li
 about the server itself (`file_storage`, `monitoring`, `services`, `mcp_servers`, `sandbox_gateway`, `install_settings`
 and the ones that change them) aren't there, even for admins. Nor are the person's own conversations (`list_chats`,
 `read_chat`, `rename_chat`, `export_chat`) and projects (`list_projects`, `read_project`, `create_project`,
-`update_project`), which belong to no namespace. An admin counts as an owner of the namespace there.
+`update_project`, `schedule_project`), which belong to no namespace. An admin counts as an owner of the namespace there.
 
 It is off until an owner of the namespace turns it on: **Admin → Namespaces →** the namespace **→ Connect apps**, which
 also copies its address, or `PATCH /api/v1/namespaces/<namespace>/integrations` with `{"mcp": true}`, or an agent's
@@ -104,6 +104,7 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 | `read_project` | one of them: its goal and instructions, namespaces, coordinator and threads (each one's title, whether it's done and its last message); read a thread with `read_chat` |
 | `create_project` | start a project: a name, its goal, instructions and the namespaces it draws on. Needs a write-scope token |
 | `update_project` | change a project's name, goal, instructions or namespaces, archive it, mark a thread done, or start a thread. Needs a write-scope token |
+| `schedule_project` | ask a prompt in a project on a schedule, in a new thread each time or the same one; change, switch off or remove a schedule. Needs a write-scope token |
 | `create_podcast` | make a two-host learning [episode](podcasts.md) about assets or lines in them, with an angle, a length and a style; it's made in the background. Needs a write-scope token and editor access where it goes |
 | `get_podcast` | an episode: how far it has got, its script with each line's speaker and the sources it cites (links), and what the fact-check changed |
 | `list_feeds` | the RSS and podcast [feeds](feeds.md) your namespaces publish, each with its private address and how many items it holds; with `feed_id`, one feed and its newest items |

@@ -368,13 +368,19 @@ export function useImportQueue() {
           const res = await data(Imports.importTranscript({ client, body: await j.body() }));
           if (j.audio) {
             // then its audio, attached to the transcript that just landed
-            update(j.key, { recording: res.id, job: res.job, audio: j.audio.name, sent: 0, size: j.audio.size });
+            update(j.key, {
+              recording: res.id,
+              job: res.job ?? undefined,
+              audio: j.audio.name,
+              sent: 0,
+              size: j.audio.size,
+            });
             media.current.set(j.key, { file: j.audio, namespace: j.namespace, title: j.title, attach: res.id });
             landed();
             await upload(j.key);
             continue;
           }
-          update(j.key, { state: "sent", recording: res.id, job: res.job });
+          update(j.key, { state: "sent", recording: res.id, job: res.job ?? undefined });
           landed();
         } catch (e) {
           update(j.key, {
