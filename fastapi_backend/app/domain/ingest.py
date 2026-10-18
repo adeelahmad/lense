@@ -7,6 +7,7 @@ import hashlib
 import importlib.util
 import html
 import json
+import math
 import pathlib
 import re
 import subprocess
@@ -41,32 +42,30 @@ def parse_sv(raw):
 MEDIA_DEMUXERS = "mp3,mov,wav,flac,ogg,aac,matroska,amr,avi,asf,mpeg,mpegts,aiff"
 
 
-def probe(path):
-    ch = 0
+def _ffprobe(path, entries):
+    """What ffprobe says of an audio or video file (the -show_entries asked for), as JSON; {} when it can't read it."""
     try:
         out = subprocess.run(
-            [
-                "ffprobe",
-                "-v",
-                "error",
-                "-format_whitelist",
-                MEDIA_DEMUXERS,
-                "-show_entries",
-                "format=duration:stream=channels,codec_type",
-                "-of",
-                "json",
-                str(path),
-            ],
+            ["ffprobe", "-v", "error", "-format_whitelist", MEDIA_DEMUXERS, "-show_entries", entries, "-of", "json", str(path)],
             capture_output=True,
             text=True,
             timeout=120,
         )
         j = json.loads(out.stdout or "{}")
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        return {}
+    return j if isinstance(j, dict) else {}
+
+
+def probe(path):
+    ch = 0
+    j = _ffprobe(path, "format=duration:stream=channels,codec_type")
+    try:
         dur = float(j.get("format", {}).get("duration") or 0)
         ch = max([s.get("channels", 0) for s in j.get("streams", []) if s.get("codec_type") == "audio"] or [0])
         if dur:
             return int(dur * 1000) or None, int(ch) or None
-    except (OSError, ValueError, subprocess.TimeoutExpired):
+    except (TypeError, ValueError):
         pass
     dur, wav_ch = _probe_wav(path)
     return dur, (int(ch) or None) or wav_ch
@@ -110,14 +109,78 @@ def _fingerprint(f, size, block):
 DATE_RX = re.compile(r"((?:19|20)\d{2})[-_.]?(\d{2})[-_.]?(\d{2})(?:[ T_-]?(\d{2})[-_.:h]?(\d{2})(?:[-_.:m]?(\d{2}))?)?")
 
 
-def recorded_at(path, mtime):
+def recorded_at(path, mtime, taken_at=None):
+    """When an asset was made: a date in its file's name (someone named it so), else the date its file itself says it
+    was taken (taken()), else when the file last changed."""
     for m in DATE_RX.finditer(pathlib.Path(path).stem):
         y, mo, d, h, mi, s = (int(x) if x else 0 for x in m.groups())
         try:
             return dt.datetime(y, mo, d, h, mi, s).isoformat(timespec="seconds")
         except ValueError:
             continue
-    return dt.datetime.fromtimestamp(mtime).isoformat(timespec="seconds")
+    return taken_at or dt.datetime.fromtimestamp(mtime).isoformat(timespec="seconds")
+
+
+OLDEST_YEAR = 1971  # a clock never set writes 1970, or 1904 (QuickTime's zero): not when anything was taken
+
+
+def _taken_when(s):
+    """A date and time a file gives (ISO 8601, or EXIF's "2024:05:01 12:20:30"), as ISO 8601 to the second with its
+    offset where it has one; None for one that isn't a real date (unset, before 1971 or in the future)."""
+    s = str(s or "").strip().strip("\x00").strip()
+    if re.match(r"\d{4}:\d{2}:\d{2}", s):
+        s = s[:10].replace(":", "-") + s[10:]
+    try:
+        t = dt.datetime.fromisoformat(s)
+    except ValueError:
+        return None
+    if t.year < OLDEST_YEAR or t > dt.datetime.now(t.tzinfo) + dt.timedelta(days=1):
+        return None
+    return t.isoformat(timespec="seconds")
+
+
+def _degrees(v, ref):
+    """An EXIF GPS coordinate (degrees, minutes, seconds) with its N/S or E/W, as signed degrees; None if unreadable."""
+    try:
+        d, m, s = (float(x) for x in v)
+    except (TypeError, ValueError, ZeroDivisionError):
+        return None
+    x = d + m / 60 + s / 3600
+    return -x if str(ref or "").upper().startswith(("S", "W")) else x
+
+
+def _exif(path):
+    """A photo's EXIF: when it was taken (DateTimeOriginal, else DateTime) and its GPS fix, as taken() gives them."""
+    from PIL import ExifTags, Image
+
+    try:
+        with Image.open(path) as img:
+            exif = img.getexif()
+            sub, gps = exif.get_ifd(ExifTags.IFD.Exif), exif.get_ifd(ExifTags.IFD.GPSInfo)
+    except (OSError, ValueError, SyntaxError, Image.DecompressionBombError):
+        return None, None
+    orig = sub.get(ExifTags.Base.DateTimeOriginal)
+    when = _taken_when(f"{orig}{sub.get(ExifTags.Base.OffsetTimeOriginal) or ''}") if orig else None
+    when = when or _taken_when(exif.get(ExifTags.Base.DateTime))
+    lat = _degrees(gps.get(ExifTags.GPS.GPSLatitude), gps.get(ExifTags.GPS.GPSLatitudeRef))
+    lon = _degrees(gps.get(ExifTags.GPS.GPSLongitude), gps.get(ExifTags.GPS.GPSLongitudeRef))
+    ok = lat is not None and lon is not None and math.isfinite(lat + lon) and abs(lat) <= 90 and abs(lon) <= 180
+    place = {"lat": round(lat, 6), "lon": round(lon, 6)} if ok and (lat, lon) != (0, 0) else None  # 0, 0: no fix
+    return when, place
+
+
+def taken(path):
+    """When and where a photo, a video or a recording was taken, as its own file says: a photo's EXIF (DateTimeOriginal,
+    else DateTime, and its GPS fix), a video's or a recording's creation time (QuickTime's creationdate, which keeps
+    the local time, else creation_time). (ISO 8601 or None, {lat, lon} or None): nothing is guessed. Read it before
+    the file is encrypted."""
+    ext = pathlib.Path(path).suffix.lower()
+    if ext in store.IMAGE_EXT:
+        return _exif(path)
+    if ext in store.MEDIA_EXT:
+        tags = (_ffprobe(path, "format_tags=creation_time,com.apple.quicktime.creationdate").get("format") or {}).get("tags") or {}
+        return _taken_when(tags.get("com.apple.quicktime.creationdate")) or _taken_when(tags.get("creation_time")), None
+    return None, None
 
 
 DECODE_SECONDS = 6 * 3600  # a recording is decoded far faster than it plays; past this ffmpeg is stuck
@@ -230,7 +293,7 @@ def scan(db, cfg, only=None, log=print):
                         d=store.clean({"path": str(p), "size": st.st_size, "mtime": st.st_mtime, "duration_ms": dur, "channels": ch}),
                     )
                     continue
-                rid = db.next_id("recording")
+                rid, (when, place) = db.next_id("recording"), taken(p)
                 db.q(
                     "CREATE $r CONTENT $d",
                     r=store.R("recording", rid),
@@ -243,7 +306,8 @@ def scan(db, cfg, only=None, log=print):
                             "fingerprint": fp,
                             "fp_key": f"{nid}:{fp}",
                             "title": p.stem,
-                            "recorded_at": recorded_at(p, st.st_mtime),
+                            "recorded_at": recorded_at(p, st.st_mtime, when),
+                            "place": place,
                             "duration_ms": dur,
                             "channels": ch,
                             "size": st.st_size,
@@ -1077,7 +1141,7 @@ def import_transcript(db, cfg, ns, tpath, audio=None, title=None, speaker_names=
         title or (t.get("title") if t.get("form") == "chat" else None) or pathlib.Path(tpath).stem,  # a Telegram chat's name
         fingerprint(src),
         str(src.resolve()),
-        recorded_at(src, st.st_mtime),
+        recorded_at(src, st.st_mtime, taken(src)[0]),
         audio,
         speaker_names,
         "import:" + pathlib.Path(tpath).suffix.lstrip("."),

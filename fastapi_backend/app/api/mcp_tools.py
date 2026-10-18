@@ -905,8 +905,8 @@ def list_speakers(ctx: Context, namespace: str | None, query: str | None, limit:
 @tool(
     "get_recording",
     "Get an asset",
-    "One asset: what it is, its date, the people in it, summary, chapters (sections), the entities and "
-    "keywords most mentioned in it, and a url to it. Read its text with get_transcript.",
+    "One asset: what it is, its date, where a photo was taken (place), the people in it, summary, chapters (sections), "
+    "the entities and keywords most mentioned in it, and a url to it. Read its text with get_transcript.",
     Arg("recording_id", "integer", "the asset", required=True),
 )
 def get_recording(ctx: Context, recording_id: int) -> dict[str, Any]:
@@ -924,6 +924,7 @@ def get_recording(ctx: Context, recording_id: int) -> dict[str, Any]:
         "namespace": rec.namespace,
         "collection": " / ".join(c.name for c in rec.collection_path) or None,
         "recorded_at": raw.get("recorded_at"),
+        "place": rec.place.model_dump() if rec.place else None,  # a photo's GPS fix, for members
         "duration": store.tc(raw["duration_ms"]) if raw.get("duration_ms") else None,
         "media": render.kind(raw),
         "pages": raw.get("pages"),

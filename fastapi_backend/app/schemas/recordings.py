@@ -300,6 +300,13 @@ class EnrichedPlace(ResponseModel):
     said: str | None = Field(None, description="named in the text: the words that name it")
 
 
+class GeoPoint(ResponseModel):
+    """Where a photo was taken, from its own file (its EXIF GPS fix), in WGS 84 degrees."""
+
+    lat: float = Field(description="latitude, north positive")
+    lon: float = Field(description="longitude, east positive")
+
+
 class EnrichedDate(ResponseModel):
     """A date or time the text gives."""
 
@@ -366,6 +373,12 @@ class Recording(ResponseModel):
     converted_from: ConvertedFrom | None = Field(None, description="made by a convert step: the asset it was made from")
     web: WebPage | None = Field(None, description="a web page captured as a document")
     enrichment: Enrichment | None = Field(None, description="the places and dates anytopdf found (analysis.anytopdf)")
+    recorded_at: str | None = Field(
+        None,
+        description="when it was made: a date in its file's name, else what its file says (a photo's EXIF, a video's "
+        "creation time), else its file's last change; a source's or a document's own date wins",
+    )
+    place: GeoPoint | None = Field(None, description="a photo: where it was taken, from its EXIF GPS (members of its namespace only)")
     nsfw: NsfwState | None = Field(None, description="NSFW classification, where it's on in its namespace and it was classified")
     audio_cleanup: AudioCleanup | None = Field(None, description="how its clean_audio step cleaned up its sound before transcription")
     enhanced: Enhanced | None = Field(None, description="an image the enhance step looked at: what it found, and its enhanced copy")
