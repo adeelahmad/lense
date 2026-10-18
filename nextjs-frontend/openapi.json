@@ -5667,6 +5667,28 @@
         }
       }
     },
+    "/api/v1/automations/starters": {
+      "get": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "List Starters",
+        "description": "Starter automations: each a draft to open, change and save (POST /automations), switched off until you turn\nit on.",
+        "operationId": "list_starters",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationStarters"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/automations/{aid}/vars": {
       "get": {
         "tags": [
@@ -15470,10 +15492,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "words, \"phrases\", OR between alternatives",
+              "description": "words, \"phrases\", OR between alternatives, NOT or -word to leave out",
               "title": "Q"
             },
-            "description": "words, \"phrases\", OR between alternatives"
+            "description": "words, \"phrases\", OR between alternatives, NOT or -word to leave out"
           },
           {
             "name": "ns",
@@ -29184,11 +29206,11 @@
             "required": false,
             "schema": {
               "type": "string",
-              "description": "words, \"phrases\", OR between alternatives",
+              "description": "words, \"phrases\", OR between alternatives, NOT or -word to leave out",
               "default": "",
               "title": "Q"
             },
-            "description": "words, \"phrases\", OR between alternatives"
+            "description": "words, \"phrases\", OR between alternatives, NOT or -word to leave out"
           },
           {
             "name": "limit",
@@ -31874,7 +31896,7 @@
           "import hooks"
         ],
         "summary": "Update Import Hook",
-        "description": "Rename a hook, pause or resume it (`enabled`), or change its collection or pipeline (null for the namespace's\nown) (owners).",
+        "description": "Rename a hook, pause or resume it (`enabled`), turn PDF hand-back on or off (`hand_back`), or change its\ncollection or pipeline (null for the namespace's own) (owners).",
         "operationId": "update_import_hook",
         "parameters": [
           {
@@ -32058,7 +32080,7 @@
           "import hooks"
         ],
         "summary": "Push To Import Hook",
-        "description": "Push something into an import webhook's namespace, with its token as a bearer token, or into one of your own\nnamespaces with your own token (an API token with write access, an app's, or the web app's) and `?namespace=`.\nThree ways:\n\n- a file as the raw body, named by `?filename=`, Content-Disposition or X-Filename: audio, video, documents and\n  images become assets and resources as uploads do; .srt, .vtt, .json, .jsonl and .ics are imported as\n  transcripts;\n- multipart form files (field `file`, up to 20), with optional `title`, `url` and `text` fields;\n- JSON `{url}` (a page or PDF kept as a document) and/or `{text}` (imported as text), with an optional\n  `title`.\n\nEach runs the hook's pipeline, or the namespace's. 401 for an unknown token, saying which kind it is; 403 while the\nhook is paused, for a read-only token, or without the import permission; 413 over uploads.max_mb. Audited as\n`import.hook` (by the hook) or `import.push` (by the person).",
+        "description": "Push something into an import webhook's namespace, with its token as a bearer token, or into one of your own\nnamespaces with your own token (an API token with write access, an app's, or the web app's) and `?namespace=`.\nThree ways:\n\n- a file as the raw body, named by `?filename=`, Content-Disposition or X-Filename: audio, video, documents and\n  images become assets and resources as uploads do; .srt, .vtt, .json, .jsonl and .ics are imported as\n  transcripts;\n- multipart form files (field `file`, up to 20), with optional `title`, `url` and `text` fields;\n- JSON `{url}` (a page or PDF kept as a document) and/or `{text}` (imported as text), with an optional\n  `title`.\n\nEach runs the hook's pipeline, or the namespace's. A hook with `hand_back` on takes documents this server can't\nmake into PDFs itself too: they're kept with `needs_pdf` and wait; push the PDF back (the raw body, or one form\nfile) with `?for=<recording>` and it becomes the document's rendition and its pipeline runs (404 when that document\ndoesn't wait for a PDF from this hook). 401 for an unknown token, saying which kind it is; 403 while the hook is\npaused, for a read-only token, or without the import permission; 413 over uploads.max_mb. Audited as `import.hook`\n(by the hook) or `import.push` (by the person).",
         "operationId": "push_to_import_hook",
         "parameters": [
           {
@@ -32117,6 +32139,25 @@
               "title": "Namespace"
             },
             "description": "with your own token: the namespace it goes into (default: the only one you can import into)"
+          },
+          {
+            "name": "for",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "hand back a document's PDF: the recording a push with needs_pdf became (the hook's own documents only)",
+              "title": "For"
+            },
+            "description": "hand back a document's PDF: the recording a push with needs_pdf became (the hook's own documents only)"
           }
         ],
         "responses": {
@@ -32279,6 +32320,25 @@
               ],
               "title": "Title"
             }
+          },
+          {
+            "name": "for",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "hand back a document's PDF: the recording a push with needs_pdf became (the hook's own documents only)",
+              "title": "For"
+            },
+            "description": "hand back a document's PDF: the recording a push with needs_pdf became (the hook's own documents only)"
           }
         ],
         "responses": {
@@ -35206,13 +35266,55 @@
         }
       }
     },
+    "/api/v1/mesh/node/sandbox": {
+      "put": {
+        "tags": [
+          "mesh"
+        ],
+        "summary": "Node Sandbox",
+        "description": "The client certificate of the calling compute node's sandbox gateway, which Lens keeps sealed and reaches that\ngateway over the mesh with. 403 for a node of another role, 400 for what isn't a certificate and key.",
+        "operationId": "node_sandbox",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MeshSandboxGateway"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/mesh/node/beat": {
       "post": {
         "tags": [
           "mesh"
         ],
         "summary": "Node Beat",
-        "description": "The calling node's report, every minute: Nebula, its peers, its machine.",
+        "description": "The calling node's report, every minute: Nebula, its peers, its machine, its sandbox gateway.",
         "operationId": "node_beat",
         "requestBody": {
           "content": {
@@ -39092,6 +39194,55 @@
         "type": "object",
         "title": "AutomationStarted"
       },
+      "AutomationStarter": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "description": "what it does, and what to change before turning it on"
+          },
+          "draft": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Draft",
+            "description": "what POST /automations takes, switched off"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "draft"
+        ],
+        "title": "AutomationStarter"
+      },
+      "AutomationStarters": {
+        "properties": {
+          "starters": {
+            "items": {
+              "$ref": "#/components/schemas/AutomationStarter"
+            },
+            "type": "array",
+            "title": "Starters"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "starters"
+        ],
+        "title": "AutomationStarters"
+      },
       "AutomationSwitch": {
         "properties": {
           "on": {
@@ -39467,6 +39618,37 @@
           "vars"
         ],
         "title": "AutomationVarsIn"
+      },
+      "AwaitsPdf": {
+        "properties": {
+          "hook": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hook",
+            "description": "the import webhook it waits on"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "AwaitsPdf",
+        "description": "A document an import webhook brought in that this server can't make into a PDF: it waits for the hook to hand\nits PDF back."
       },
       "Backend": {
         "properties": {
@@ -53213,9 +53395,11 @@
             "enum": [
               "file",
               "url",
-              "text"
+              "text",
+              "pdf"
             ],
-            "title": "Kind"
+            "title": "Kind",
+            "description": "pdf: a PDF handed back for a document (?for=)"
           },
           "name": {
             "type": "string",
@@ -53243,6 +53427,12 @@
             "type": "boolean",
             "title": "Duplicate",
             "description": "the namespace had this file already; it's that asset",
+            "default": false
+          },
+          "needs_pdf": {
+            "type": "boolean",
+            "title": "Needs Pdf",
+            "description": "this server can't make it into a PDF, and the hook hands PDFs back: push its PDF with ?for=<recording> and its pipeline runs",
             "default": false
           }
         },
@@ -53891,6 +54081,12 @@
             "title": "Enabled",
             "description": "false while paused: pushes are refused, and the token keeps"
           },
+          "hand_back": {
+            "type": "boolean",
+            "title": "Hand Back",
+            "description": "hand PDFs back: a document this server can't make into a PDF itself is kept and waits for the service that sent it to push its PDF with ?for=<recording> (off by default)",
+            "default": false
+          },
           "token_tail": {
             "anyOf": [
               {
@@ -53977,6 +54173,12 @@
               }
             ],
             "title": "Pipeline"
+          },
+          "hand_back": {
+            "type": "boolean",
+            "title": "Hand Back",
+            "description": "hand PDFs back: a document this server can't make into a PDF itself is kept and waits for the service that sent it to push its PDF with ?for=<recording> (off by default)",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -54073,6 +54275,18 @@
               }
             ],
             "title": "Enabled"
+          },
+          "hand_back": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hand Back",
+            "description": "hand PDFs back (see ImportHook.hand_back)"
           }
         },
         "additionalProperties": false,
@@ -54322,15 +54536,27 @@
             "title": "Id"
           },
           "job": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Job"
+          },
+          "duplicate": {
+            "type": "boolean",
+            "title": "Duplicate",
+            "description": "the namespace already had this page or video: `id` is that resource",
+            "default": false
           }
         },
         "additionalProperties": true,
         "type": "object",
         "required": [
-          "id",
-          "job"
+          "id"
         ],
         "title": "ImportResult"
       },
@@ -58167,7 +58393,7 @@
               }
             ],
             "title": "Sandbox",
-            "description": "the sandboxes it can run"
+            "description": "a compute node's sandbox gateway, when it answers: {gateway}"
           },
           "error": {
             "anyOf": [
@@ -58579,6 +58805,36 @@
           "public_key"
         ],
         "title": "MeshRenew"
+      },
+      "MeshSandboxGateway": {
+        "properties": {
+          "ca": {
+            "type": "string",
+            "maxLength": 16384,
+            "title": "Ca",
+            "description": "the gateway's CA certificate, PEM"
+          },
+          "cert": {
+            "type": "string",
+            "maxLength": 16384,
+            "title": "Cert",
+            "description": "the client certificate Lens shows the gateway, PEM"
+          },
+          "key": {
+            "type": "string",
+            "maxLength": 16384,
+            "title": "Key",
+            "description": "its private key, PEM: kept sealed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ca",
+          "cert",
+          "key"
+        ],
+        "title": "MeshSandboxGateway"
       },
       "MeshService": {
         "properties": {
@@ -69425,6 +69681,17 @@
             ],
             "description": "a document that isn't a PDF: how the PDF it's read from was made"
           },
+          "awaits_pdf": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AwaitsPdf"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "waiting for the PDF the import webhook that sent it hands back"
+          },
           "described": {
             "anyOf": [
               {
@@ -70540,9 +70807,11 @@
             "enum": [
               "libreoffice",
               "chromium",
-              "anytopdf"
+              "anytopdf",
+              "pushed"
             ],
-            "title": "By"
+            "title": "By",
+            "description": "pushed: handed back by the import webhook that sent it (docs/api.md#import-webhooks)"
           }
         },
         "additionalProperties": true,
@@ -74601,7 +74870,7 @@
             "maxLength": 500,
             "minLength": 1,
             "title": "Q",
-            "description": "words, \"phrases\", OR between alternatives"
+            "description": "words, \"phrases\", OR between alternatives, NOT or -word to leave out"
           },
           "speaker": {
             "anyOf": [

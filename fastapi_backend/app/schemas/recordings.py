@@ -186,7 +186,17 @@ class Rendition(ResponseModel):
     """How a document that isn't a PDF (or an image anytopdf read) was made into one."""
 
     from_: str = Field(alias="from", description="its own type: .docx, .eml, .jpg, …")
-    by: Literal["libreoffice", "chromium", "anytopdf"]
+    by: Literal["libreoffice", "chromium", "anytopdf", "pushed"] = Field(
+        description="pushed: handed back by the import webhook that sent it (docs/api.md#import-webhooks)"
+    )
+
+
+class AwaitsPdf(ResponseModel):
+    """A document an import webhook brought in that this server can't make into a PDF: it waits for the hook to hand
+    its PDF back."""
+
+    hook: int | None = Field(None, description="the import webhook it waits on")
+    since: str | None = None
 
 
 class EnhanceMeasured(ResponseModel):
@@ -321,6 +331,7 @@ class Recording(ResponseModel):
     tags: list[str] = Field(default_factory=list)
     email: EmailInfo | None = Field(None, description="an email: its subject, sender, recipients and date")
     rendition: Rendition | None = Field(None, description="a document that isn't a PDF: how the PDF it's read from was made")
+    awaits_pdf: AwaitsPdf | None = Field(None, description="waiting for the PDF the import webhook that sent it hands back")
     described: Described | None = Field(None, description="a document: what it says about itself (title, authors, dates), read by Tika")
     attached_to: AttachedTo | None = Field(None, description="an email's attachment made a resource of its own: that email")
     converted_from: ConvertedFrom | None = Field(None, description="made by a convert step: the asset it was made from")

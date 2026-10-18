@@ -72,7 +72,7 @@
         "Google Calendar sources",
         "News feed sources",
         "Connect with Google",
-        "POST /imports/web, extension http tools, notification targets",
+        "POST /imports/web, extension http tools, workflow HTTP call nodes, notification targets",
         "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, news feeds, MQTT bridge, OIDC issuer, web search, LanguageTool server)",
         "replies from remote servers",
         ".env, archive.yaml, LENS_*, ARCHIVE_SECRET_KEY, RCLONE_BINARY"
@@ -147,6 +147,7 @@
         "POST /api/v1/mesh/join (a machine joining the mesh)",
         "/api/v1/mesh/node/config, /node/renew, /node/beat (a node's own calls, with its node token)",
         "GET /api/v1/mesh/node/worker, /node/media/{id} (a worker node's database user and its jobs' files, with its node token)",
+        "PUT /api/v1/mesh/node/sandbox (a compute node's sandbox gateway's client certificate, with its node token), and Lens's calls to that gateway on the node's mesh address, port 7443",
         "POST /api/v1/mesh/tokens, PATCH and DELETE /api/v1/mesh/nodes/{id}, PUT /api/v1/settings/mesh",
         "UDP 4242 on the primary and ports 8000 and 8080 on its mesh address (the mesh container, while the mesh is on)"
       ],
@@ -427,7 +428,7 @@
       "parameter": "bearer (a hook's lih_ token, or a person's la_, lo_ or web token with ?namespace=), file bytes, URL, text",
       "attacker_controllable": "yes",
       "component": "ingest",
-      "caller_must_enforce": "none — P-UPLOAD; the address form /hooks/import/{token} takes hook tokens only, so a person's token never sits in a logged path",
+      "caller_must_enforce": "none — P-UPLOAD; the address form /hooks/import/{token} takes hook tokens only, so a person's token never sits in a logged path; ?for= hands a PDF back only for a document the same hook brought in that still waits for one (hand_back, off by default), and it becomes that document's rendition",
       "provenance": "documented",
       "source": "docs/api.md \"the address form takes hook tokens only\""
     },
@@ -468,7 +469,7 @@
       "source": "docs/processing.md \"the consent itself is a person's\""
     },
     {
-      "entry_point": "POST /imports/web, extension http tools, notification targets",
+      "entry_point": "POST /imports/web, extension http tools, workflow HTTP call nodes, notification targets",
       "parameter": "URL",
       "attacker_controllable": "yes",
       "component": "outbound",
@@ -790,6 +791,15 @@
       "caller_must_enforce": "worker nodes only (403 for others); the database user is the node's own, of Lens's database only, never the server's root, removed with the node and made again with a new password on an undo; files are those of the namespaces the node serves, never a vault's, sent plain over the mesh; the archive's secret never leaves the primary",
       "provenance": "documented",
       "source": "docs/mesh.md \"Worker nodes\""
+    },
+    {
+      "entry_point": "PUT /api/v1/mesh/node/sandbox (a compute node's sandbox gateway's client certificate, with its node token), and Lens's calls to that gateway on the node's mesh address, port 7443",
+      "parameter": "a CA certificate, a client certificate and its key, PEM",
+      "attacker_controllable": "yes",
+      "component": "optional",
+      "caller_must_enforce": "compute nodes only (403 for others); each part capped and loaded as a certificate or key (400 otherwise); the key kept sealed like a setting's secret; Lens reaches the gateway over the mesh only (7443 open to the primary only, relayed to the gateway by the node's mesh container), with mutual TLS checked against the name the gateway's certificate was made for; the node gets nothing of Lens's",
+      "provenance": "documented",
+      "source": "docs/mesh.md \"Compute nodes\""
     },
     {
       "entry_point": "POST /api/v1/mesh/tokens, PATCH and DELETE /api/v1/mesh/nodes/{id}, PUT /api/v1/settings/mesh",
@@ -1254,7 +1264,7 @@
       "property": "P-SSRF-GUARD",
       "violation_symptom": "info-leak",
       "severity_tier": "security",
-      "conditions": "URLs a non-admin sets (web import and extension http tools by editors; notification targets by owners; an automation's http_request by its person, within the notification networks; the page addresses the assistant's web_read reads, which the model picks for whoever uses the assistant) reach public addresses only, or networks the operator listed; web paths use ports 80 and 443, follow redirects only to http and https, re-check every redirect and sub-request, and connect to the checked address; an automation's http_request follows no redirect, takes 10 seconds and reads 64 KB at most, asks first unless the person set its node to run on its own, and passes the answer on as outside text",
+      "conditions": "URLs a non-admin sets (web import and extension http tools by editors; notification targets by owners; an automation's http_request by its person, within the notification networks; a workflow's HTTP call node by admins, with its host written out; the page addresses the assistant's web_read reads, which the model picks for whoever uses the assistant) reach public addresses only, or networks the operator listed; web paths use ports 80 and 443, follow redirects only to http and https, re-check every redirect and sub-request, and connect to the checked address; an automation's http_request follows no redirect, takes 10 seconds and reads 64 KB at most, asks first unless the person set its node to run on its own, and passes the answer on as outside text; a workflow's HTTP call node seals credential headers to their header and host and never sends them to another server, reads 200,000 characters at most, and passes the answer on marked as outside text",
       "provenance": "documented",
       "source": "maintainer ruling, 2026-10"
     },
@@ -1550,7 +1560,7 @@
       "property": "P-MESH",
       "violation_symptom": "info-leak, integrity-bypass",
       "severity_tier": "security",
-      "conditions": "the mesh (mesh.enabled, off until an admin adds a node) admits only machines that joined with a token an admin made, spent on use and expiring, which never crosses the wire (HMAC proof; answer sealed with a key derived from it); each machine's certificate names only its own address, role and namespaces; the rendered firewall opens the database port to worker nodes and the API port to every node on the primary, a node's agent port to the primary only; removing a node blocklists every certificate it was given on every machine and stops its node token; nodes still sign in to Lens as any client does; on the primary Nebula runs in the mesh container, the only one holding NET_ADMIN, with a key pair it makes itself and Nebula's release checked against the kept checksum; its relays listen on the mesh address only; a node runs lens node and Nebula in two containers with nothing published, its node token and agent key in its own volume (0600), the join token in the first start's environment only; a worker node signs in to the database as its own user of Lens's database (never root, removed with the node) and reads its namespaces' files over the mesh, never a vault's, without the archive's secret",
+      "conditions": "the mesh (mesh.enabled, off until an admin adds a node) admits only machines that joined with a token an admin made, spent on use and expiring, which never crosses the wire (HMAC proof; answer sealed with a key derived from it); each machine's certificate names only its own address, role and namespaces; the rendered firewall opens the database port to worker nodes and the API port to every node on the primary, a node's agent port to the primary only; removing a node blocklists every certificate it was given on every machine and stops its node token; nodes still sign in to Lens as any client does; on the primary Nebula runs in the mesh container, the only one holding NET_ADMIN, with a key pair it makes itself and Nebula's release checked against the kept checksum; its relays listen on the mesh address only; a node runs lens node and Nebula in two containers with nothing published, its node token and agent key in its own volume (0600), the join token in the first start's environment only; a worker node signs in to the database as its own user of Lens's database (never root, removed with the node) and reads its namespaces' files over the mesh, never a vault's, without the archive's secret; a compute node runs the assistant's sandboxes on a gateway of its own, which Lens reaches over the mesh only with mutual TLS, holding its client certificate sealed, and the node gets nothing of Lens's",
       "provenance": "documented",
       "source": "docs/mesh.md \"What keeps it safe\""
     }
@@ -1565,7 +1575,7 @@
     },
     {
       "property": "N-EGRESS",
-      "reason": "an egress firewall; netguard guards web import, iCal and news feeds, extension http tools, notifications, the assistant's web search and page reads, Chromium and the opt-in browser container (as browser-proxy), nothing else; admin-set URLs other than iCal and news feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel, a SearXNG instance for web search, LanguageTool server) are unguarded",
+      "reason": "an egress firewall; netguard guards web import, iCal and news feeds, extension http tools, workflow HTTP call nodes, notifications, the assistant's web search and page reads, Chromium and the opt-in browser container (as browser-proxy), nothing else; admin-set URLs other than iCal and news feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel, a SearXNG instance for web search, LanguageTool server) are unguarded",
       "false_friend": true,
       "provenance": "documented",
       "source": "maintainer ruling, 2026-10"

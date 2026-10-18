@@ -187,6 +187,7 @@ GET    /api/v1/automations
 POST   /api/v1/automations
 GET    /api/v1/automations/actions
 POST   /api/v1/automations/draft
+GET    /api/v1/automations/starters
 GET    /api/v1/automations/{id}
 PATCH  /api/v1/automations/{id}
 DELETE /api/v1/automations/{id}
@@ -1000,7 +1001,8 @@ a storage source now, rather than watching their folder (admins, like sources; u
 `GET /sources/{sid}/browse` lists them). Audio, video, documents and images stay on the source and run the namespace's
 pipeline, or `pipeline`; transcripts are imported. A PDF, Word, text or Markdown file is a document unless
 `documents_as` is `transcript` (its text only), or the server can't make a PDF of it. Each path gets a result: `queued` (with `recording` and `job`), `already` (the namespace has it from this
-source), `skipped` (a folder, or not audio, video, a document, an image or a transcript) or `error`. Choosing a file
+source, or, for a folder on this machine, has the same file from anywhere: another folder, an upload or a scan, by
+what's in it, so it isn't read twice; with that `recording`), `skipped` (a folder, or not audio, video, a document, an image or a transcript) or `error`. Choosing a file
 whose asset was deleted brings it back. Audited as `import.source`.
 
 ### Web pages
@@ -1010,7 +1012,8 @@ of the namespace; admins may name a new one). Its pipeline keeps the page as it 
 any document ([Documents and images](#documents-and-images)): a link to a PDF is kept as it is, any other page is
 printed by headless Chromium with its scripts run. Its `web` is `{url, final, captured_at, how}`: the address given,
 the one it ended at after redirects, when it was captured, and `printed` or `pdf`. Its title is the page's own once it's
-captured, unless `title` gave one. Capturing happens once: reading it again keeps the page it captured.
+captured, unless `title` gave one. Capturing happens once: reading it again keeps the page it captured. An address the
+namespace has a page from already isn't captured again: the answer is that resource, with `duplicate` true and no `job`.
 
 Only public addresses are reached, on ports 80 and 443: the address is checked when it's given (400, saying why: not
 http(s), a user name or password in it, another port, or a host with an address that isn't public), and every request
@@ -1036,7 +1039,8 @@ as the checks above would). Audited as `import.web` once, with how many were que
 
 `POST /api/v1/import/video {url, namespace, title?, collection?, pipeline?}` imports a video or a podcast episode by its
 address (editors of the namespace; admins may name a new one): a page on a video site, a podcast's episode page, or a
-media file. It's off by default: `documents.video_urls` (Settings › Documents) turns it on, and until then it answers
+media file. An address the namespace has the video from already isn't downloaded again: the answer is that resource,
+with `duplicate` true and no `job`. It's off by default: `documents.video_urls` (Settings › Documents) turns it on, and until then it answers
 400. Its transcribe step downloads the media with [yt-dlp](https://github.com/yt-dlp/yt-dlp) (Unlicense), which Lens
 fetches on first use (release 2026.08.19, checked against its SHA-256, into `data_dir/models/`) unless one is on PATH,
 then transcribes it like an upload. One video is downloaded, never a playlist: the best single file with both sound and
@@ -1066,9 +1070,10 @@ POST   /api/v1/hooks/import
 POST   /api/v1/hooks/import/{token}
 ```
 
-A namespace's owners manage its hooks. `POST {name, collection?, pipeline?}` makes one and answers with its token
-(`lih_...`), shown this once; only a hash is kept, and lists show its last four characters. `PATCH` renames it, pauses
-or resumes it (`enabled`), or changes its collection or pipeline (null for the namespace's own). `POST .../token` gives
+A namespace's owners manage its hooks. `POST {name, collection?, pipeline?, hand_back?}` makes one and answers with its
+token (`lih_...`), shown this once; only a hash is kept, and lists show its last four characters. `PATCH` renames it,
+pauses or resumes it (`enabled`), turns [PDF hand-back](#pdf-hand-back) on or off (`hand_back`), or changes its
+collection or pipeline (null for the namespace's own). `POST .../token` gives
 it a new token and the old one stops at once; `DELETE` stops it altogether. What a hook imported stays either way.
 Audited as `import_hook.create`, `.update`, `.token` and `.delete`.
 
@@ -1082,7 +1087,7 @@ a URL; the address form ends up in proxy logs, so prefer the header). Three ways
 - **JSON** `{url?, text?, title?}`: a web page or PDF kept as a document, as [web pages](#web-pages) are (a page needs
   Chromium on the server; a link to a PDF doesn't), and text imported as pasted text is.
 
-The answer (202) is `{namespace, items: [{kind, name, recording, job, duplicate}]}`. 401 for a token Lens doesn't know,
+The answer (202) is `{namespace, items: [{kind, name, recording, job, duplicate, needs_pdf}]}`. 401 for a token Lens doesn't know,
 saying which kind it took it for (a hook's, an API token, a sign-in), 403 while the hook is paused, 413 over
 `uploads.max_mb`, 507 when the disk can't hold the file. Each item is audited as `import.hook`, by `import_hook:<id>`
 rather than a person.
@@ -1104,6 +1109,30 @@ curl -H "Authorization: Bearer $TOKEN" --data-binary @minutes.pdf "https://lens.
 curl -H "Authorization: Bearer $TOKEN" -F file=@call.m4a -F title="Call with Sam" https://lens.example/api/v1/hooks/import
 curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"url": "https://example.org/report.pdf"}' https://lens.example/api/v1/hooks/import
 curl -H "Authorization: Bearer $LENS_API_TOKEN" -H "Content-Type: application/json" -d '{"text": "Notes", "title": "Notes"}' "https://lens.example/api/v1/hooks/import?namespace=pods"
+```
+
+#### PDF hand-back
+
+A light server (a Raspberry Pi without LibreOffice or Chromium) can't make Word, PowerPoint and Excel files, emails or
+saved web pages into PDFs, so it refuses them. A conversion node that can (anytopdf, or any service with LibreOffice)
+can push them through a hook with **`hand_back`** on and send the PDF back. It's off on every hook until an owner turns
+it on, and does nothing on a server that converts those files itself.
+
+1. Push the file as usual. Where this server can't convert it, it's kept, and its item says `needs_pdf: true`, with
+   no `job`: the resource waits (its page shows that it waits, `awaits_pdf` on `GET /recordings/{id}`), and running
+   what's waiting leaves it alone.
+2. Convert the file you already have and push its PDF to the same hook with `?for=<recording>`, as the raw body or the
+   one file of a form. It becomes the document's rendition (made by `pushed`), the pipeline the file was pushed with
+   runs, and its pages are drawn and read from that PDF. An email still gives its sender, recipients, subject and
+   attachments, read from its own file. The item is `{kind: "pdf", recording, job}`, audited as `import.hook`.
+
+Only the hook a document came through can hand back its PDF, and only once, while it waits: 404 for any other
+recording, a person's own token gets 400, and a body that isn't a PDF gets 400.
+
+```
+curl -H "Authorization: Bearer $TOKEN" --data-binary @minutes.docx "https://lens.example/api/v1/hooks/import?filename=minutes.docx"
+# {"namespace": "pods", "items": [{"kind": "file", "name": "minutes.docx", "recording": 42, "needs_pdf": true, ...}]}
+curl -H "Authorization: Bearer $TOKEN" --data-binary @minutes.pdf "https://lens.example/api/v1/hooks/import?for=42"
 ```
 
 ### Uploads
@@ -1168,7 +1197,8 @@ GET    /api/v1/mentions
 `GET /search?q=` finds the moments where the words appear (in an asset's text or transcript, on screen in a video, in a resource's
 supplementary transcripts, captions, translations and indexes, or in what a model says its shots and pages show) in the
 namespaces you can read, best first: every word
-(English stemming), "quoted phrases" as written, `OR` between alternatives; `ns`, `speaker`, `emotion` and `recording`
+(English stemming), "quoted phrases" as written, `OR` between alternatives, `NOT` or `-` before a word or phrase to leave out the lines
+with it; `ns`, `speaker`, `emotion` and `recording`
 narrow it, and `object` keeps to the assets a kind of object is seen in ([Objects](#objects));
 `limit`/`offset` page through it. `total` counts the moments ranked so far (`capped` when there may be more).
 With `facets=true` it also counts all the matching moments, whatever the page, by namespace, person, emotion and

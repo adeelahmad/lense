@@ -81,6 +81,23 @@ describe("import webhooks", () => {
     );
   });
 
+  it("turns PDF hand-back on, and says so on the hook", async () => {
+    (ImportHooks.listImportHooks as jest.Mock).mockImplementation(() =>
+      ok([HOOK, { ...HOOK, id: 5, name: "Converter", hand_back: true }]),
+    );
+    show();
+    const list = await screen.findByRole("list", { name: "Import webhooks" });
+    expect(within(list).getAllByText("Hands back PDFs")).toHaveLength(1);
+    expect(within(list).getByRole("button", { name: "Stop handing back PDFs for Converter" })).toBeInTheDocument();
+    fireEvent.click(within(list).getByRole("button", { name: "Hand back PDFs for Office scanner" }));
+    await waitFor(() =>
+      expect((ImportHooks.updateImportHook as jest.Mock).mock.calls[0][0]).toMatchObject({
+        path: { name: "pods", hid: 3 },
+        body: { hand_back: true },
+      }),
+    );
+  });
+
   it("shows nothing to someone who isn't an owner", () => {
     show(false);
     expect(ImportHooks.listImportHooks).not.toHaveBeenCalled();

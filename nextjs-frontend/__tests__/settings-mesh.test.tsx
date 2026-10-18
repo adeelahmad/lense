@@ -192,6 +192,20 @@ describe("Settings › Nodes", () => {
     });
   });
 
+  it("says whether a compute node's sandbox gateway runs", async () => {
+    const box = { ...GPU, id: 3, name: "sandbox-box", role: "compute", ip: "10.73.0.3" };
+    rows = [
+      PRIMARY,
+      { ...box, status: { ...GPU.status, sandbox: { gateway: "running" } } },
+      { ...box, id: 4, name: "old-box", ip: "10.73.0.4" },
+    ];
+    show("nodes");
+    const up = await screen.findByRole("listitem", { name: "sandbox-box" });
+    expect(within(up).getByText(/sandbox gateway running/)).toBeInTheDocument();
+    const down = screen.getByRole("listitem", { name: "old-box" });
+    expect(within(down).getByText(/no sandbox gateway/)).toBeInTheDocument();
+  });
+
   it("says when a node was last seen, and its machine", () => {
     const now = Date.parse("2026-10-18T12:00:00Z");
     expect(seenText("2026-10-18T11:58:00Z", now)).toEqual({ online: true, text: "Online · seen 2 minutes ago" });

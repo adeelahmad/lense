@@ -57,6 +57,18 @@ def placeholder(url):
     return (u.netloc + rest)[:200]
 
 
+def existing(db, sid, url, media=False):
+    """The resource namespace `sid` already has for the page (or, with `media`, the video or episode) at `url`, so
+    importing it again links to it rather than fetching and reading it twice: its id, or None."""
+    row = db.one(
+        "SELECT record::id(id) AS id FROM recording WHERE space = $s AND web.url = $u AND (web.media ?? false) = $m LIMIT 1",
+        s=int(sid),
+        u=url,
+        m=bool(media),
+    )
+    return row["id"] if row else None
+
+
 def create(db, sid, url, title=None, collection=None, by=None):
     """A resource for the page at `url` in namespace `sid` (in `collection`, else the namespace's default), to be
     captured when its pipeline runs. Returns its id."""

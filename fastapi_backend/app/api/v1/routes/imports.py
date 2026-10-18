@@ -167,6 +167,8 @@ def import_web_page(body: WebImportRequest, acl: Acl, user: Writer, db: Db, cfg:
     except ValueError as e:
         raise HTTPException(400, str(e)) from None
     sid = sid if sid is not None else store.ns_id(db, ns)
+    if (had := webcapture.existing(db, sid, url)) is not None:  # captured already: link to it
+        return ImportResult(id=had, duplicate=True)
     rid = webcapture.create(db, sid, url, body.title, body.collection, by=user.email)
     if body.content_type:
         content_types.choose(db, rid, body.content_type)
@@ -202,6 +204,8 @@ def import_video(body: VideoImportRequest, acl: Acl, user: Writer, db: Db, cfg: 
     except ValueError as e:
         raise HTTPException(400, str(e)) from None
     sid = sid if sid is not None else store.ns_id(db, ns)
+    if (had := webcapture.existing(db, sid, url, media=True)) is not None:  # downloaded already: link to it
+        return ImportResult(id=had, duplicate=True)
     rid = mediaurl.create(db, sid, url, body.title, body.collection, by=user.email)
     job = jobs.enqueue(db, rid, None, by=user.email, pipeline=body.pipeline)
     auth.audit(db, user.as_audit(), "import.video", f"recording:{rid}", {"url": url, "namespace": ns})

@@ -24,7 +24,7 @@ def search_transcripts(
     user: CurrentUser,
     db: Db,
     cfg: Cfg,
-    q: str = Query(description='words, "phrases", OR between alternatives'),
+    q: str = Query(description='words, "phrases", OR between alternatives, NOT or -word to leave out'),
     ns: str | None = None,
     speaker: int | None = None,
     emotion: str | None = None,

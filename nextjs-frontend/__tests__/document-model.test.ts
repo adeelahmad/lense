@@ -191,8 +191,15 @@ describe("a document's pages", () => {
       renditionNote({ by: "libreoffice" }),
       renditionNote({ by: "chromium" }),
       renditionNote({ by: "anytopdf" }),
+      renditionNote({ by: "pushed" }),
       renditionNote(null),
-    ]).toEqual(["made into a PDF by LibreOffice", "made into a PDF by Chromium", "made into a PDF by anytopdf", null]);
+    ]).toEqual([
+      "made into a PDF by LibreOffice",
+      "made into a PDF by Chromium",
+      "made into a PDF by anytopdf",
+      "PDF handed back by the import webhook that sent it",
+      null,
+    ]);
     const told = { title: "Tide tables", creators: ["Ada", "Ben"], created: "2024-03-01T12:00:00Z", pages: 3 };
     expect(describedRows(told, (iso) => `on ${iso.slice(0, 10)}`)).toEqual([
       ["Title", "Tide tables"],

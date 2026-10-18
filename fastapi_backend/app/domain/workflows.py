@@ -16,6 +16,8 @@ what flows between these, the nodes of a recording workflow:
 - `field`: sets a custom field of the recording to the value, checked like an edit (and kept in its history).
 - `save_entities`: makes the entities passed in the recording's entities (in place of what analyze found), with
   people's corrections kept, then redoes keywords and sections as analyze does.
+- `http`: calls a web address, through the same guard as the assistant's web tools, and passes on the answer
+  (http_nodes.py; graph workflows have it too).
 - `classify`: which of some labels (or the content types, or the namespace's topics) fits the asset, or what came
   in as text, as classify.py says: passes on {choice, confidence, sure, ranked, by}. With `apply` it acts on a sure
   answer (sets the content type, suggests the topic, adds the tag), so it keeps something.
@@ -41,6 +43,7 @@ from . import (
     feed_nodes,
     fields as fieldmod,
     flow,
+    http_nodes,
     llm,
     metadata,
     organize,
@@ -52,7 +55,7 @@ from . import (
 )
 
 R = store.R
-OWN_NODES = ("llm", "extract_rules", "extract_llm", "classify", "output", "field", "save_entities")
+OWN_NODES = ("llm", "extract_rules", "extract_llm", "classify", "output", "field", "save_entities") + http_nodes.OWN_NODES
 TERMINAL = {"output", "field", "save_entities", "apply_changes", *feed_nodes.TERMINAL}
 OPS = flow.OPS
 OWN_CONFIG = {
@@ -63,6 +66,7 @@ OWN_CONFIG = {
     "field": {"field"},
     "save_entities": set(),
     "classify": {"labels", "vocabulary", "question", "of", "apply"},
+    **http_nodes.CONFIG,
 }
 ENTITY_TYPES = ("PERSON", "ORG", "PRODUCT", "PLACE", "EVENT", "WORK", "TERM", "DATE", "NUMBER")
 PATH_RX = flow.PATH_RX
@@ -101,7 +105,9 @@ def validate_graph(db, graph, scope="recording"):
 
 
 def _check_config(db, nid, t, cfg):
-    if t in organize.CONFIG:
+    if t in http_nodes.CONFIG:
+        http_nodes.check_config(db, nid, cfg)
+    elif t in organize.CONFIG:
         organize.check_config(nid, t, cfg)
     elif t in feed_nodes.CONFIG:
         feed_nodes.check_config(db, nid, t, cfg)
@@ -364,6 +370,8 @@ def _run_node(r, f, node, value, vals):
     """What a recording workflow's own nodes do (flow.py runs the rest): {output port: value}."""
     db, cfg, rid, t, c, nid = r.db, r.cfg, r.extra["rid"], node["type"], node["config"], node["id"]
     name, upstream = flow._label(node), None if value is r.ctx else value
+    if t in http_nodes.CONFIG:
+        return http_nodes.run_node(r, f, node, value, vals)
     if t == "llm":
         tpl = templates.get(db, int(c["template"]), c.get("version"))
         prompt = templates.render_body(tpl["body"], {**r.ctx, "input": upstream}, "prompt")
@@ -432,6 +440,13 @@ def _classify(r, c, upstream, name):
     else:
         r.say(f"{name}: {res['choice']} ({sure}){'; ' + res['applied'].replace('_', ' ') if res['applied'] else ''}")
     return {k: v for k, v in res.items() if k not in ("vocabulary", "question", "applied") and v is not None}
+
+
+def _graph_node(t):
+    """What runs a graph workflow's own node of type t."""
+    if t in http_nodes.CONFIG:
+        return http_nodes.run_node
+    return feed_nodes.run_node if t in feed_nodes.OWN_NODES else organize.run_node
 
 
 RUN_BY = {"graph": "organises the graph; a routine runs it", "event": "is what an automation does; its automation runs it"}
@@ -504,8 +519,9 @@ KITS = {
     ),
     # organising the graph (organize.py) and publishing from it (feed_nodes.py), run over namespaces by a routine
     "graph": flow.Kit(
-        "graph", organize.OWN_NODES + feed_nodes.OWN_NODES, {**organize.CONFIG, **feed_nodes.CONFIG}, _check_config,
-        lambda r, f, n, v, vals: (feed_nodes.run_node if n["type"] in feed_nodes.OWN_NODES else organize.run_node)(r, f, n, v, vals),
+        "graph", organize.OWN_NODES + feed_nodes.OWN_NODES + http_nodes.OWN_NODES,
+        {**organize.CONFIG, **feed_nodes.CONFIG, **http_nodes.CONFIG}, _check_config,
+        lambda r, f, n, v, vals: _graph_node(n["type"])(r, f, n, v, vals),
         {"apply_changes", *feed_nodes.TERMINAL},
         "a graph workflow needs an apply changes, publish to feed or podcast episode node, or it changes nothing",
     ),

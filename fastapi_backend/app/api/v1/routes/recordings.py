@@ -330,6 +330,11 @@ def get_recording(rid: int, acl: Acl, db: Db, cfg: Cfg) -> Recording:
         d["enrichment"] = {k: v for k, v in r["enrichment"].items() if k != "photo_fp"}
     d["nsfw"] = _nsfw(db, cfg, r, rid)
     d["enhanced"] = enhance.brief(r.get("enhanced"), rid)
+    waiting = r.get("awaits_pdf") or None
+    if waiting:
+        by = str(waiting.get("by") or "")
+        hook = by.split(":", 1)[1] if by.startswith("import_hook:") else ""
+        d["awaits_pdf"] = {"hook": int(hook) if hook.isdigit() else None, "since": waiting.get("since")}
     return Recording.model_validate(sign_urls(d, full=True))
 
 

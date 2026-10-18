@@ -2133,6 +2133,46 @@ export type AutomationStarted = {
 };
 
 /**
+ * AutomationStarter
+ */
+export type AutomationStarter = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Description
+   *
+   * what it does, and what to change before turning it on
+   */
+  description: string;
+  /**
+   * Draft
+   *
+   * what POST /automations takes, switched off
+   */
+  draft: {
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+};
+
+/**
+ * AutomationStarters
+ */
+export type AutomationStarters = {
+  /**
+   * Starters
+   */
+  starters: Array<AutomationStarter>;
+  [key: string]: unknown;
+};
+
+/**
  * AutomationSwitch
  */
 export type AutomationSwitch = {
@@ -2352,6 +2392,26 @@ export type AutomationVarsIn = {
   vars: {
     [key: string]: unknown;
   };
+};
+
+/**
+ * AwaitsPdf
+ *
+ * A document an import webhook brought in that this server can't make into a PDF: it waits for the hook to hand
+ * its PDF back.
+ */
+export type AwaitsPdf = {
+  /**
+   * Hook
+   *
+   * the import webhook it waits on
+   */
+  hook?: number | null;
+  /**
+   * Since
+   */
+  since?: string | null;
+  [key: string]: unknown;
 };
 
 /**
@@ -10131,8 +10191,10 @@ export type HookCalled = {
 export type HookItem = {
   /**
    * Kind
+   *
+   * pdf: a PDF handed back for a document (?for=)
    */
-  kind: "file" | "url" | "text";
+  kind: "file" | "url" | "text" | "pdf";
   /**
    * Name
    *
@@ -10157,6 +10219,12 @@ export type HookItem = {
    * the namespace had this file already; it's that asset
    */
   duplicate?: boolean;
+  /**
+   * Needs Pdf
+   *
+   * this server can't make it into a PDF, and the hook hands PDFs back: push its PDF with ?for=<recording> and its pipeline runs
+   */
+  needs_pdf?: boolean;
   [key: string]: unknown;
 };
 
@@ -10594,6 +10662,12 @@ export type ImportHook = {
    */
   enabled: boolean;
   /**
+   * Hand Back
+   *
+   * hand PDFs back: a document this server can't make into a PDF itself is kept and waits for the service that sent it to push its PDF with ?for=<recording> (off by default)
+   */
+  hand_back?: boolean;
+  /**
    * Token Tail
    *
    * the token's last four characters, to tell tokens apart
@@ -10638,6 +10712,12 @@ export type ImportHookCreate = {
    * Pipeline
    */
   pipeline?: number | null;
+  /**
+   * Hand Back
+   *
+   * hand PDFs back: a document this server can't make into a PDF itself is kept and waits for the service that sent it to push its PDF with ?for=<recording> (off by default)
+   */
+  hand_back?: boolean;
 };
 
 /**
@@ -10693,6 +10773,12 @@ export type ImportHookUpdate = {
    * Enabled
    */
   enabled?: boolean | null;
+  /**
+   * Hand Back
+   *
+   * hand PDFs back (see ImportHook.hand_back)
+   */
+  hand_back?: boolean | null;
 };
 
 /**
@@ -10825,7 +10911,13 @@ export type ImportResult = {
   /**
    * Job
    */
-  job: number;
+  job?: number | null;
+  /**
+   * Duplicate
+   *
+   * the namespace already had this page or video: `id` is that resource
+   */
+  duplicate?: boolean;
   [key: string]: unknown;
 };
 
@@ -13106,7 +13198,7 @@ export type MeshBeat = {
   /**
    * Sandbox
    *
-   * the sandboxes it can run
+   * a compute node's sandbox gateway, when it answers: {gateway}
    */
   sandbox?: {
     [key: string]: unknown;
@@ -13375,6 +13467,30 @@ export type MeshRenew = {
    * its Nebula public key, the same or a new one
    */
   public_key: string;
+};
+
+/**
+ * MeshSandboxGateway
+ */
+export type MeshSandboxGateway = {
+  /**
+   * Ca
+   *
+   * the gateway's CA certificate, PEM
+   */
+  ca: string;
+  /**
+   * Cert
+   *
+   * the client certificate Lens shows the gateway, PEM
+   */
+  cert: string;
+  /**
+   * Key
+   *
+   * its private key, PEM: kept sealed
+   */
+  key: string;
 };
 
 /**
@@ -19751,6 +19867,10 @@ export type Recording = {
    */
   rendition?: Rendition | null;
   /**
+   * waiting for the PDF the import webhook that sent it hands back
+   */
+  awaits_pdf?: AwaitsPdf | null;
+  /**
    * a document: what it says about itself (title, authors, dates), read by Tika
    */
   described?: Described | null;
@@ -20407,8 +20527,10 @@ export type Rendition = {
   from: string;
   /**
    * By
+   *
+   * pushed: handed back by the import webhook that sent it (docs/api.md#import-webhooks)
    */
-  by: "libreoffice" | "chromium" | "anytopdf";
+  by: "libreoffice" | "chromium" | "anytopdf" | "pushed";
   [key: string]: unknown;
 };
 
@@ -22689,7 +22811,7 @@ export type SearchCreate = {
   /**
    * Q
    *
-   * words, "phrases", OR between alternatives
+   * words, "phrases", OR between alternatives, NOT or -word to leave out
    */
   q: string;
   /**
@@ -32714,6 +32836,22 @@ export type CallAutomationHookResponses = {
 
 export type CallAutomationHookResponse = CallAutomationHookResponses[keyof CallAutomationHookResponses];
 
+export type ListStartersData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/automations/starters";
+};
+
+export type ListStartersResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationStarters;
+};
+
+export type ListStartersResponse = ListStartersResponses[keyof ListStartersResponses];
+
 export type GetAutomationVarsData = {
   body?: never;
   path: {
@@ -38705,7 +38843,7 @@ export type SearchTranscriptsData = {
     /**
      * Q
      *
-     * words, "phrases", OR between alternatives
+     * words, "phrases", OR between alternatives, NOT or -word to leave out
      */
     q: string;
     /**
@@ -46985,7 +47123,7 @@ export type SearchPublicData = {
     /**
      * Q
      *
-     * words, "phrases", OR between alternatives
+     * words, "phrases", OR between alternatives, NOT or -word to leave out
      */
     q?: string;
     /**
@@ -48843,6 +48981,12 @@ export type PushToImportHookData = {
      * with your own token: the namespace it goes into (default: the only one you can import into)
      */
     namespace?: string | null;
+    /**
+     * For
+     *
+     * hand back a document's PDF: the recording a push with needs_pdf became (the hook's own documents only)
+     */
+    for?: number | null;
   };
   url: "/api/v1/hooks/import";
 };
@@ -48906,6 +49050,12 @@ export type PushToImportHookTokenData = {
      * Title
      */
     title?: string | null;
+    /**
+     * For
+     *
+     * hand back a document's PDF: the recording a push with needs_pdf became (the hook's own documents only)
+     */
+    for?: number | null;
   };
   url: "/api/v1/hooks/import/{token}";
 };
@@ -50746,6 +50896,31 @@ export type NodeMediaResponses = {
    */
   200: unknown;
 };
+
+export type NodeSandboxData = {
+  body: MeshSandboxGateway;
+  path?: never;
+  query?: never;
+  url: "/api/v1/mesh/node/sandbox";
+};
+
+export type NodeSandboxErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type NodeSandboxError = NodeSandboxErrors[keyof NodeSandboxErrors];
+
+export type NodeSandboxResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type NodeSandboxResponse = NodeSandboxResponses[keyof NodeSandboxResponses];
 
 export type NodeBeatData = {
   body: MeshBeat;
