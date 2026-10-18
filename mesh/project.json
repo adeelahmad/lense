@@ -9,8 +9,8 @@
       "options": {
         "cwd": "{projectRoot}",
         "commands": [
-          "uvx ruff check --config ../fastapi_backend/pyproject.toml sidecar.py",
-          "uvx ruff format --check --config ../fastapi_backend/pyproject.toml sidecar.py"
+          "uvx ruff check sidecar.py",
+          "uvx ruff format --check sidecar.py"
         ],
         "parallel": false
       }
