@@ -11,8 +11,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   it, or say "yes" in a chat room; an API key or an app only declines it unless `research.agents_skip_review` is on.
   It runs in the background, one run per person at a time, within its tool calls, `research.max_minutes` and your
   budgets, survives a restart, and stops when asked; the cited report comes back in the conversation, its claims
-  checked against their sources, and saves as a note or makes a podcast episode. The web app's plan and progress
-  cards are in progress ([Deep research](docs/assistant.md#deep-research)).
+  checked against their sources, and saves as a note or makes a podcast episode. In the web app, the composer's Deep
+  research switch asks for it; the plan is a card to edit and approve with Enter, then a progress card that survives a
+  reload; and the report saves as a note, reads aloud, makes a podcast or exports as Markdown. Settings → AI assistant
+  → Deep research holds its limits ([Deep research](docs/assistant.md#deep-research)).
 - **Read any message aloud.** Every question and answer in a conversation has a speaker button: one click reads it
   aloud by the speech model and voice picked in Settings → AI assistant → Voice (else the browser's own speech),
   another stops it. One message plays at a time, long answers go in pieces under every provider's limit, and each
@@ -34,6 +36,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   only in the automation's namespaces and only as its person may see them. `changed` in a trigger's where or an If
   compares each activity with the last one, and trying an automation keeps nothing
   ([Looking back](docs/automations.md#looking-back)).
+- **Automations wait for their triggers together.** An automation's join runs it when all of its triggers came within
+  a time (for the same sender, say), when one came a number of times, when one didn't come in time after another (no
+  reply within two days), or once for a batch collected over a time. What it waits on outlasts a restart, and switching
+  the automation off drops it ([Joins](docs/automations.md#joins)).
 - **Specs from transcripts.** Turn a voice session or a meeting into a technical spec, saved as a note linked to it:
   the model writes the spec, then lists every named decision, every "no" and "not that, this", every constraint and
   every gap the speaker left to decide later, each with its quote and a link to the moment it was said; a quote the
@@ -89,6 +95,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   A query made inside another on the same thread now runs on that connection
   ([Concurrency](docs/database.md#concurrency)).
 
+- **Published feeds.** A namespace publishes a private RSS feed, or a podcast feed with Apple Podcasts' tags, that any
+  feed reader or podcast app follows at its address: resources (with their audio as the enclosure), podcast episodes
+  once they're made (with the sources they cite), timeline activities and text. A feed holds only what everyone who
+  reads its namespace can already read, never a vault's; its token is all a reader needs, so it's kept sealed, a new
+  one stops the old address at once, and the feed asks directories and search engines not to list it. Editors make and
+  fill feeds with `POST /api/v1/feeds` and `POST /api/v1/feeds/{id}/items`; agents use the MCP tools `list_feeds`,
+  `create_feed` and `publish_to_feed` ([Published feeds](docs/feeds.md)).
 ## 0.14.0 <small>October 17, 2026</small> {id="0.14.0"}
 
 - **Dates read as days, for agents.** With Settings → Analysis → Read dates on (off by default), analysis reads the

@@ -1,4 +1,5 @@
-/** Where a link in a note goes in the app: "recording:12", "entity:5", "topic:2", "page:3", "collection:4", "speaker:7". */
+/** Where a link in a note goes in the app: "recording:12", "entity:5", "topic:2", "page:3", "collection:4", "speaker:7",
+ * and "chat:12" (a research report's note links back to its conversation, which only its owner can open). */
 export function hrefFor(target: string, ns?: string | null): string | null {
   const [kind, id] = target.split(":");
   if (!id || !/^\d+$/.test(id)) return null;
@@ -13,6 +14,8 @@ export function hrefFor(target: string, ns?: string | null): string | null {
       return `/topics/${id}`;
     case "speaker":
       return `/speakers/${id}`;
+    case "chat":
+      return `/chat/${id}`;
     case "collection":
       return ns ? `/library?namespace=${encodeURIComponent(ns)}&collection=${id}` : "/library";
     default:

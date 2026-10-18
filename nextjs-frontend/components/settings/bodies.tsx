@@ -2681,6 +2681,22 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
       </More>
       <WebSearch ctx={ctx} />
       <McpServers />
+      <More
+        ctx={ctx}
+        ids={["research.max_tool_calls", "research.max_minutes", "research.model", "research.agents_skip_review"]}
+        title="Deep research"
+      >
+        <p className="text-[13px] leading-normal text-fg-secondary">
+          A goal (the Deep research switch in chat, or /research) gets a plan to approve, then runs in the background
+          and brings back a cited report.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <F ctx={ctx} id="research.max_tool_calls" />
+          <F ctx={ctx} id="research.max_minutes" />
+          <F ctx={ctx} id="research.model" />
+        </div>
+        <F ctx={ctx} id="research.agents_skip_review" />
+      </More>
       <More ctx={ctx} ids={LIMITS} title="Approvals, steps, prices and long conversations">
         <div className="grid gap-3 sm:grid-cols-2">
           <F ctx={ctx} id="ai.confirm_over_recordings" />

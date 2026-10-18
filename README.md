@@ -140,14 +140,18 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   are your own) and each note shows the notes it's inside and the ones inside it, with today's note one click away,
   templates to start from, a search by their words, a download as Markdown, and Undo and Recently deleted instead of a
   confirm. Export an asset or a collection as an evidence PDF with everything Lens found about it, or the parts you
-  pick. ([Podcasts](docs/podcasts.md), [specs from transcripts](docs/notes.md#specs-from-transcripts),
-  [notes](docs/notes.md), [evidence PDFs](docs/api.md#evidence-pdfs); [checks](docs/requirements.md#learn-from-it))
+  pick. Publish a namespace's resources, episodes, timeline activities or text as a private RSS feed or a podcast
+  feed that any feed reader or podcast app follows. ([Podcasts](docs/podcasts.md),
+  [specs from transcripts](docs/notes.md#specs-from-transcripts), [notes](docs/notes.md),
+  [evidence PDFs](docs/api.md#evidence-pdfs), [published feeds](docs/feeds.md);
+  [checks](docs/requirements.md#learn-from-it))
 - **Automate it.** Pipelines and workflows on a canvas, routines on a schedule, batch runs over a collection, and
   notifications to webhooks, Slack, Discord and Matterbridge. Everything that happens in Lens (new assets, emails,
   calendar events, files, feed posts, what people say to Lens, sensor readings, notes, graph changes, runs, budget
   warnings) is kept as a stream of activities in W3C Activity Streams form, which agents read through the API, MCP and
   the assistant, and people review on the Timeline page (and Latest on Home), marking what they've seen. Automations act
-  on that stream, on a schedule, at a time or when their own webhook is called: they test conditions (text, patterns,
+  on that stream, on a schedule, at a time or when their own webhook is called, alone or with their triggers joined (all
+  of them, a number of times, one that doesn't come in time, or a batch): they test conditions (text, patterns,
   numbers, lists, times, days, whether a value changed and whether something like it happened before in their
   namespaces), then tell you in
   your own chat app, ask the model or the agent, use a tool, call a web address (its credentials kept sealed), run a
@@ -230,7 +234,7 @@ These are open pull requests, not yet part of Lens:
 
 Next, and not in a pull request yet; each links to where it is tracked:
 
-- **The automations studio:** drawing automations in the web app, joins, and the decide node, where a decision model
+- **The automations studio:** drawing automations in the web app, and the decide node, where a decision model
   picks the branch ([automations](docs/automations.md)).
 - **Timeline:** what each item caused, and Approve and Decline on waiting approvals ([timeline](docs/timeline.md)).
 - **Notes:** nesting a note under its project or area without a click, pages in the graph, and wiki addresses for

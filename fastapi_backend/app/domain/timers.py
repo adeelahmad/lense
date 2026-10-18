@@ -818,3 +818,7 @@ CLOCK_KIND = {
 }
 events.kind("clock.tick", **CLOCK_KIND)  # first without its sample, which is built with the kind
 events.kind("clock.tick", **CLOCK_KIND, sample=tick(4, "morning", "2026-10-16T06:00:00Z", "Europe/London", "0 7 * * 1-5", [3]))
+
+from . import match  # noqa: E402 - joins that wait (join.absent, join.batch) register their handlers here
+
+match.register_timers()

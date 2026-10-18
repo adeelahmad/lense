@@ -1490,6 +1490,14 @@ SCHEMA = [
     # what a podcast episode was made from and of, beside its recording (app/domain/podcasts.py): podcast:<recording id>
     "DEFINE TABLE IF NOT EXISTS podcast SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS podcast_space ON podcast FIELDS space",
+    # published RSS and podcast feeds (app/domain/syndication.py): feed:<n>, its token kept sealed and as a hash, and
+    # its items, one per feed for what each is about (key: "<feed>:<guid>")
+    "DEFINE TABLE IF NOT EXISTS feed SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS feed_token ON feed FIELDS token_hash UNIQUE",
+    "DEFINE INDEX IF NOT EXISTS feed_space ON feed FIELDS space",
+    "DEFINE TABLE IF NOT EXISTS feed_item SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS feed_item_feed ON feed_item FIELDS feed",
+    "DEFINE INDEX IF NOT EXISTS feed_item_key ON feed_item FIELDS key UNIQUE",
     "DEFINE TABLE IF NOT EXISTS output SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS output_rec ON output FIELDS recording",
     "DEFINE TABLE IF NOT EXISTS chat SCHEMALESS",

@@ -725,6 +725,308 @@ def _seen_words(s, negated):
     return words
 
 
+# ---------- joins ----------
+MAX_BATCH = 500  # activities a batch collects at most
+SLACK = 86400  # a join row waiting on a timer is kept this long past its time, for a timer that fires late
+CUT, CUT_MANY = 2000, 300  # characters of text kept in a copy of one activity, and of each in a list
+
+
+def _small(v, cut=CUT, depth=0):
+    """A small copy of an activity to keep while a join waits: text cut, lists and nesting kept short."""
+    if isinstance(v, str):
+        return v if len(v) <= cut else v[: cut - 1] + "…"
+    if isinstance(v, list):
+        return [_small(x, cut, depth + 1) for x in v[:20]] if depth < 6 else []
+    if isinstance(v, dict):
+        return {k: _small(x, cut, depth + 1) for k, x in v.items()} if depth < 6 else {}
+    return v
+
+
+def _published(a):
+    return _time((a or {}).get("published"), dt.timezone.utc) or dt.datetime.now(dt.timezone.utc)
+
+
+def _iso(t):
+    return t.astimezone(dt.timezone.utc).isoformat(timespec="seconds")
+
+
+def _cas(db, ref, automation, change):
+    """Read a state row, work out its next state (`change(row or None)` gives (new row or None to delete it, result))
+    and write it only if nobody wrote it meanwhile (its `v`), else read again. Returns the result."""
+    for _ in range(8):
+        row = db.one("SELECT * FROM $r", r=ref)
+        new, out = change(row)
+        if new is row:  # nothing to change
+            return out
+        if new is not None:
+            new = {k: x for k, x in new.items() if k != "id"}
+        if row is None:
+            if new is None:
+                return out
+            make_room(db, automation)
+            try:
+                db.run(["CREATE $r CONTENT $d"], r=ref, d={**new, "automation": automation, "v": 1, "at": _stamp()})
+                return out
+            except Exception as e:  # noqa: BLE001 - only a row someone else made first means read again
+                if "already exists" not in str(e):
+                    raise
+                continue
+        v = row.get("v") or 0
+        if new is None:
+            done = db.values("DELETE $r WHERE v = $v RETURN BEFORE", r=ref, v=v)
+        else:
+            done = db.values(
+                "UPDATE $r CONTENT $d WHERE v = $v", r=ref, d={**new, "automation": automation, "v": v + 1, "at": _stamp()}, v=v
+            )
+        if done:
+            return out
+    raise RuntimeError("a join's state kept changing while it was written; the activity is left out")
+
+
+def _timers():
+    """The timers module (docs/automations.md, Timers), imported when used: it imports this module's checks."""
+    from . import timers
+
+    return timers
+
+
+def _arm(db, ref, aid, key, due, kind, payload):
+    """Set a waiting join's timer; when it can't be set (the automation has too many waiting), drop the row so the
+    next activity starts afresh, and say why in the log."""
+    try:
+        _timers().set(db, key, _iso(due), kind, payload, automation=aid)
+    except ValueError as e:
+        _take(db, {"automation": aid, "state": ref.id})
+        log.warning("automation %s: its join's timer wasn't set: %s", aid, e)
+
+
+def _aliases(automation):
+    return [t["as"] for t in automation.get("triggers") or [] if isinstance(t, dict) and t.get("as")]
+
+
+def _named(j):
+    """The triggers a join waits on; activities of the others fire on their own, as with mode any."""
+    if j["mode"] == "count":
+        return {j["of"]}
+    if j["mode"] == "absent":
+        return {j["after"], j["missing"]}
+    if j["mode"] == "batch" and j.get("of"):
+        return {j["of"]}
+    return None  # all of them
+
+
+def join_step(db, cfg, automation, alias, activity):
+    """What one activity of trigger `alias` completes in the automation's join: a list of completions, each
+    {"as", "events": {alias: activity | [activities]}, "event": the last}, for automations.fire. The caller claims
+    each activity once per automation and trigger first. Mode any, and triggers the join doesn't name, complete at
+    once; all, count and absent keep what they wait on in automation_state; absent and batch set timers
+    (join.absent, join.batch) that complete later."""
+    from . import automation_spec
+
+    aliases = _aliases(automation)
+    if not aliases:
+        raise ValueError("a join needs the automation's triggers")
+    j = automation_spec.check_join(automation.get("join"), aliases)
+    one = [{"as": alias, "events": {alias: activity}, "event": activity}]
+    named = _named(j)
+    if j["mode"] == "any" or (named is not None and alias not in named):
+        return one
+    aid, within = automation["id"], automation_spec.check_duration(j["within"])
+    key = ""
+    if j.get("key"):
+        k = flow.dig(activity, j["key"])
+        if k is None:
+            return []  # nothing to pair it with
+        key = _canon(k)
+    t = _published(activity)
+    if j["mode"] == "all":
+        return _all(db, aid, aliases, alias, activity, key, t, within)
+    if j["mode"] == "count":
+        return _count(db, aid, j, alias, activity, key, t, within)
+    if j["mode"] == "absent":
+        return _absent(db, aid, j, alias, activity, key, t, within)
+    return _batch(db, aid, alias, activity, t, within)
+
+
+def _close(entries, t, within):
+    return {k: e for k, e in entries.items() if abs((_published(e) - t).total_seconds()) <= within}
+
+
+def _all(db, aid, aliases, alias, activity, key, t, within):
+    ref = state_ref(aid, "join", "all", key)
+
+    def change(row):
+        got = _close(dict((row or {}).get("events") or {}), t, within)
+        got[alias] = _small(activity)
+        if all(a in got for a in aliases):
+            return None, [{"as": alias, "events": {a: got[a] for a in aliases}, "event": activity}]
+        last = max(_published(e) for e in got.values())
+        return {
+            "kind": "join",
+            "alias": "all",
+            "key": key[:300],
+            "events": got,
+            "expires_at": _iso(last + dt.timedelta(seconds=within)),
+        }, []
+
+    return _cas(db, ref, aid, change)
+
+
+def _count(db, aid, j, alias, activity, key, t, within):
+    ref = state_ref(aid, "join", "count", key)
+
+    def change(row):
+        got = [e for e in (row or {}).get("events") or [] if abs((_published(e) - t).total_seconds()) <= within]
+        got.append(_small(activity, CUT_MANY))
+        if len(got) >= j["at_least"]:  # crossed: one run, and it starts counting again
+            return None, [{"as": alias, "events": {alias: got[:-1] + [activity]}, "event": activity}]
+        last = max(_published(e) for e in got)
+        return {
+            "kind": "join",
+            "alias": "count",
+            "key": key[:300],
+            "events": got,
+            "expires_at": _iso(last + dt.timedelta(seconds=within)),
+        }, []
+
+    return _cas(db, ref, aid, change)
+
+
+def _timer_key(kind, aid, key=""):
+    return f"{kind}-{aid}" + (f"-{hashlib.sha1(key.encode()).hexdigest()[:20]}" if key else "")
+
+
+def _absent(db, aid, j, alias, activity, key, t, within):
+    ref = state_ref(aid, "join", "absent", key)
+    if alias == j["after"]:
+        due = t + dt.timedelta(seconds=within)
+
+        def wait(row):
+            if row is not None:  # already waiting: it completes with the first
+                return row, False
+            ev = {j["after"]: _small(activity)}
+            return {
+                "kind": "join",
+                "alias": "absent",
+                "key": key[:300],
+                "events": ev,
+                "due": _iso(due),
+                "expires_at": _iso(due + dt.timedelta(seconds=SLACK)),
+            }, True
+
+        if _cas(db, ref, aid, wait):
+            _arm(db, ref, aid, _timer_key("absent", aid, key), due, "join.absent", {"automation": aid, "state": ref.id, "as": j["after"]})
+        return []
+
+    def came(row):  # the missing one came: nothing is absent, if it came after what it answers
+        first = ((row or {}).get("events") or {}).get(j["after"])
+        if first is None or t < _published(first):
+            return row, False
+        return None, True
+
+    if _cas(db, ref, aid, came):
+        _timers().cancel(db, _timer_key("absent", aid, key), "the missing trigger came")
+    return []
+
+
+def _batch(db, aid, alias, activity, t, within):
+    ref = state_ref(aid, "join", "batch", "")
+    due = t + dt.timedelta(seconds=within)
+
+    def add(row):
+        if row is None:
+            ev = {alias: [_small(activity, CUT_MANY)]}
+            return {
+                "kind": "join",
+                "alias": "batch",
+                "key": "",
+                "events": ev,
+                "n": 1,
+                "last": _small(activity),
+                "due": _iso(due),
+                "expires_at": _iso(due + dt.timedelta(seconds=SLACK)),
+            }, True
+        row = dict(row)
+        ev = {k: list(v) for k, v in (row.get("events") or {}).items()}
+        if (row.get("n") or 0) >= MAX_BATCH:
+            row["over"] = (row.get("over") or 0) + 1
+            return row, False
+        ev.setdefault(alias, []).append(_small(activity, CUT_MANY))
+        row.update(events=ev, n=(row.get("n") or 0) + 1, last=_small(activity))
+        return row, False
+
+    if _cas(db, ref, aid, add):
+        _arm(db, ref, aid, _timer_key("batch", aid), due, "join.batch", {"automation": aid, "state": ref.id, "as": alias})
+    return []
+
+
+def _take(db, payload):
+    """A waiting join's row, taken (deleted) by the one process whose timer fired; None when it went meanwhile."""
+    ref = R("automation_state", str(payload.get("state") or ""))
+    aid = payload.get("automation")
+    return _cas(db, ref, aid, lambda row: (None, row))
+
+
+def _fire(db, cfg, aid, completion):
+    from . import automations
+
+    return automations.fire(db, cfg, aid, completion["as"], completion["event"], events=completion["events"])
+
+
+def absent_fired(db, cfg, payload):
+    """Timer join.absent: the missing trigger didn't come in time, so the automation runs with the first event."""
+    row = _take(db, payload)
+    if not row:
+        return None
+    first = (row.get("events") or {}).get(payload["as"])
+    return _fire(db, cfg, payload["automation"], {"as": payload["as"], "events": {payload["as"]: first}, "event": first})
+
+
+def batch_fired(db, cfg, payload):
+    """Timer join.batch: the batch's time is up, so the automation runs once with what it collected."""
+    row = _take(db, payload)
+    if not row:
+        return None
+    if row.get("over"):
+        log.warning("automation %s: its batch kept %s activities and left out %s", payload["automation"], MAX_BATCH, row["over"])
+    return _fire(db, cfg, payload["automation"], {"as": payload["as"], "events": row.get("events") or {}, "event": row.get("last")})
+
+
+def join_ended(db, payload, status, why):
+    """A join's timer ended without firing (its automation was switched off, or Lens was off past the catch-up
+    window): what it waited on goes too, so the next activity starts afresh."""
+    _take(db, payload)
+
+
+TIMER_HANDLERS = {"join.absent": absent_fired, "join.batch": batch_fired}
+
+
+def register_timers():
+    """Give the timers module the join handlers (timers.py calls this as it finishes loading)."""
+    timers = _timers()
+    for kind, fn in TIMER_HANDLERS.items():
+        timers.handler(kind, ended=join_ended)(fn)
+
+
+def describe_join(join, kind=None):
+    """A join in plain words: "all of the triggers within 10 minutes, for the same sender"."""
+    from . import automation_spec
+
+    j = automation_spec.check_join(join)
+    if j["mode"] == "any":
+        return "each trigger on its own"
+    within = duration_words(j["within"])
+    same = f", for the same {_label(j['key'], kind)}" if j.get("key") else ""
+    if j["mode"] == "all":
+        return f"all of the triggers within {within}{same}"
+    if j["mode"] == "count":
+        return f"{j['at_least']} times {j['of']} within {within}{same}"
+    if j["mode"] == "absent":
+        return f"{j['after']}, then no {j['missing']} within {within}{same}"
+    who = f"{j['of']} brings" if j.get("of") else "the triggers bring"
+    return f"what {who} in {within}, together in one run"
+
+
 # ---------- reading trees ----------
 def leaves(tree):
     """The tests in a tree, in order (not the lookbacks: `lookbacks`)."""
