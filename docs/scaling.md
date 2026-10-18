@@ -12,8 +12,9 @@ runs more `lens worker` processes where Lens runs. In progress: **AWS EC2** (spo
 and **Hetzner Cloud** providers are built (credentials checked, prices, launching, watching and deleting machines),
 and their machines join over the [mesh](mesh.md) as worker nodes that transcribe and tell voices apart; so are
 **Proxmox VE**, clones of a VM template on your own server, and **Linux hosts over SSH**, workers started on machines
-you have. They haven't been tried on a real cloud machine yet. Planned: model hosts (RunPod, Lambda, Hugging Face,
-SageMaker, Bedrock) for models; and making providers and groups in Settings.
+you have. They haven't been tried on a real cloud machine yet. Also in progress: **RunPod**, GPUs that serve a model
+with vLLM, launched, watched and deleted today; Lens's model calls use them once model groups serve model calls.
+Planned: more model hosts (Lambda, Hugging Face, SageMaker, Bedrock); and making providers and groups in Settings.
 
 Auto scaling is **off** until an admin turns it on, and a group launches nothing until a person approves its terms
 signed in to the web app. Agents can propose and manage groups, but never approve one.
@@ -59,6 +60,7 @@ carries none of them.
 | `aws` (AWS EC2) | EC2 instances that join over the mesh and run `lens worker` | the spot or on-demand price, an estimate | `instance_type`, `market` (`spot` or `on-demand`), `max_price`, `fallback`, `image`, `disk_gb`, `steps` |
 | `digitalocean` | droplets in `region`, with `token` (sealed), optional `ssh_keys` and `vpc_uuid` | DigitalOcean's hourly list price | `size` (`s-1vcpu-2gb`), `image` (`ubuntu-24-04-x64`), `steps` |
 | `proxmox` (Proxmox VE) | clones of a VM template on `node`, at `url` with an API token (`token_id`, `token_secret` sealed); `verify_tls` (on) and `ca_cert` for a private CA | nothing, unless you give it a price | `vm_template` (its id), `full_clone` (off: linked), `storage`, `pool`, `steps` |
+| `runpod` (RunPod, a model host) | GPU pods serving `model` with vLLM, with `token` (sealed); `cloud_type` (`SECURE` or `COMMUNITY`), `data_centers`, `hf_token` (sealed) for gated models | what RunPod charges for the pod it found | `model`, `gpu_types` (`NVIDIA L4`), `gpu_count` (1), `disk_gb` (60), `max_model_len`, `interruptible` (spot, off), `image` (vLLM's), `args` |
 | `ssh` (Linux hosts over SSH) | `lens worker` started on `hosts` (`user@host` or `user@host:port`), signed in with `private_key` (sealed; `passphrase` if it has one) | nothing, unless you give it a price | `per_host` (1): workers on each host; `steps` |
 | `hetzner` (Hetzner Cloud) | servers in `location`, with `token` (sealed), optional `ssh_keys` | Hetzner's hourly gross price in euros, times `usd_per_eur` (1.1; set your rate) | `server_type` (`cx22`), `image` (`ubuntu-24.04`), `steps` |
 
@@ -96,6 +98,17 @@ first time an SSH provider is saved.
 
 Until the mesh is on (Settings › Network), a group on these providers waits (`waiting_for` says so) and launches
 nothing, since its machines couldn't join. They call the providers' REST APIs with httpx, so they install nothing.
+
+### Model hosts
+
+A model host's unit is a model server, not a worker, so its group is a `model` group and needs nothing from the mesh.
+A RunPod unit is a pod running vLLM's OpenAI-compatible server for the template's `model`, on the first of
+`gpu_types` RunPod has free, its port 8000 behind RunPod's HTTPS proxy (`https://<pod>-8000.proxy.runpod.net/v1`).
+Lens makes an API key for each unit: it goes to vLLM in the pod's environment (`VLLM_API_KEY`, which RunPod keeps
+with the pod, as it does `HF_TOKEN`), and Lens keeps it sealed on the unit; the API shows only that it is set. The
+unit is running once vLLM answers its health check, after the weights are downloaded and loaded, so `join_minutes`
+has to leave room for a big model. A pod stopped at RunPod (a spot pod taken back) counts as gone and is deleted,
+since a stopped pod's disk still costs.
 
 ## AWS EC2
 
@@ -245,7 +258,8 @@ Turning scaling on (`change_settings scaling`) always asks.
 
 ## Refine later
 
-Providers for model hosts; Proxmox LXC containers; revoking a unit's mesh certificate when it goes;
+Model groups serving Lens's model calls; more model hosts; RunPod network volumes, so a model is downloaded once;
+Proxmox LXC containers; revoking a unit's mesh certificate when it goes;
 reporting machines with Lens's tag that Lens has no unit for (`listing`); a live euro rate; preemptible and spot
 instances at clouds other than AWS; draining an AWS spot unit on its two-minute notice (the node agent reading the
 instance's metadata) and handing its job back at once; following the spot price as it changes; AWS sign-in with an

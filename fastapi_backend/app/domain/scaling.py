@@ -44,7 +44,7 @@ import threading
 import time
 
 from . import activity, budgets, jobs, schedule, settings, store
-from . import scaling_clouds, scaling_proxmox, scaling_ssh  # noqa: F401 - registers their drivers
+from . import scaling_clouds, scaling_models, scaling_proxmox, scaling_ssh  # noqa: F401 - registers their drivers
 from . import scaling_drivers as drivers
 from .store import R
 
@@ -759,6 +759,22 @@ def _node(db, nid):
     return row
 
 
+def _sealed_endpoint(cfg, nid, endpoint):
+    """A model unit's endpoint as stored: its API key sealed, bound to the unit."""
+    if not isinstance(endpoint, dict) or not endpoint.get("api_key"):
+        return endpoint
+    return {**endpoint, "api_key": settings.seal(cfg, endpoint["api_key"], f"scale_node:{nid}.api_key")}
+
+
+def endpoint_of(cfg, n):
+    """A running model unit's endpoint with its API key opened: {base_url, model, api_key}, or None."""
+    e = n.get("endpoint")
+    if not isinstance(e, dict) or not e.get("base_url"):
+        return None
+    key = e.get("api_key")
+    return {**e, "api_key": settings.unseal(cfg, key, f"scale_node:{n['id']}.api_key") if key else None}
+
+
 def node_view(n):
     endpoint = n.get("endpoint")
     return {
@@ -995,7 +1011,7 @@ def bootstrap(db, cfg, g, name):
     user over the mesh once it has joined (docs/mesh.md, Worker nodes). {env, line, token_id, tag} (line and token_id
     None without the mesh)."""
     boot = {"env": {"LENS_SCALING_UNIT": name}, "line": None, "token_id": None, "tag": conf(cfg)["tag"]}
-    if not can_join(cfg):
+    if g.get("kind") == "model" or not can_join(cfg):  # a model server is reached over HTTPS: it joins nothing
         return boot
     mesh = mesh_module()
     make, line = mesh.make_token, mesh.join_line
@@ -1178,7 +1194,7 @@ class Scaler:
                 {
                     "external_id": str(got.get("id")) if got.get("id") is not None else None,
                     "address": got.get("address"),
-                    "endpoint": got.get("endpoint"),
+                    "endpoint": _sealed_endpoint(cfg, nid, got.get("endpoint")),
                     "price": got.get("price", price),
                 }
             ),
@@ -1206,10 +1222,17 @@ class Scaler:
             return True
         if d.get("state") == "gone":
             why = d.get("why") or ("stopped at the provider" if state != "launching" else "never came up at the provider")
-            _terminate(db, cfg, drv, p, {**n, "external_id": None}, why, state="failed" if state == "launching" else "terminated", now=now)
+            gone = n if drv.delete_gone else {**n, "external_id": None}
+            _terminate(db, cfg, drv, p, gone, why, state="failed" if state == "launching" else "terminated", now=now)
             did["terminated"] += 1
             return False
         sets = {k: d[k] for k in ("address", "endpoint") if d.get(k) and d.get(k) != n.get(k)}
+        if isinstance(sets.get("endpoint"), dict):  # the key it was launched with stays, sealed, unless the host gave another
+            e, was = sets["endpoint"], n.get("endpoint") or {}
+            if not e.get("api_key") and {k: v for k, v in e.items() if k != "api_key"} == {k: v for k, v in was.items() if k != "api_key"}:
+                sets.pop("endpoint")
+            else:
+                sets["endpoint"] = _sealed_endpoint(cfg, n["id"], e) if e.get("api_key") else {**e, "api_key": was.get("api_key")}
         worker = db.one("SELECT heartbeat_at, current FROM $w", w=R("worker", n["name"])) if drv.kind == "node" else None
         beat = _age((worker or {}).get("heartbeat_at"), now) if worker else None
         if state == "launching":
