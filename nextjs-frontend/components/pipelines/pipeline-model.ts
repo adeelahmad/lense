@@ -105,6 +105,7 @@ export const NEEDS: Record<string, string[]> = {
   summarize: ["analyze"],
   llm: ["transcribe", "read", "diarize", "clean", "analyze"],
   spec: ["transcribe", "read", "diarize", "clean"],
+  reply: ["transcribe", "read"],
   report: ["analyze", "summarize", "llm"],
   export: ["analyze", "summarize", "llm"],
   workflow: ["transcribe", "read", "diarize", "clean"],
@@ -129,6 +130,7 @@ export const PROVIDES: Record<string, string> = {
   summarize: "summary.*",
   llm: "outputs.<key>",
   spec: "a spec note · outputs.spec",
+  reply: "a draft reply to the email",
   report: "a report page",
   export: "a file",
   workflow: "outputs · fields · entities",
@@ -155,6 +157,8 @@ export const DESCRIBE: Record<string, string> = {
   summarize: "The built-in summary with the LLM in Settings",
   llm: "Your prompt template; saves a structured output",
   spec: "A technical spec from the transcript, as a note linked to the asset: decisions, every no, constraints and what was left to decide later (Spec from transcript template)",
+  reply:
+    "A cited reply drafted to an email from what its namespace holds; it waits for you, and mailing lists and no-reply mail are skipped (Reply to an email template)",
   report: "The asset’s report page, or your report template",
   export: "Writes a file from an export template, optionally to a source",
   workflow: "Runs a workflow you drew on the canvas: outputs, custom fields and entities",
@@ -210,6 +214,7 @@ export function stepSummary(s: StepSpec, templateName?: (id: number) => string |
     parts.push(`${templateName?.(s.template) ?? `template #${s.template}`}${s.version ? ` v${s.version}` : ""}`);
   else if (s.type === "report") parts.push("built-in report");
   else if (s.type === "spec") parts.push("Spec from transcript");
+  else if (s.type === "reply") parts.push("Reply to an email");
   if (s.type === "llm" && s.key) parts.push(`outputs.${s.key}`);
   if (s.type === "export" && s.filename) parts.push(s.filename);
   if (s.type === "convert") {
@@ -230,7 +235,7 @@ export function specProblems(
 ): Record<number, string> {
   const out: Record<number, string> = {};
   steps.forEach((s, i) => {
-    const need = { llm: "prompt", spec: "prompt", export: "export", report: "report" }[s.type];
+    const need = { llm: "prompt", spec: "prompt", reply: "prompt", export: "export", report: "report" }[s.type];
     if (s.type === "workflow" && s.workflow == null) out[i] = "Choose a workflow.";
     else if (s.type === "llm" && s.template == null) out[i] = "Choose a prompt template.";
     else if (s.type === "export" && s.template == null) out[i] = "Choose an export template.";

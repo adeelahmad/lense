@@ -20177,6 +20177,308 @@ export type Rendition = {
 };
 
 /**
+ * Reply
+ */
+export type Reply = {
+  /**
+   * Recording
+   *
+   * the email it answers
+   */
+  recording?: number | null;
+  /**
+   * Status
+   *
+   * draft: waiting for the person; drafting: a job is on it (job); skipped: mail not to answer (why); failed: the last job to draft it failed (error)
+   */
+  status: "none" | "drafting" | "draft" | "skipped" | "dismissed" | "sent" | "failed";
+  /**
+   * Why
+   */
+  why?: string | null;
+  /**
+   * To
+   */
+  to?: Array<string> | null;
+  /**
+   * Cc
+   */
+  cc?: Array<string> | null;
+  /**
+   * Others
+   *
+   * the email's other recipients, to answer all of them
+   */
+  others?: Array<string> | null;
+  /**
+   * From
+   *
+   * the address it answers from: the one the email came in to
+   */
+  from?: string | null;
+  /**
+   * Subject
+   */
+  subject?: string | null;
+  /**
+   * In Reply To
+   *
+   * the email's Message-ID, which threads the reply
+   */
+  in_reply_to?: string | null;
+  /**
+   * References
+   */
+  references?: Array<string> | null;
+  /**
+   * Text
+   *
+   * the draft, with [n] after each fact taken from source n
+   */
+  text?: string | null;
+  /**
+   * Plain
+   *
+   * the draft as it would be sent, without its citations
+   */
+  plain?: string | null;
+  /**
+   * Gaps
+   *
+   * what the archive doesn't say, marked [to confirm: …] in the draft
+   */
+  gaps?: Array<string> | null;
+  /**
+   * Unconfirmed
+   *
+   * how many [to confirm: …] marks are still in the draft
+   */
+  unconfirmed?: number | null;
+  /**
+   * Sources
+   */
+  sources?: Array<ReplySource> | null;
+  /**
+   * Job
+   */
+  job?: number | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Model
+   */
+  model?: string | null;
+  /**
+   * Template
+   */
+  template?: number | null;
+  /**
+   * Version
+   */
+  version?: number | null;
+  /**
+   * Instructions
+   */
+  instructions?: string | null;
+  /**
+   * Edited
+   *
+   * someone changed the draft's text
+   */
+  edited?: boolean | null;
+  /**
+   * the text it had before the last edit or draft, to undo it
+   */
+  previous?: ReplyBefore | null;
+  /**
+   * Drafted At
+   */
+  drafted_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ReplyBefore
+ */
+export type ReplyBefore = {
+  /**
+   * Text
+   */
+  text?: string | null;
+  /**
+   * At
+   */
+  at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ReplyDraft
+ */
+export type ReplyDraft = {
+  /**
+   * Instructions
+   *
+   * what the reply should say, in the person's words
+   */
+  instructions?: string | null;
+  /**
+   * Template
+   *
+   * another prompt template to draft it with (default: Reply to an email)
+   */
+  template?: number | null;
+  /**
+   * Version
+   *
+   * that template's version (default: its current one)
+   */
+  version?: number | null;
+};
+
+/**
+ * ReplyEdit
+ */
+export type ReplyEdit = {
+  /**
+   * Text
+   *
+   * the reply, as it will be sent (its [n] citations are left out)
+   */
+  text?: string | null;
+  /**
+   * To
+   */
+  to?: Array<string> | null;
+  /**
+   * Cc
+   */
+  cc?: Array<string> | null;
+  /**
+   * Subject
+   */
+  subject?: string | null;
+  /**
+   * Status
+   *
+   * dismissed sets it aside; draft brings it back (undo)
+   */
+  status?: "draft" | "dismissed" | null;
+};
+
+/**
+ * ReplyEmail
+ */
+export type ReplyEmail = {
+  /**
+   * Recording
+   */
+  recording: number;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Received At
+   */
+  received_at?: string | null;
+  /**
+   * From
+   */
+  from?: string | null;
+  /**
+   * Sender
+   *
+   * who sent it, as its From says
+   */
+  sender?: string | null;
+  /**
+   * Subject
+   */
+  subject?: string;
+  /**
+   * Snippet
+   */
+  snippet?: string | null;
+  /**
+   * Automatic
+   *
+   * why it looks like mail not to answer
+   */
+  automatic?: string | null;
+  reply: Reply;
+  [key: string]: unknown;
+};
+
+/**
+ * ReplyList
+ */
+export type ReplyList = {
+  /**
+   * Emails
+   */
+  emails: Array<ReplyEmail>;
+  /**
+   * Drafts
+   *
+   * drafts waiting in these namespaces
+   */
+  drafts: number;
+  [key: string]: unknown;
+};
+
+/**
+ * ReplySource
+ */
+export type ReplySource = {
+  /**
+   * N
+   */
+  n: number;
+  /**
+   * Recording Id
+   */
+  recording_id: number;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Time
+   */
+  time?: string | null;
+  /**
+   * Page
+   */
+  page?: number | null;
+  /**
+   * T0
+   */
+  t0?: number | null;
+  /**
+   * Text
+   */
+  text: string;
+  /**
+   * Used
+   *
+   * the draft cites it
+   */
+  used: boolean;
+  [key: string]: unknown;
+};
+
+/**
  * ReprocessRequest
  */
 export type ReprocessRequest = {
@@ -50091,3 +50393,134 @@ export type NodeBeatResponses = {
 };
 
 export type NodeBeatResponse = NodeBeatResponses[keyof NodeBeatResponses];
+
+export type ListRepliesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Show
+     */
+    show?: "waiting" | "draft" | "drafting" | "skipped" | "dismissed" | "sent" | "failed" | "none" | "all";
+    /**
+     * Namespace
+     */
+    namespace?: string | null;
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/replies";
+};
+
+export type ListRepliesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListRepliesError = ListRepliesErrors[keyof ListRepliesErrors];
+
+export type ListRepliesResponses = {
+  /**
+   * Successful Response
+   */
+  200: ReplyList;
+};
+
+export type ListRepliesResponse = ListRepliesResponses[keyof ListRepliesResponses];
+
+export type GetReplyData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/reply";
+};
+
+export type GetReplyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetReplyError = GetReplyErrors[keyof GetReplyErrors];
+
+export type GetReplyResponses = {
+  /**
+   * Successful Response
+   */
+  200: Reply;
+};
+
+export type GetReplyResponse = GetReplyResponses[keyof GetReplyResponses];
+
+export type EditReplyData = {
+  body: ReplyEdit;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/reply";
+};
+
+export type EditReplyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type EditReplyError = EditReplyErrors[keyof EditReplyErrors];
+
+export type EditReplyResponses = {
+  /**
+   * Successful Response
+   */
+  200: Reply;
+};
+
+export type EditReplyResponse = EditReplyResponses[keyof EditReplyResponses];
+
+export type DraftReplyData = {
+  /**
+   * Body
+   */
+  body?: ReplyDraft | null;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/reply";
+};
+
+export type DraftReplyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DraftReplyError = DraftReplyErrors[keyof DraftReplyErrors];
+
+export type DraftReplyResponses = {
+  /**
+   * Successful Response
+   */
+  202: JobQueued;
+};
+
+export type DraftReplyResponse = DraftReplyResponses[keyof DraftReplyResponses];

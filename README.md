@@ -98,6 +98,12 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [mail, calendars and files](docs/assistant.md#mail-calendars-and-files), [code sandbox](docs/assistant.md#code-sandbox), [answer records](docs/assistant.md#what-each-answer-records),
   [questions about Lens](docs/assistant.md#questions-about-lens-itself), [chat rooms](docs/chat-rooms.md), [email](docs/assistant-email.md), [speech providers](docs/speech-providers.md);
   [checks](docs/requirements.md#ask-and-get-cited-answers))
+- **Answer your email.** Lens drafts a reply to an email a watched mailbox brought in, from what that email's
+  namespace holds: each fact cited to its excerpt, what the archive doesn't say marked for you to confirm, addressed
+  and threaded as a reply to it. Drafts wait for you to edit or set aside, and nothing is sent on its own; ask for one
+  through the API or MCP (agents list what waits and draft with your instructions), or add the reply step to a
+  pipeline to draft each new email, which skips mailing lists, no-reply senders and your own mail without a model
+  call. ([Email replies](docs/email-replies.md); [checks](docs/requirements.md#answer-your-email))
 - **Work toward a goal in projects.** A project has a name, a goal in your words, instructions and the namespaces it
   draws on. Its coordinator conversation looks at the project as a whole: it is told about every thread, starts threads
   with a brief that the assistant answers there in the background, reads them and marks them done. Each thread is a
@@ -316,7 +322,7 @@ The guides are on the [docs site](https://adeelahmad.github.io/lense/) and in th
 - **Agents and apps:** [MCP server](docs/mcp.md), [API](docs/api.md), [authentication](docs/authentication.md),
   [access](docs/access.md)
 - **Use:** [chat and batch runs](docs/assistant.md), [chat rooms](docs/chat-rooms.md),
-  [the assistant by email](docs/assistant-email.md), [podcasts](docs/podcasts.md), [notes](docs/notes.md),
+  [the assistant by email](docs/assistant-email.md), [email replies](docs/email-replies.md), [podcasts](docs/podcasts.md), [notes](docs/notes.md),
   [web clipper](docs/web-clipper.md), [the assistant in your browser](docs/browser-assistant.md),
   [sensors](docs/sensors.md), [processing](docs/processing.md), [video](docs/video.md),
   [NSFW classification](docs/nsfw.md), [enhancing images](docs/enhance.md), [notifications](docs/notifications.md),
