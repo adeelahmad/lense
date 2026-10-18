@@ -1275,7 +1275,7 @@
       "property": "P-APPROVAL",
       "violation_symptom": "integrity-bypass",
       "severity_tier": "security",
-      "conditions": "assistant tools that change data wait for the person's approval, except notes and an admin's setup conversation",
+      "conditions": "assistant tools that change data wait for the person's approval, except notes and an admin's setup conversation; only the person approves, signed in or in the chat (API keys, apps, MCP and the assistant only decline)",
       "provenance": "documented",
       "source": "docs/assistant.md \"Approvals\""
     },

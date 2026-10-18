@@ -10967,8 +10967,8 @@ export class Chats {
    *
    * Approve (or run a sample of, or decline) something the assistant proposed or an automation's action. Each
    * approval is decided once. An automation's action can also be edited (`params`) and then carried out, or allowed
-   * from now on for that automation (`always`); approving one needs you signed in, since it's your pick: an API key
-   * or an app can only decline it.
+   * from now on for that automation (`always`). Approving is your pick, so it needs you signed in: an API key or an
+   * app can only decline (403 otherwise).
    */
   public static decideApproval<ThrowOnError extends boolean = false>(
     options: Options<DecideApprovalData, ThrowOnError>,

@@ -2378,9 +2378,9 @@ def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=F
     """Carry out an approved action: a batch run (or a sample of it), an entity change, a note an automation's agent
     proposed, or a change to the server (ops_tools.py: settings, a namespace, importing attached files or web pages,
     following a news feed).
-    An automation's action (an approval with an intent) is decided by approvals.decide: `params` are an edit's, `via`
-    where the pick was made (web, chat, token, oauth or agent; only the person, signed in or in their own chat,
-    approves it)."""
+    An automation's action (an approval with an intent) is decided by approvals.decide: `params` are an edit's. `via`
+    is where the pick was made (web, chat, token, oauth or agent): only the person, signed in or in their own chat,
+    approves; an API key, an app, MCP and the assistant can only decline (PermissionError)."""
     from . import approvals  # it carries actions out, and actions load the assistant's tools
 
     a = approvals.get(db, aid)
@@ -2399,6 +2399,10 @@ def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=F
             "UPDATE $r SET status = 'declined', decided_at = $t, decided_by = $u", r=R("approval", a["id"]), t=store.now(), u=user["email"]
         )
         return {"status": "declined"}
+    if not approvals.can(a, via)["approve"]:
+        raise PermissionError(
+            "approve what the assistant asks yourself, signed in to Lens or in the chat: an API key or an app can only decline it"
+        )
     with graph_history.acting(actor=user["email"], via="assistant", approval=a["id"]):
         result = _carry_out(db, cfg, a, user, editable, decision, base, admin, readable, via)
     db.q(

@@ -783,7 +783,10 @@ own chat app (below). An API key, an app, MCP and the assistant can list and dec
 since approving is the person's pick; each approval's `can` says what the caller may do with it. This is the one
 place where an agent can't do what you can: agents read them with `approvals` and decline with `decline_approval`
 (over [MCP](mcp.md#tools) and in the [assistant](assistant.md#the-assistants-tools)), and there is no tool to approve.
-The assistant's own approvals in a conversation are decided as before.
+The assistant's own approvals (sending mail, adding an event, writing a file, changing entities and the rest) follow
+the same rule: you approve them signed in to Lens or in the chat they were asked in, and an API key, an app, MCP and
+the assistant can only decline them (403). A research plan is the one exception, and only when an admin turns on
+`research.agents_skip_review` ([Deep research](assistant.md#deep-research)).
 
 **In your chat app.** A reply of "yes" in the private chat you were told in approves an automation's action, under
 the rules a chat room's approvals follow ([Chat rooms](chat-rooms.md#what-it-does)), and only when all of these hold:
