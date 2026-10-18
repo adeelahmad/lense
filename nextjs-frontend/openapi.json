@@ -2603,8 +2603,25 @@
           "admin"
         ],
         "summary": "Test Llm",
-        "description": "Ask the configured model for one word, to check the address, key and model name.",
+        "description": "Ask the model for one word, to check the address, key and model name: what is given (typed, not saved yet),\nelse what is saved.",
         "operationId": "test_llm",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/LlmTry"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2612,6 +2629,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/LlmTestResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -4377,6 +4404,81 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Monitoring"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/services": {
+      "get": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "List Services",
+        "description": "Lens's optional containers (the MCP runner, the browser, monitoring): whether each is on and answering, and\nhow the machine's last change went.",
+        "operationId": "list_services",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Services"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/services/{profile}": {
+      "put": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Set Service",
+        "description": "Have this machine start or stop one of them: its upgrade agent adds the profile to COMPOSE_PROFILES in .env, or\ntakes it out, and starts or stops its containers. Monitoring also turns /metrics on, as PUT /admin/monitoring\ndoes. GET /admin/services follows along; without an agent, 409 says the line to run on the machine instead.",
+        "operationId": "set_service",
+        "parameters": [
+          {
+            "name": "profile",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Profile"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Service"
                 }
               }
             }
@@ -24875,6 +24977,28 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/extensions/mcp/presets": {
+      "get": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "Mcp Presets",
+        "description": "MCP servers ready to add (admins): the browser Lens can run next to it, with whether its container is on and\nrunning (`service`), and GitHub's own server, with the token to type in (`fill`).",
+        "operationId": "mcp_presets",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpPresets"
                 }
               }
             }
@@ -50211,6 +50335,53 @@
         ],
         "title": "LlmTestResult"
       },
+      "LlmTry": {
+        "properties": {
+          "base_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Url",
+            "description": "the server's address, as typed"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "the model name, as typed"
+          },
+          "api_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Key",
+            "description": "a key typed but not saved; the saved key is used only at the saved address"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "LlmTry",
+        "description": "What to test before saving it (Settings \u2192 LLM provider); anything left out is taken from what is saved."
+      },
       "LocalLlmProgress": {
         "properties": {
           "done": {
@@ -51491,6 +51662,86 @@
           "text"
         ],
         "title": "McpConfigText"
+      },
+      "McpPreset": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "what its tools are called by: name__tool"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "spec": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Spec",
+            "description": "the server, as an MCP extension keeps it"
+          },
+          "fill": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Fill",
+            "description": "values written as ${NAME} in spec, to type in first"
+          },
+          "needs": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Needs",
+            "description": "the optional profile it runs in (GET /admin/services), if any"
+          },
+          "service": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Service"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "that profile: whether it's on and running"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "label",
+          "description",
+          "spec"
+        ],
+        "title": "McpPreset"
+      },
+      "McpPresets": {
+        "properties": {
+          "presets": {
+            "items": {
+              "$ref": "#/components/schemas/McpPreset"
+            },
+            "type": "array",
+            "title": "Presets"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "presets"
+        ],
+        "title": "McpPresets"
       },
       "McpServerFound": {
         "properties": {
@@ -66851,6 +67102,150 @@
           "n"
         ],
         "title": "SeriesPoint"
+      },
+      "Service": {
+        "properties": {
+          "profile": {
+            "type": "string",
+            "title": "Profile",
+            "description": "the Docker Compose profile: mcp (the MCP runner), browser, monitoring"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "on": {
+            "type": "boolean",
+            "title": "On",
+            "description": "as last asked here; never asked here: whether it runs"
+          },
+          "running": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Running",
+            "description": "whether it answers where Lens reaches it now; null: Lens can't tell"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "queued",
+                  "running",
+                  "done",
+                  "failed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State",
+            "description": "how the machine's last change went"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "asked_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asked At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "agent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent",
+            "description": "what changes it on this machine (systemd, launchd); none: run `manual` there"
+          },
+          "manual": {
+            "type": "string",
+            "title": "Manual",
+            "description": "the line that turns it on by hand, on the machine Lens runs on"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "profile",
+          "label",
+          "description",
+          "on",
+          "manual"
+        ],
+        "title": "Service"
+      },
+      "ServiceRequest": {
+        "properties": {
+          "on": {
+            "type": "boolean",
+            "title": "On",
+            "description": "start (true) or stop (false) the profile's containers"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "on"
+        ],
+        "title": "ServiceRequest"
+      },
+      "Services": {
+        "properties": {
+          "services": {
+            "items": {
+              "$ref": "#/components/schemas/Service"
+            },
+            "type": "array",
+            "title": "Services"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "services"
+        ],
+        "title": "Services"
       },
       "SetupAdmin": {
         "properties": {

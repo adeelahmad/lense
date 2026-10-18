@@ -87,13 +87,14 @@ def _num(v):
 
 
 # ---------- checking ----------
-def check(tree, what="the condition"):
+def check(tree, what="the condition", lookback=False):
     """The tree, cleaned: ValueError naming the first problem, and where it is (`what`, then the path into the tree,
-    such as "the condition, all.1: ...")."""
-    return _check(tree, what, 0, [0], "")
+    such as "the condition, all.1: ..."). Only an automation's If may look back over the stream (`seen`, with
+    `lookback`), so that testing a trigger's where on each new activity stays cheap."""
+    return _check(tree, what, 0, [0], "", lookback)
 
 
-def _check(m, what, depth, count, at):
+def _check(m, what, depth, count, at, lookback=False):
     where = f"{what}, {at}" if at else what
     if depth >= MAX_DEPTH:
         raise ValueError(f"{where}: conditions nest at most {MAX_DEPTH} deep")
@@ -105,13 +106,25 @@ def _check(m, what, depth, count, at):
             raise ValueError(f"{where}: {groups[0]} stands alone, with nothing next to it")
         k = groups[0]
         if k == "not":
-            return {"not": _check(m["not"], what, depth + 1, count, f"{at}.not" if at else "not")}
+            return {"not": _check(m["not"], what, depth + 1, count, f"{at}.not" if at else "not", lookback)}
         items = m[k]
         if not isinstance(items, list):
             raise ValueError(f"{where}: {k} is a list of conditions")
         if k == "any" and not items:
             raise ValueError(f"{where}: any needs at least one condition")
-        return {k: [_check(x, what, depth + 1, count, f"{at}.{k}.{n}" if at else f"{k}.{n}") for n, x in enumerate(items)]}
+        return {k: [_check(x, what, depth + 1, count, f"{at}.{k}.{n}" if at else f"{k}.{n}", lookback) for n, x in enumerate(items)]}
+    if "seen" in m:
+        if len(m) != 1:
+            raise ValueError(f"{where}: seen stands alone, with nothing next to it")
+        if not lookback:
+            raise ValueError(f"{where}: only an automation's If looks back over what happened (seen)")
+        count[0] += 1
+        if count[0] > MAX_LEAVES:
+            raise ValueError(f"{what} has at most {MAX_LEAVES} tests")
+        try:
+            return {"seen": check_seen(m["seen"])}
+        except ValueError as e:
+            raise ValueError(f"{where}: {e}") from None
     extra = sorted(set(m) - LEAF)
     if extra:
         raise ValueError(f"{where}: a test is {{path, op, value}}, not {extra[0]}")
@@ -344,6 +357,8 @@ _VALUES = {
 # ---------- testing ----------
 def test(tree, value, env=None):
     """Whether `value` passes the tree (checked with `check` first)."""
+    if "seen" in tree:
+        return seen(tree["seen"], value, env)
     if "all" in tree:
         return all(test(m, value, env) for m in tree["all"])
     if "any" in tree:
@@ -594,14 +609,139 @@ def tidy(db, cfg=None, now=None):
     return cut
 
 
+# ---------- looking back over the stream ----------
+SEEN_KEYS = {"kinds", "within", "where", "same", "count"}
+MAX_SEEN = 200  # activities a lookback reads at most
+MAX_SEEN_COUNT = 100
+MAX_SEEN_KINDS = 10
+
+
+def check_seen(s):
+    """A lookback ({kinds, within, where, same, count}), cleaned: ValueError saying what is wrong with it."""
+    from . import automation_spec, events
+
+    if not isinstance(s, dict):
+        raise ValueError("seen is {kinds, within, where, same, count}")
+    extra = sorted(set(s) - SEEN_KEYS)
+    if extra:
+        raise ValueError(f"seen has no {extra[0]}; it takes {', '.join(sorted(SEEN_KEYS))}")
+    ks = s.get("kinds")
+    if not isinstance(ks, list) or not 1 <= len(ks) <= MAX_SEEN_KINDS or not all(isinstance(k, str) for k in ks):
+        raise ValueError(f"seen's kinds lists 1 to {MAX_SEEN_KINDS} kinds of activity, like email.received")
+    events.expand(ks)
+    within = s.get("within")
+    if within is None:
+        raise ValueError("seen says how far back it looks (within), like 2d")
+    automation_spec.check_duration(within, what="seen's within")
+    if automation_spec.check_duration(within) == 0:
+        raise ValueError("seen's within is more than 0")
+    out: dict = {"kinds": list(dict.fromkeys(ks)), "within": within.strip()}
+    if s.get("where") is not None:
+        out["where"] = check(s["where"], "seen's where")
+        if any(m["op"] == "changed" for m in leaves(out["where"])):
+            raise ValueError("seen's where can't test changed; test it in the If itself")
+    if s.get("same") is not None:
+        if not isinstance(s["same"], str) or not flow.PATH_RX.match(s["same"]):
+            raise ValueError("seen's same is a path in the activities, like object.from")
+        out["same"] = s["same"]
+    c = s.get("count") if s.get("count") is not None else {"at_least": 1}
+    if not isinstance(c, dict) or not c or set(c) - {"at_least", "at_most"}:
+        raise ValueError("seen's count is {at_least: n}, {at_most: n} or both")
+    for k, v in c.items():
+        if not isinstance(v, int) or isinstance(v, bool) or not 0 <= v <= MAX_SEEN_COUNT:
+            raise ValueError(f"seen's count {k} is a whole number from 0 to {MAX_SEEN_COUNT}")
+    if "at_most" in c and c.get("at_least", 0) > c["at_most"]:
+        raise ValueError("seen's count at_least is at most its at_most")
+    if not c.get("at_least") and "at_most" not in c:
+        raise ValueError("seen's count needs at_least 1 or more, or an at_most")
+    out["count"] = dict(c)
+    return out
+
+
+def found(s, value, env=None):
+    """The activities a (checked) lookback finds, newest first, leaving out the one being tested: of its kinds,
+    published in the last `within` before now, passing its `where`, with the same value at its `same` path as the
+    activity being tested (the run context's `event`, or the value itself), in the automation's namespaces, as the
+    automation's person may see them. `env` gives `db`, `cfg`, `spaces` (the automation's namespaces) and `account`
+    (its person), or a `viewer` (events.viewer). Without a database it finds nothing."""
+    from . import automation_spec, events
+
+    env = env or {}
+    db = env.get("db")
+    if db is None:
+        return []
+    current = value.get("event") if isinstance(value, dict) and isinstance(value.get("event"), dict) else value
+    current = current if isinstance(current, dict) else {}
+    now = now_of(env)
+    since = now - dt.timedelta(seconds=automation_spec.check_duration(s["within"]))
+    flt: dict = {"kinds": s["kinds"], "since": since.isoformat(), "until": now.isoformat()}
+    if s.get("same"):
+        want = flow.dig(current, s["same"])
+        if want is None:
+            return []
+        flt["where"] = {"path": s["same"], "op": "equals", "value": want}
+    spaces = env.get("spaces")
+    if spaces is not None:
+        flt["spaces"] = list(spaces)
+    who = env.get("viewer") or events.viewer(env.get("account"), spaces or [], admin=False)
+    c = s["count"]
+    # with a where of its own (tested here, with env's clock), it reads as far as it may; else just enough to count
+    need = MAX_SEEN if s.get("where") else min(MAX_SEEN, (c["at_most"] + 1 if "at_most" in c else c["at_least"]) + 1)
+    items = events.page(db, env.get("cfg") or {}, who, flt=flt, limit=need)["items"]
+    return [a for a in items if a.get("id") != current.get("id") and (not s.get("where") or test(s["where"], a, env))]
+
+
+def seen(s, value, env=None):
+    """Whether a (checked) lookback finds as many activities as its count asks (at least 1 when it doesn't say)."""
+    n, c = len(found(s, value, env)), s["count"]
+    return n >= c.get("at_least", 0) and ("at_most" not in c or n <= c["at_most"])
+
+
+def _kind_label(k):
+    from . import events
+
+    try:
+        return f"“{events.kind_info(k)['label']}”"
+    except KeyError:
+        return k
+
+
+def _seen_words(s, negated):
+    c = s["count"]
+    lo, hi = c.get("at_least", 0), c.get("at_most")
+    if hi is None:
+        n = ("none" if negated else "at least one") if lo == 1 else (f"fewer than {lo}" if negated else f"at least {lo}")
+    elif hi == 0:
+        n = "at least one" if negated else "none"
+    elif negated:
+        n = f"more than {hi}" if not lo else f"not {lo} to {hi}"
+    else:
+        n = f"at most {hi}" if not lo else f"{lo} to {hi}"
+    words = f"{n} of {_either([_kind_label(k) for k in s['kinds']])} in the last {duration_words(s['within'])}"
+    if s.get("same"):
+        words += f", with the same {_label(s['same'], s['kinds'][0])}"
+    if s.get("where"):
+        words += f", where {_describe(s['where'], s['kinds'][0], False)}"
+    return words
+
+
 # ---------- reading trees ----------
 def leaves(tree):
-    """The tests in a tree, in order."""
+    """The tests in a tree, in order (not the lookbacks: `lookbacks`)."""
     if "all" in tree or "any" in tree:
         return [x for m in tree.get("all", tree.get("any")) for x in leaves(m)]
     if "not" in tree:
         return leaves(tree["not"])
-    return [tree]
+    return [] if "seen" in tree else [tree]
+
+
+def lookbacks(tree):
+    """The seen lookbacks in a tree, in order."""
+    if "all" in tree or "any" in tree:
+        return [x for m in tree.get("all", tree.get("any")) for x in lookbacks(m)]
+    if "not" in tree:
+        return lookbacks(tree["not"])
+    return [tree["seen"]] if "seen" in tree else []
 
 
 def paths(tree):
@@ -697,7 +837,11 @@ def _describe(m, kind, top):
             return text if top or len(parts) == 1 else f"({text})"
     if "not" in m:
         inner = m["not"]
+        if "seen" in inner:
+            return _seen_words(inner["seen"], True)
         return _leaf(inner, kind, True) if "op" in inner else f"not ({_describe(inner, kind, True)})"
+    if "seen" in m:
+        return _seen_words(m["seen"], False)
     return _leaf(m, kind, False)
 
 

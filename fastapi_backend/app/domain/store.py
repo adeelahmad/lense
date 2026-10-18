@@ -945,6 +945,7 @@ class DB:
         self._all = []
         # one connection now, the rest of the pool as concurrent queries need them: each server sign-in costs time
         self._size, self._grow_lock = size, threading.Lock()
+        self._held = threading.local()  # the connection the current thread is using, if any (conn)
         try:
             c = self._open()
             self._all.append(c)
@@ -1011,17 +1012,30 @@ class DB:
     def conn(self):
         """A connection from the pool. A server connection that has dropped (the server restarted, or a keepalive
         ping went unanswered while the machine slept) is replaced: without that, every query sent on it fails until
-        the process restarts."""
+        the process restarts.
+
+        A thread already inside a query gets its own connection again when the engine is embedded: the garbage
+        collector closes an abandoned streamed answer (its reader left) on whatever thread it runs on, mid-query, and
+        that answer's cleanup queries too; with the embedded engine's one connection held by that very thread, waiting
+        for it would hang the whole server. While Python runs, the outer query is between sends, so the inner one is
+        safe on it. A server connection is not shared: the SDK sends on it under a lock that the same thread cannot
+        take twice, so there the inner query takes another connection from the pool."""
+        outer = getattr(self._held, "c", None)
+        if outer is not None and self.embedded:
+            yield outer
+            return
         c = self._take()
         try:
             if _closed(c):
                 c = self._replace(c)
+            self._held.c = c
             yield c
         except Exception as e:
             if not self.embedded and _lost(e):
                 c = self._replace(c)
             raise
         finally:
+            self._held.c = outer
             self._pool.put(c)
 
     def _take(self):

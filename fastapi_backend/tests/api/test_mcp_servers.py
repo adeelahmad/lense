@@ -416,3 +416,68 @@ def test_a_pasted_config_reads_as_servers_to_add(app, db, cfg, folder, new_clien
 )
 def test_a_server_without_a_name_gets_one(server, name):
     assert mcp_servers.guess_name(server) == name
+
+
+BROWSER_TOOLS = [
+    {"name": "browser_navigate", "description": "Go to a page", "inputSchema": {"type": "object"}},
+    {"name": "browser_snapshot", "description": "Read the page", "inputSchema": {"type": "object"}, "annotations": {"readOnlyHint": True}},
+    {"name": "browser_click", "description": "Click", "inputSchema": {"type": "object"}},
+    {"name": "browser_run_code_unsafe", "description": "Run code", "inputSchema": {"type": "object"}},
+]
+
+
+def test_the_browser_preset_keeps_one_session(app, db, cfg, folder, new_client, monkeypatch):
+    """The browser, added with a click from its preset: its calls share a session (the page stays open), opened again
+    when the server lets it go; running code in its server process starts off, and going to a page asks only once the
+    conversation has read outside text."""
+    s = Assist(app, db, cfg, folder, new_client)
+    c, h = s.cl["editor"]
+    ca, ha = s.cl["admin"]
+    assert c.get("/api/v1/extensions/mcp/presets", headers=h).status_code == 403
+    got = {p["name"]: p for p in ca.get("/api/v1/extensions/mcp/presets", headers=ha).json()["presets"]}
+    b, gh = got["browser"], got["github"]
+    assert (b["needs"], b["service"]["profile"], b["spec"]["url"]) == ("browser", "browser", "http://browser:8931/mcp")
+    assert b["spec"]["keep"] is True and b["spec"]["off"] == ["browser_run_code_unsafe"]
+    assert (gh["fill"], gh["service"], gh["spec"]["headers"]) == (["GITHUB_TOKEN"], None, {"Authorization": "Bearer ${GITHUB_TOKEN}"})
+
+    sessions, gone, calls = [], set(), []
+
+    def post(url, headers, body, timeout=60):
+        if "id" not in body:
+            return 202, {}, ""
+        if body["method"] == "initialize":
+            sessions.append(f"s{len(sessions) + 1}")
+            result = {"protocolVersion": "2025-06-18", "capabilities": {"tools": {}}, "serverInfo": {"name": "pw"}}
+            reply = json.dumps({"jsonrpc": "2.0", "id": body["id"], "result": result})
+            return 200, {"Content-Type": "application/json", "Mcp-Session-Id": sessions[-1]}, reply
+        sid = headers.get("Mcp-Session-Id")
+        if sid in gone:
+            return 404, {}, "Session not found"
+        if body["method"] == "tools/list":
+            result = {"tools": BROWSER_TOOLS}
+        else:
+            calls.append((sid, body["params"]["name"]))
+            result = {"content": [{"type": "text", "text": f"{sid} {body['params']['name']}"}]}
+        return 200, {"Content-Type": "application/json"}, json.dumps({"jsonrpc": "2.0", "id": body["id"], "result": result})
+
+    monkeypatch.setattr(mcp_client, "_post", post)
+    monkeypatch.setattr(mcp_client, "_kept", {})
+    manifest = {"name": b["name"], "kind": "mcp", **b["spec"]}
+    eid = ca.post("/api/v1/extensions", headers=ha, json={"manifest": manifest}).json()["id"]
+    tools = {t["name"]: t for t in extensions.tool_items(extensions.get(db, eid))}
+    assert sorted(tools) == ["browser__browser_click", "browser__browser_navigate", "browser__browser_snapshot"]
+    effects = [tools[f"browser__browser_{n}"]["spec"]["effect"] for n in ("navigate", "snapshot", "click")]
+    assert effects == ["read", "read", "change"]
+
+    def use(name):
+        return mcp_client.call(mcp_servers.open_run(db, tools[f"browser__{name}"]["spec"]["run"]), {})["text"]
+
+    first = use("browser_navigate").split()[0]
+    assert use("browser_snapshot").split()[0] == first  # the same session: the page it opened
+    gone.add(first)  # the server restarted: a new session, and the call made once more
+    assert use("browser_snapshot").split()[0] != first
+    assert [n for _, n in calls].count("browser_snapshot") == 2
+    # a server that doesn't keep its session gets a new one each call, as before
+    monkeypatch.setattr(mcp_client, "_kept", {})
+    plain = {**tools["browser__browser_snapshot"]["spec"]["run"], "keep": None}
+    assert len({mcp_client.call(plain, {})["text"].split()[0] for _ in range(2)}) == 2 and not mcp_client._kept

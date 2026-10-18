@@ -8,8 +8,8 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
-from app.api.deps import Acl, Cfg, CurrentUser, Db, Principal, Writer, domain_errors
-from app.domain import ai_tools, auth, extensions, marketplace, mcp_servers
+from app.api.deps import Acl, AdminReader, Cfg, CurrentUser, Db, Principal, Writer, domain_errors
+from app.domain import ai_tools, auth, extensions, marketplace, mcp_servers, services
 from app.schemas.common import Created, Ok
 from app.schemas.extensions import (
     Extension,
@@ -28,6 +28,7 @@ from app.schemas.extensions import (
     ManifestChecked,
     McpConfig,
     McpConfigText,
+    McpPresets,
     McpServerTools,
     McpServerTry,
     McpToolSwitch,
@@ -112,6 +113,14 @@ def test_mcp_server(body: McpServerTry, user: Writer, db: Db) -> McpServerTools:
     server's saved ones."""
     with _errors():
         return McpServerTools(tools=extensions.try_mcp(db, me(user), body.spec, body.extension))
+
+
+@router.get("/mcp/presets")
+def mcp_presets(user: AdminReader, db: Db) -> McpPresets:
+    """MCP servers ready to add (admins): the browser Lens can run next to it, with whether its container is on and
+    running (`service`), and GitHub's own server, with the token to type in (`fill`)."""
+    out = [p | {"service": services.view(db, p["needs"]) if p["needs"] else None} for p in mcp_servers.presets()]
+    return McpPresets.model_validate({"presets": out})
 
 
 @router.get("/{eid}")

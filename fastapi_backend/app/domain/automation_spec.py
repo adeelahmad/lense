@@ -271,10 +271,11 @@ def check_join(j, aliases=None):
 
 # ---------- If, policy ----------
 def check_if(tree):
-    """An automation's If, cleaned: a match tree over the run context, whose paths start with one of its keys."""
+    """An automation's If, cleaned: a match tree over the run context, whose paths start with one of its keys. It
+    may look back over what happened (match.py, seen)."""
     if tree is None:
         return None
-    out = match.check(tree, "the If")
+    out = match.check(tree, "the If", lookback=True)
     keys = {c[0] for c in CONTEXT}
     for p in match.paths(out):
         if p.split(".")[0] not in keys:

@@ -1,0 +1,26 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "host-agent",
+  "projectType": "application",
+  "tags": ["lang:shell"],
+  "targets": {
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{projectRoot}",
+        "commands": [
+          "sh -n lens-upgrade.sh && sh -n test-services.sh",
+          "uvx --from shellcheck-py shellcheck -s sh -x lens-upgrade.sh test-services.sh"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{projectRoot}",
+        "command": "sh test-services.sh"
+      }
+    }
+  }
+}

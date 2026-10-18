@@ -265,6 +265,16 @@ class EncryptionProgress(ResponseModel):
     finished_at: float | None = None
 
 
+class LlmTry(RequestModel):
+    """What to test before saving it (Settings → LLM provider); anything left out is taken from what is saved."""
+
+    base_url: str | None = Field(None, max_length=500, description="the server's address, as typed")
+    model: str | None = Field(None, max_length=200, description="the model name, as typed")
+    api_key: str | None = Field(
+        None, max_length=500, description="a key typed but not saved; the saved key is used only at the saved address"
+    )
+
+
 class LlmTestResult(ResponseModel):
     ok: bool
     error: str | None = None

@@ -65,6 +65,7 @@ from app.domain import (
     render,
     research,
     rss,
+    services,
     settings,
     sources,
     store,
@@ -2480,6 +2481,49 @@ def set_monitoring(ctx: Context, on: bool) -> dict[str, Any]:
         raise ToolError(str(e)) from None
     auth.audit(ctx.db, ctx.user.as_audit(), "lens.monitoring", None, {"on": bool(on), "via": "mcp"})
     return got
+
+
+# ---------- Lens's optional containers: the MCP runner, the browser, monitoring (admins) ----------
+@tool(
+    "services",
+    "Optional containers",
+    "Lens's optional containers: the MCP runner (MCP servers that run as a program), the browser (a headless Chromium "
+    "the assistant drives) and monitoring. Whether each is on and answering, and how the machine's last change went. "
+    "Admins only.",
+    admin=True,
+)
+def services_status(ctx: Context) -> dict[str, Any]:
+    if not ctx.user.admin:
+        raise ToolError("only admins see or change Lens's optional containers")
+    return {"services": services.views(ctx.db), "settings": f"{ctx.web}/extensions/new/mcp"}
+
+
+@tool(
+    "set_service",
+    "Turn an optional container on or off",
+    "Have this machine start (on true) or stop one of Lens's optional containers: mcp (the MCP runner), browser, or "
+    "monitoring (which also turns /metrics on). The machine's upgrade agent does it; services follows along. Admins "
+    "only, with a token that has the write scope.",
+    Arg("profile", "string", "which", required=True, enum=tuple(services.PROFILES)),
+    Arg("on", "boolean", "start (true) or stop (false)", required=True),
+    writes=True,
+    admin=True,
+)
+def set_service(ctx: Context, profile: str, on: bool) -> dict[str, Any]:
+    if not ctx.user.admin:
+        raise ToolError("only admins see or change Lens's optional containers")
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to change them")
+    try:
+        if profile == "monitoring":
+            monitoring.turn(ctx.db, ctx.request.app.state.archive.base, ctx.cfg, bool(on), by=ctx.user.email)
+        else:
+            services.ask(ctx.db, profile, bool(on), by=ctx.user.email)
+    except services.ServiceError as e:
+        raise ToolError(str(e)) from None
+    action = "lens.monitoring" if profile == "monitoring" else "lens.services"
+    auth.audit(ctx.db, ctx.user.as_audit(), action, None, {"profile": profile, "on": bool(on), "via": "mcp"})
+    return services.view(ctx.db, profile)
 
 
 # ---------- the code sandbox's OpenShell gateway next to Lens (admins) ----------
