@@ -621,7 +621,9 @@ def test_code_runs_on_a_compute_node_the_mesh_registered(app, db, cfg, folder, n
 
         # a node that can't run code says why; one removed or unknown isn't there
         for which, why in (("old", "old can't run code now: it hasn't reported since"), ("gone", "there's no node gone")):
-            ask(c, h, cid, llm, [{"content": "", "tool_calls": [call(1, "run_bash", {"command": "ls", "node": which})]}, {"content": "Ok."}])
+            ask(
+                c, h, cid, llm, [{"content": "", "tool_calls": [call(1, "run_bash", {"command": "ls", "node": which})]}, {"content": "Ok."}]
+            )
             assert why in said(llm)[0]["error"]
 
         # back here: the node's sandbox goes, and a fresh one is made on this machine
