@@ -1277,6 +1277,14 @@
       "source": "docs/configuration.md \"The document goes only to the address set\""
     },
     {
+      "property": "P-SECRET-REFERENCES",
+      "violation_symptom": "info-leak",
+      "severity_tier": "security",
+      "conditions": "a secret field that holds a reference to a password manager (vaultwarden://item/field) stores only the reference, sealed like any secret (P-SECRETS); its value is read into memory, never written to the database, disk or logs; the API, the assistant's and MCP tools and approval cards show the reference and whether it could be read, never the value, and listing the vault shows item and field names only; Lens reads one folder of one account (secrets.vaultwarden_folder), and an item deleted or moved out of it stops being used at the next read; a reference is checked against the vault before it's saved; the vault's own sign-in (API key and master password) is sealed and can't itself be a reference",
+      "provenance": "documented",
+      "source": "docs/secrets.md \"People and agents see the reference and whether it could be read, but never the value\""
+    },
+    {
       "property": "P-TEMPLATE",
       "violation_symptom": "integrity-bypass",
       "severity_tier": "security",

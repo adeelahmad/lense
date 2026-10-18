@@ -108,6 +108,7 @@ nav:
       - Budgets: budgets.md
   - Operate:
       - Encryption: encryption.md
+      - Secrets: secrets.md
       - Storage: storage.md
       - Database: database.md
       - Telemetry: telemetry.md

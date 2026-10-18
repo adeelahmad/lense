@@ -29,6 +29,7 @@ never fetch a speech or voice model.
 | yt-dlp | `documents.video_urls` is on | the yt-dlp program, release 2026.08.19 (Unlicense), to download videos and podcasts imported by address |
 | Chat model, embedding model | the LLM provider or embeddings server is Ollama | pulled on that server (`/api/pull`) |
 | Code sandbox client | the [code sandbox](assistant.md#code-sandbox) is on (`sandbox.enabled`) | OpenShell's Python SDK (Apache-2.0) and gRPC, about 10 MB, to reach its gateway |
+| Vaultwarden client | a Vaultwarden address is set (`secrets.vaultwarden_url`) | python-vaultwarden (Apache-2.0, about 10 MB with its crypto libraries), to read [secrets](secrets.md) from a Vaultwarden or Bitwarden vault |
 | Outlook .msg emails | listed in `components.also` | extract-msg (GPL-3.0, so only when asked for) |
 
 - Python packages go into `data_dir/python`, at the versions in `uv.lock`. Packages the image already has win.

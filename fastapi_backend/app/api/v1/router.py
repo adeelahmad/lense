@@ -60,6 +60,7 @@ from app.api.v1.routes import (
     routines,
     search,
     searches,
+    secrets,
     sensors,
     setup,
     shares,
@@ -88,6 +89,7 @@ api_router.include_router(oauth.router)
 for module in (
     users,
     admin,
+    secrets,
     backups,  # before updates: its /admin/backups/remote would otherwise be read as a backup's name
     updates,
     activity,

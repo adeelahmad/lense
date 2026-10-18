@@ -199,7 +199,9 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   up in Settings, with certificates from Let's Encrypt or ZeroSSL that renew on their own, answering only for its own
   domains and, if you choose, only to devices holding a client certificate; or reach it from anywhere through a
   Cloudflare tunnel with nothing opened on your router. Either way, the S3 and WebDAV shares and the MQTT hub answer at
-  that same address once you turn them on. ([Encryption](docs/encryption.md), [access](docs/access.md),
+  that same address once you turn them on. Keep API keys and tokens in a Vaultwarden or Bitwarden vault: a secret
+  field in Settings can refer to an item there, and Lens reads it without anyone, agents included, seeing it.
+  ([Encryption](docs/encryption.md), [secrets](docs/secrets.md), [access](docs/access.md),
   [prompt injection](docs/assistant.md#third-party-content-and-prompt-injection), [HTTPS](docs/https.md),
   [remote access](docs/remote-access.md); [checks](docs/requirements.md#stay-private-and-safe))
 - **Use open standards.** RDF and Dublin Core for every record, OAuth for apps and OpenID Connect sign-in, MCP, MQTT,
@@ -245,6 +247,8 @@ Next, and not in a pull request yet; each links to where it is tracked:
   activity ledger ([speech providers](docs/speech-providers.md)).
 - **Storage:** uploads and assets' media in the file store, and a storage key to download
   ([storage](docs/storage.md)).
+- **Secrets:** Settings › Secrets in the web app, with a picker for the vault's items, and references in sources'
+  credentials and MCP servers ([secrets](docs/secrets.md)).
 - **Logging:** sending straight to Loki or another HTTP endpoint, and client certificates for TLS
   ([logging](docs/logging.md)).
 - **Proof:** each release tested by upgrading an install of the last one, holding data
