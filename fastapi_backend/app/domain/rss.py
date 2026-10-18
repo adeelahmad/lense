@@ -78,7 +78,12 @@ def _html_text(markup):
 def _url(cfg, src):
     from . import feeds  # it imports this
 
-    url = feeds._secret(cfg, src, "url").strip()
+    return address(feeds._secret(cfg, src, "url"))
+
+
+def address(url):
+    """A feed's address as it's fetched: https:// for feed://, and checked to be a web address."""
+    url = str(url or "").strip()
     url = re.sub(r"^feed:(?=https?://)", "", url, flags=re.I)  # feed:https://…, as some sites link their feeds
     url = re.sub(r"^feed://", "https://", url, flags=re.I)
     if not re.match(r"^https?://[^\s/]+\S*$", url, re.I):
@@ -228,9 +233,25 @@ def parse(raw, base, ctype=None):
             "title": p["title"] or None,
             "when": p["published"] or p["updated"],
             "settled": True,  # a post is whole once its feed lists it: no waiting for it to settle
+            "post": _listed(p, title, site),
         }
         posts[rel] = (entry, body)
     return {"title": title, "site": site, "posts": posts}
+
+
+def _listed(p, feed_title, site):
+    """What a listing says of a post beside its file, kept on its resource as `post` (sources._post_of) for automations
+    and the timeline: its address, the feed and site it came from, who wrote it, when, and its categories."""
+    who = next((a["name"] or a["email"] for a in p["authors"] if a["name"] or a["email"]), None)
+    out = {
+        "href": p["page"],
+        "feed": feed_title,
+        "site": site,
+        "author": who,
+        "published": p["published"] or p["updated"],
+        "categories": p["categories"][:10],
+    }
+    return {k: v for k, v in out.items() if v}
 
 
 def _iso(t):
@@ -395,3 +416,103 @@ def forget(src):
 def test(cfg, src):
     forget(src)
     read(cfg, src)
+
+
+# ---------- subscribing in one step: a feed as a source and a watch (MCP, the assistant) ----------
+def _watching(w, names):
+    return {
+        "watch": w["id"],
+        "namespace": names.get(w["space"]),
+        "enabled": w.get("enabled", True),
+        "backfill": bool(w.get("backfill")),
+        "last_scan_at": w.get("last_scan_at"),
+        "next_scan_at": w.get("next_scan_at"),
+        "last_error": w.get("last_error"),
+        "new_last_scan": (w.get("last_stats") or {}).get("new"),
+    }
+
+
+def subscriptions(db):
+    """Every news feed, the namespaces it's watched into and how its last scan went: [{feed, name, title, health,
+    watching: [...]}]. Their addresses stay sealed. `title` is the feed's own, once read since Lens started."""
+    from . import sources, store
+
+    names, watches = store.space_names(db), sources.list_watches(db)
+    out = []
+    for s in sources.list_sources(db):
+        if s["type"] != "rss":
+            continue
+        hit = _FEEDS.get(s["id"])
+        out.append(
+            {
+                "feed": s["id"],
+                "name": s["name"],
+                "title": hit["title"] if hit else None,
+                "health": s.get("health"),
+                "watching": [_watching(w, names) for w in watches if w["source"] == s["id"]],
+            }
+        )
+    return out
+
+
+def subscribe(db, cfg, url, namespace, name=None, backfill=False, by=None, user=None, password=None):
+    """Subscribe `namespace` (made if it's new) to the news feed at `url` (or the feed a site's page names): a news feed
+    source, checked before it's kept, named by the feed's title unless `name` says, and a watch that brings each new
+    post in as text, and with `backfill` those it lists already. A feed already a source is reused, and a namespace
+    already watching it is told so: {feed, name, title, watch, namespace, posts, added, already}."""
+    from . import sources, store
+
+    try:
+        url = address(url)
+    except RuntimeError as e:
+        raise ValueError(str(e)) from None
+    ns = str(namespace or "").strip().lower()
+    if not store.NS_RX.match(ns):
+        raise ValueError("a namespace's name uses lowercase letters, digits, - and _")
+    same = None
+    for s in db.rows("SELECT record::id(id) AS id, type, sealed FROM storage_source WHERE type = 'rss'"):
+        try:
+            if _url(cfg, s) == url:
+                same = s["id"]
+                break
+        except (RuntimeError, ValueError):
+            continue
+    added = same is None
+    if added:
+        secrets = {"url": url, **({"pass": password} if password else {})}
+        sid = sources.create(db, cfg, (name or "News feed")[:80], "rss", {"user": user} if user else {}, secrets, by)
+        health = sources.test(db, cfg, sid)
+        if not health["ok"]:
+            sources.remove(db, sid)
+            raise ValueError(f"that feed can't be read, so nothing was added: {health['error']}")
+    else:
+        sid = same
+    try:
+        feed = read(cfg, sources.get(db, sid))
+    except RuntimeError as e:
+        raise ValueError(f"that feed can't be read right now: {e}") from None
+    space = store.ns_id(db, ns)
+    if added and not name and feed["title"]:
+        db.q("UPDATE $r SET name = $n", r=store.R("storage_source", sid), n=feed["title"][:80])
+    have = next((w for w in sources.list_watches(db) if w["source"] == sid and w["space"] == space), None)
+    wid = have["id"] if have else sources.create_watch(db, cfg, sid, "", space, by, backfill=bool(backfill))
+    return {
+        "feed": sid,
+        "name": sources.get(db, sid)["name"],
+        "title": feed["title"],
+        "watch": wid,
+        "namespace": ns,
+        "posts": len(feed["entries"]),
+        "added": added,
+        "already": have is not None,
+    }
+
+
+def unsubscribe(db, sid):
+    """Stop following a news feed: its source and its watches go; the posts it brought in stay."""
+    from . import sources
+
+    if sources.get(db, sid)["type"] != "rss":
+        raise ValueError("that source isn't a news feed")
+    sources.remove(db, sid)
+    _FEEDS.pop(sid, None)

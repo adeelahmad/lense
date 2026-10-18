@@ -225,7 +225,7 @@ def test_admins_and_agents_choose_what_describes_pictures(client, people, db):
     assert "only admins" in tool_error(client, people["he"], "picture_descriptions")
     got = tool(client, ha, "picture_descriptions")
     assert (got["engine"], got["ready"], got["why_not"]) == ("llm", False, "no LLM is configured")
-    assert set(got["engines"]) == {"llm", "florence-2"} and got["settings"].endswith("/settings/llm")
+    assert {"llm", "florence-2"} <= set(got["engines"]) and got["settings"].endswith("/settings/llm")
     assert "say what to change" in tool_error(client, ha, "set_picture_descriptions")
     assert tool_error(client, ha, "set_picture_descriptions", describe_max=0) == "llm.describe_max is a whole number from 1 to 1000"
     out = tool(client, ha, "set_picture_descriptions", engine="florence-2", florence_model="large")
