@@ -9,7 +9,17 @@ from pydantic import Field
 from app.schemas.common import RequestModel, ResponseModel
 
 TargetKind = Literal["webhook", "matterbridge", "slack", "discord"]
-EventType = Literal["job.succeeded", "job.failed", "job.cancelled", "batch.finished", "recording.added", "lens.release", "approval.waiting"]
+EventType = Literal[
+    "job.succeeded",
+    "job.failed",
+    "job.cancelled",
+    "batch.finished",
+    "recording.added",
+    "lens.release",
+    "approval.waiting",
+    "routine.failed",
+    "routine.proposed",
+]
 
 
 class LastSend(ResponseModel):

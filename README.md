@@ -165,7 +165,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [checks](docs/requirements.md#learn-from-it))
 - **Automate it.** Pipelines and workflows on a canvas (with Convert steps that make a video's soundtrack an audio
   asset and a document's pages image assets), routines on a schedule, batch runs over a collection, and
-  notifications to webhooks, Slack, Discord and Matterbridge. Everything that happens in Lens (new assets, emails,
+  notifications to webhooks, Slack, Discord and Matterbridge, including when a routine's run fails or leaves graph
+  changes to review. Everything that happens in Lens (new assets, emails,
   calendar events, files, feed posts, what people say to Lens, sensor readings, notes, graph changes, runs, budget
   warnings) is kept as a stream of activities in W3C Activity Streams form, which agents read through the API, MCP and
   the assistant, and people review on the Timeline page (and Latest on Home), marking what they've seen. Automations act

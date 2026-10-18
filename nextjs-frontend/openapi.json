@@ -46581,7 +46581,9 @@
               "batch.finished",
               "recording.added",
               "lens.release",
-              "approval.waiting"
+              "approval.waiting",
+              "routine.failed",
+              "routine.proposed"
             ],
             "title": "Type"
           },
@@ -61568,7 +61570,9 @@
                 "batch.finished",
                 "recording.added",
                 "lens.release",
-                "approval.waiting"
+                "approval.waiting",
+                "routine.failed",
+                "routine.proposed"
               ]
             },
             "type": "array",
@@ -61718,7 +61722,9 @@
                     "batch.finished",
                     "recording.added",
                     "lens.release",
-                    "approval.waiting"
+                    "approval.waiting",
+                    "routine.failed",
+                    "routine.proposed"
                   ]
                 },
                 "type": "array"
@@ -61849,7 +61855,9 @@
                     "batch.finished",
                     "recording.added",
                     "lens.release",
-                    "approval.waiting"
+                    "approval.waiting",
+                    "routine.failed",
+                    "routine.proposed"
                   ]
                 },
                 "type": "array"
