@@ -76,9 +76,11 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [API](docs/api.md), [the graph as files](docs/file-tree.md), [authentication](docs/authentication.md);
   [checks](docs/requirements.md#connect-your-agents))
 - **Ask, and get cited answers.** A chat assistant on every page, and by voice, searches your archive by words (and by
-  meaning, once turned on), reads it, cites it and acts on it with tools: changes wait for your approval. Once an admin
-  turns them on, it also searches the web and reads pages, cited like the archive, and runs Python and bash in a sandbox
-  of each conversation's own. An admin's assistant searches and reads the mail, calendars and files connected to Lens
+  meaning, once turned on), reads it, cites it and acts on it with tools: changes wait for your approval. Ask it about
+  Lens itself ("what's the MCP address?", "is Telegram on?") and it answers from Lens's docs and this server, citing
+  both. Once an admin turns them on, it also searches the web and reads pages, cited like the archive, and runs Python
+  and bash in a sandbox of each conversation's own. An admin's assistant searches and reads the mail, calendars and
+  files connected to Lens
   (Gmail, Google Calendar, Google Drive, S3 and the rest), cites messages and events, and brings them in once you
   approve; where an admin allows it, it sends mail, adds events and writes files, each only after you read all of it
   and say yes. Regenerating an answer or editing a question makes a new version beside the old one, and
@@ -90,7 +92,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   assistant with
   its own name, instructions and memory, answering in Telegram and Slack (built in, with voice notes and files), in
   Discord, Matrix, WhatsApp and other chat rooms through Matterbridge, and by email at an address of its own that you
-  email or forward things to. ([Chat](docs/assistant.md), [web search](docs/assistant.md#web-search-and-reading-pages),
+  email or forward things to. ([Chat](docs/assistant.md), [questions about Lens](docs/assistant.md#questions-about-lens-itself),
+  [web search](docs/assistant.md#web-search-and-reading-pages),
   [mail, calendars and files](docs/assistant.md#mail-calendars-and-files), [code sandbox](docs/assistant.md#code-sandbox), [answer records](docs/assistant.md#what-each-answer-records),
   [chat rooms](docs/chat-rooms.md), [email](docs/assistant-email.md), [speech providers](docs/speech-providers.md);
   [checks](docs/requirements.md#ask-and-get-cited-answers))
@@ -235,8 +238,6 @@ still loading. ([Components](docs/components.md),
 
 These are open pull requests, not yet part of Lens:
 
-- **The assistant** answering questions about Lens itself, from its docs and this server
-  ([#400](https://github.com/adeelahmad/lense/pull/400)).
 - **Chat:** a conversation exported as Markdown, PDF or JSON ([#474](https://github.com/adeelahmad/lense/pull/474)).
 - **Pictures:** low-quality images enhanced before they're read ([#479](https://github.com/adeelahmad/lense/pull/479)).
 - **Web clipper:** signing in, or using your API token, not only an import webhook's
