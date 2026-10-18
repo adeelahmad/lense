@@ -32,6 +32,11 @@
 #   LENS_WIZARD    1: answer everything in the web installer, in the browser (the default for a first install at a
 #                  terminal, where Python 3 is there); 0: here in the terminal
 #   LENS_KEEP_CODE 1: build and start the code already in LENS_DIR, without getting it (the upgrade agent's rollback)
+#   LENS_IMAGES    pull: download a release's prebuilt images (amd64 or arm64) instead of building them, and without a
+#                  LENS_REF install the newest release; build: build them here (default: as the last run left it, else
+#                  build). Docker only; Lens is built anyway for a branch or with EXTRAS (docs/deployment.md)
+#   LENS_IMAGES_REGISTRY  where those images are (default: ghcr.io/<owner of LENS_REPO>), for a mirror. Kept for later
+#                  runs
 set -eu
 
 # All in a function, so nothing runs until the whole script has arrived (curl | sh streams it).
@@ -168,6 +173,11 @@ case "$BACKEND" in
   *) fail "LENS_BACKEND is docker or microsandbox, not $BACKEND." ;;
 esac
 case "${LENS_WAIT:-0}" in *[!0-9]*) fail "LENS_WAIT is a number of seconds, not ${LENS_WAIT:-}." ;; esac
+
+# --- Prebuilt images, or built here: the one asked for, else as the last run left it, else built --------------------
+IMAGES="${LENS_IMAGES:-$( [ -f "$DIR/.env" ] && grep '^LENS_IMAGES=' "$DIR/.env" | cut -d= -f2- || true)}"
+IMAGES="${IMAGES:-build}"
+case "$IMAGES" in build | pull) ;; *) fail "LENS_IMAGES is pull or build, not $IMAGES." ;; esac
 
 # --- What's missing: listed, and installed once you say yes ---------------------------------------------------------
 # Asked only at a terminal; piped in by a script or CI (no terminal, or LENS_YES=1) it goes ahead, as before.
@@ -317,6 +327,22 @@ fi
 fi
 
 # --- The code -----------------------------------------------------------------------------------------------------
+# Images are published for releases (docs/deployment.md#prebuilt-images): pulling them with no LENS_REF, a new install
+# or one already on a release gets the newest release. One that follows a branch keeps it (a release may be older than
+# what it runs), and builds.
+latest_release() {
+  set -- -fsSL --max-time 20
+  [ -n "${GITHUB_TOKEN:-}" ] && set -- "$@" -H "Authorization: Bearer $GITHUB_TOKEN"
+  curl "$@" "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null |
+    sed -n 's/^ *"tag_name": *"\(v[0-9]*\.[0-9]*\.[0-9]*\)".*/\1/p' | head -n 1
+}
+if [ "$IMAGES" = pull ] && [ "$BACKEND" = docker ] && [ -z "${LENS_REF:-}" ] && [ "${LENS_KEEP_CODE:-0}" != 1 ]; then
+  on="$(git -C "$DIR" symbolic-ref -q --short HEAD 2>/dev/null || true)"
+  if [ ! -f "$DIR/.env" ] || printf '%s' "$on" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+    latest="$(latest_release)"
+    if [ -n "$latest" ]; then REF="$latest"; else say "Couldn't find Lens's newest release; getting $REF instead."; fi
+  fi
+fi
 auth_url="https://github.com/$REPO.git"
 [ -n "${GITHUB_TOKEN:-}" ] && auth_url="https://x-access-token:$GITHUB_TOKEN@github.com/$REPO.git"
 if [ "${LENS_KEEP_CODE:-0}" = 1 ]; then
@@ -395,6 +421,11 @@ setenv() { # key value: replace the line, or add it (only this user can read the
     printf '%s=%s\n' "$1" "$2" >>.env
   fi
 }
+unsetenv() { # key: drop the line, if there is one
+  if grep -q "^$1=" .env; then
+    (umask 077 && grep -v "^$1=" .env >.env.tmp) && mv .env.tmp .env
+  fi
+}
 fresh=0 # a first install: its keys are new
 if [ ! -f .env ]; then
   fresh=1
@@ -419,6 +450,8 @@ if [ "$LENS_HTTPS" = 1 ]; then
   setenv LENS_HTTP_PORT "$HTTP_PORT"
 fi
 setenv LENS_DIR "$DIR"
+# kept for later runs only when asked for: an install that never chose follows the default
+[ -z "${LENS_IMAGES:-}" ] || setenv LENS_IMAGES "$IMAGES"
 # the SMB share's port on this machine (docs/smb.md), when the install line names one: kept for later runs
 case "${LENS_SMB_PORT:-}" in '' | *[!0-9]*) ;; *) setenv LENS_SMB_PORT "$LENS_SMB_PORT" ;; esac
 # the microsandbox's public resolvers (microsandbox/dns.sh), when the install line names them, empty included: kept
@@ -558,9 +591,42 @@ PLIST
 else
   files="-f docker-compose.prod.yml"
   [ "$LENS_HTTPS" = 1 ] && files="$files -f docker-compose.https.yml" # the HTTPS ports (docs/https.md)
-  say "Building and starting Lens (the first build takes a few minutes)..."
-  # shellcheck disable=SC2086
-  $COMPOSE $files up -d --build
+  # A release's prebuilt images (docs/deployment.md#prebuilt-images), for the release the code is: the branch install.sh
+  # made for it, or the tag a first clone is on. Named in .env, so every later `docker compose` runs them too.
+  pulled=0
+  if [ "$IMAGES" = pull ]; then
+    on="$(git symbolic-ref -q --short HEAD 2>/dev/null || git describe --tags --exact-match 2>/dev/null || echo "$REF")"
+    version="$(printf '%s' "$on" | sed -n 's/^v\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)$/\1/p')"
+    extras="${EXTRAS:-$(grep '^EXTRAS=' .env | cut -d= -f2- || true)}"
+    if [ -z "$version" ]; then
+      say "Prebuilt images are published for releases, and $on isn't one, so Lens is built here."
+    elif [ ! -f docker-compose.images.yml ]; then
+      say "Lens $version came before prebuilt images, so it is built here."
+    elif [ -n "$extras" ]; then
+      say "The prebuilt images carry no extras (EXTRAS=$extras), so Lens is built here."
+    else
+      registry="${LENS_IMAGES_REGISTRY:-$(grep '^LENS_IMAGES_REGISTRY=' .env | cut -d= -f2- || true)}"
+      registry="${registry:-ghcr.io/$(printf '%s' "${REPO%%/*}" | tr '[:upper:]' '[:lower:]')}"
+      [ -z "${LENS_IMAGES_REGISTRY:-}" ] || setenv LENS_IMAGES_REGISTRY "$registry"
+      setenv LENS_BACKEND_IMAGE "$registry/lens-backend:$version-$TARGET"
+      setenv LENS_FRONTEND_IMAGE "$registry/lens-frontend:$version"
+      say "Downloading Lens $version and starting it..."
+      # shellcheck disable=SC2086
+      if $COMPOSE $files -f docker-compose.images.yml pull backend frontend &&
+        $COMPOSE $files -f docker-compose.images.yml up -d --build; then
+        pulled=1
+      else
+        say "Couldn't download Lens's images, so it is built here instead."
+      fi
+    fi
+  fi
+  if [ "$pulled" = 0 ]; then
+    unsetenv LENS_BACKEND_IMAGE
+    unsetenv LENS_FRONTEND_IMAGE
+    say "Building and starting Lens (the first build takes a few minutes)..."
+    # shellcheck disable=SC2086
+    $COMPOSE $files up -d --build
+  fi
   LOGS="$COMPOSE $files logs"
   TAIL="$COMPOSE $files logs --tail 40"
   STOP="$COMPOSE $files down"

@@ -30,8 +30,8 @@ in PowerShell; or skip the terminal and double-click the launcher for your syste
 the menu bar (built, early: not signed yet).
 [Deployment](docs/deployment.md) covers servers and Cloudron; there are also packages for
 [Synology](packaging/synology/README.md), [QNAP](packaging/qnap/README.md) and [Proxmox](proxmox/README.md), and each
-release publishes Lens's images for amd64 and arm64 (a Raspberry Pi) to GHCR ([prebuilt
-images](docs/deployment.md#prebuilt-images)).
+release publishes Lens's images for amd64 and arm64 (a Raspberry Pi) to GHCR, which `LENS_IMAGES=pull` before `sh`
+downloads instead of building ([prebuilt images](docs/deployment.md#prebuilt-images)).
 The [checks](docs/requirements.md#install) say which of these CI proves.
 
 To work on the code instead, `make run` builds and runs everything from a checkout, `make setup-code` prints the
@@ -191,8 +191,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   schedule rules, within min and max and a monthly budget, with every launch, join and hour of cost in the activity
   ledger. A group launches nothing until you approve its terms in Settings › Auto scaling; agents propose and manage
   groups over the API, MCP and the assistant, and never approve one. It runs more workers on this machine today;
-  DigitalOcean and Hetzner Cloud providers are in progress (built, launching once the mesh's install line lands), and
-  AWS, Proxmox, Linux and model hosts are planned. ([Auto scaling](docs/scaling.md);
+  DigitalOcean, Hetzner Cloud and Proxmox VE providers are in progress (built, launching once the mesh's install
+  line lands), and AWS, Linux and model hosts are planned. ([Auto scaling](docs/scaling.md);
   [checks](docs/requirements.md#scale-out))
 - **Keep it up to date and backed up.** Lens checks for a new release once a day and tells admins by email or a
   notification. One click in Settings › Updates (or one API call) upgrades it through a small agent on the machine,
@@ -269,15 +269,14 @@ Next, and not in a pull request yet; each links to where it is tracked:
   topics, recordings and the other things that have pages ([notes](docs/notes.md)).
 - **Local models:** GPU builds of llama.cpp fetched by Lens, and local embedding models
   ([local models](docs/local-models.md)).
-- **Auto scaling:** providers for AWS, Proxmox and Linux hosts over SSH, joining over the Nebula mesh, model hosts
+- **Auto scaling:** providers for AWS and Linux hosts over SSH, joining over the Nebula mesh, model hosts
   (RunPod, Lambda, Hugging Face, SageMaker, Bedrock), and making providers and groups in Settings
   ([auto scaling](docs/scaling.md)).
 - **Speech providers:** their summaries, chapters and entities as optional imports, and per-minute prices in the
   activity ledger ([speech providers](docs/speech-providers.md)).
 - **Storage:** uploads and assets' media in the file store, and a storage key to download
   ([storage](docs/storage.md)).
-- **Secrets:** Settings › Secrets in the web app, with a picker for the vault's items, and references in sources'
-  credentials and MCP servers ([secrets](docs/secrets.md)).
+- **Secrets:** references in sources' credentials and MCP servers ([secrets](docs/secrets.md)).
 - **Logging:** sending straight to Loki or another HTTP endpoint, and client certificates for TLS
   ([logging](docs/logging.md)).
 - **Proof:** each release tested by upgrading an install of the last one, holding data
