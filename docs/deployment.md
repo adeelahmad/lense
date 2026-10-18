@@ -38,10 +38,10 @@ checkout of a release, name them in `.env` and add `docker-compose.images.yml`, 
 API, worker and web app (the optional containers that are built, such as the MCP runner, still build):
 
 ```bash
-git checkout v0.15.0   # a release, and the same version below
+git checkout vX.Y.Z   # a release that has docker-compose.images.yml, and the same version below
 cat >> .env <<'ENV'
-LENS_BACKEND_IMAGE=ghcr.io/adeelahmad/lens-backend:0.15.0-full
-LENS_FRONTEND_IMAGE=ghcr.io/adeelahmad/lens-frontend:0.15.0
+LENS_BACKEND_IMAGE=ghcr.io/adeelahmad/lens-backend:X.Y.Z-full
+LENS_FRONTEND_IMAGE=ghcr.io/adeelahmad/lens-frontend:X.Y.Z
 ENV
 docker compose -f docker-compose.prod.yml -f docker-compose.images.yml pull backend frontend
 docker compose -f docker-compose.prod.yml -f docker-compose.images.yml up -d
