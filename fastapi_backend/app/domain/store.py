@@ -146,6 +146,8 @@ DEFAULTS = {
             "echo": "off",
             "trim_silence": True,
             "min_silence_ms": 2000,
+            "only_if_poor": False,  # clean every recording the step runs on; True cleans only ones measured low quality
+            "snr_floor_db": 20,  # with only_if_poor, a recording at or above this signal-to-noise is left as it is
         },
         "vocabulary": False,  # give each recording's engine the names its namespace knows (vocabulary.py)
     },

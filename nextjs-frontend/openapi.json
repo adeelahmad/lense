@@ -38342,20 +38342,83 @@
             "title": "Min Silence Ms",
             "description": "the shortest pause left out when trimming silence"
           },
+          "only_if_poor": {
+            "type": "boolean",
+            "title": "Only If Poor",
+            "description": "clean only recordings measured as low quality; others are left as they are",
+            "default": false
+          },
+          "snr_floor_db": {
+            "type": "number",
+            "title": "Snr Floor Db",
+            "description": "with only_if_poor, a recording at or above this signal-to-noise is left as it is",
+            "default": 20
+          },
+          "skipped": {
+            "type": "boolean",
+            "title": "Skipped",
+            "description": "the quality gate left this recording as it is; it's transcribed from the original",
+            "default": false
+          },
           "duration_ms": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Duration Ms",
             "description": "how long the recording is"
           },
           "speech_ms": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Speech Ms",
             "description": "how much of it WebRTC's voice detection heard as speech"
           },
           "kept_ms": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Kept Ms",
             "description": "how much of it is transcribed: all of it unless silence is trimmed"
+          },
+          "snr_db": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snr Db",
+            "description": "its estimated signal-to-noise, in dB (null when it couldn't be judged)"
+          },
+          "clip_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clip Pct",
+            "description": "the percent of its samples that are clipped"
           },
           "gain_db": {
             "anyOf": [
@@ -38414,10 +38477,7 @@
           "high_pass",
           "echo",
           "trim_silence",
-          "min_silence_ms",
-          "duration_ms",
-          "speech_ms",
-          "kept_ms"
+          "min_silence_ms"
         ],
         "title": "AudioCleanup",
         "description": "How the clean_audio step cleaned up a recording's sound for transcription (docs/processing.md, Cleaning up audio)."
