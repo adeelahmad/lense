@@ -17,6 +17,7 @@ summaries, chapters and entities as optional imports, per-minute prices in the a
 | Deepgram | Nova | yes | detected | from sentiment (English) | no | Aura |
 | Google Gemini | no | no | no | no | no | `gemini-2.5-flash-preview-tts`, 30 prebuilt voices |
 | macOS `say` | no | no | no | no | no | the Mac's own voices; no key, nothing leaves the Mac |
+| Kokoro | no | no | no | no | no | on this machine, in 54 voices and nine languages; fetched once you pick it ([below](#kokoro)) |
 | StyleTTS2 | no | no | no | no | no | on this machine, in a voice like a clip you give it ([below](#styletts2)) |
 
 Sentiment becomes emotion as positive → Happy, negative → Sad, neutral → Neutral (turn it off with
@@ -38,7 +39,8 @@ Then pick where each task goes:
 - **Speaker separation → Method**: *Speech provider* uses the speakers the provider found; *Auto* uses them when a
   transcript has some, and otherwise works as before. Voice IDs across recordings still come from local voiceprints.
 - **AI assistant → Voice**: *Engine that hears it* (default: the transcription engine) and *Spoken answers by* (an
-  OpenAI-compatible speech server, ElevenLabs, Deepgram Aura, Google Gemini or macOS `say`) and *Voice*.
+  OpenAI-compatible speech server, ElevenLabs, Deepgram Aura, Google Gemini, macOS `say`, Kokoro or StyleTTS2) and
+  *Voice*.
 
 ## Long recordings
 
@@ -74,8 +76,8 @@ How a recording is cut:
 `GET /voice/voices?provider=…` lists the voices a provider reads in, as `{id, name, detail}`: ElevenLabs lists the
 voices in your account (premade, cloned and from the library), Deepgram its Aura models, `say` the voices installed on
 the Mac (System Settings → Accessibility → Spoken Content adds more), and an OpenAI-compatible server its own when it
-has `/audio/voices` (Kokoro-FastAPI does); otherwise OpenAI's eleven. Gemini's are a fixed list. The voice picked is
-`voice.tts_voice`; podcast hosts use it too (`podcasts.voice_a`, `voice_b`). `POST /voice/speak` takes `{text,
+has `/audio/voices` (Kokoro-FastAPI does); otherwise OpenAI's eleven. Gemini's and Kokoro's are fixed lists. The voice
+picked is `voice.tts_voice`; podcast hosts use it too (`podcasts.voice_a`, `voice_b`). `POST /voice/speak` takes `{text,
 voice}` to try a voice before keeping it.
 
 `say` only works when Lens runs on the Mac itself (`make start-backend`, not Docker): a container has no `say`. It
@@ -93,8 +95,36 @@ every Mac.
 | `speech.timeout` | 1800 seconds |
 | `voice.stt` | `same` |
 | `voice.tts_provider` | `openai` |
-| `voice.tts_voice` | the provider's default (alloy, a premade ElevenLabs voice, aura-2-thalia-en, Kore, the Mac's, `default`) |
+| `voice.tts_voice` | the provider's default (alloy, a premade ElevenLabs voice, aura-2-thalia-en, Kore, the Mac's, af_heart, `default`) |
+| `voice.kokoro_model` | `fp32` |
 | `voice.styletts2_url` | `http://styletts2:8880` |
+
+## Kokoro
+
+[Kokoro](https://huggingface.co/hexgrad/Kokoro-82M) v1.0 (Apache-2.0) reads spoken answers and podcasts on your own
+machine: nothing leaves it, nothing is billed, and there is no service to start. Pick **Kokoro** in Settings → AI
+assistant → Voice and save; a worker then fetches it in the background (Settings → Components shows how far it got),
+and until it's here the browser reads answers. Podcast episodes wait for it rather than coming out as scripts.
+
+What is fetched, once, into the data folder:
+
+- the `kokoro` extra: [kokoro-onnx](https://github.com/thewh1teagle/kokoro-onnx) (MIT) and ONNX Runtime, about 95 MB.
+  kokoro-onnx turns text into phonemes with espeak-ng through phonemizer, which are GPL-3.0, so they are in this
+  opt-in extra only, never in Lens's own install;
+- the model, `voice.kokoro_model`: `fp32` (326 MB, the default: the best, and on most CPUs the fastest) or `int8`
+  (114 MB, for a small disk). kokoro-onnx's half-precision export is not offered: on arm64, ONNX Runtime reads nothing
+  with it, and on x64 it is no faster than `fp32`;
+- `voices-v1.0.bin` (28 MB): all 54 voices.
+
+The model and voices files are the ones kokoro-onnx publishes (its `model-files-v1.1` release), checked against their
+SHA-256. The model is loaded the first time something is read aloud and let go after ten minutes of quiet, so a small
+machine gets its memory back. Each read is a row in the activity ledger (`model.speech`, `kokoro:kokoro-v1.0`).
+
+A voice's first letter is its language, and its second whether it's a woman's (`f`) or a man's (`m`) voice: `af_heart`
+(the default) is American English, female. The languages are American and British English (`a`, `b`), Spanish (`e`),
+French (`f`), Hindi (`h`), Italian (`i`), Japanese (`j`), Brazilian Portuguese (`p`) and Mandarin (`z`); espeak-ng reads
+the text as the voice's language, so pick a voice that speaks the language of what it reads. A podcast's second host
+gets a voice in the first host's language (`am_michael` beside `af_heart`) unless `podcasts.voice_b` names one.
 
 ## StyleTTS2
 

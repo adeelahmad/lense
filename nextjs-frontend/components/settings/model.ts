@@ -2129,7 +2129,18 @@ export const FIELDS: FieldSpec[] = [
       { value: "deepgram", label: "Deepgram Aura (provider)" },
       { value: "gemini", label: "Google Gemini (provider)" },
       { value: "say", label: "macOS say (Lens running on a Mac)" },
+      { value: "kokoro", label: "Kokoro (on this machine, 54 voices)" },
       { value: "styletts2", label: "StyleTTS2 (on this machine)" },
+    ],
+  },
+  {
+    section: "voice",
+    key: "kokoro_model",
+    label: "Kokoro model",
+    kind: "select",
+    options: [
+      { value: "fp32", label: "Full (326 MB, the best, and fastest on most machines)" },
+      { value: "int8", label: "8-bit (114 MB, for a small disk)" },
     ],
   },
   {

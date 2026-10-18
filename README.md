@@ -93,8 +93,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   question makes a new version beside the old one, and nothing is lost. Each answer keeps a record of what produced it
   (the model, its tools, how long it took and what it cost), opened from its header. Copy an answer as Markdown or plain
   text, a question or a code block, and export a conversation as Markdown, PDF or JSON, its citations as footnotes that
-  link back to the moment in Lens. It reads answers aloud with a speech provider, macOS `say` or StyleTTS2 on this
-  machine (opt-in), any message in one click. Long conversations are summarised before they fill the model's context,
+  link back to the moment in Lens. It reads answers aloud with a speech provider, macOS `say`, or Kokoro (54
+  voices, fetched once picked) or StyleTTS2 on this machine (opt-in), any message in one click. Long conversations are summarised before they fill the model's context,
   and `/clear` and `/compact` start afresh or summarise now. Conversations title themselves after their first answer,
   unless you name them. Each namespace can have its own assistant with its own name, instructions and memory, answering
   in Telegram and Slack (built in, with voice notes and files), in Discord, Matrix, WhatsApp and other chat rooms
@@ -185,7 +185,7 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [cleaning up transcripts](docs/processing.md#cleaning-up-transcripts), [dates](docs/processing.md#dates);
   [checks](docs/requirements.md#understand-it))
 - **Learn from it.** Make a two-host podcast episode about what you pick, every claim cited and checked against its
-  source, read aloud in two voices. Turn a voice session or a meeting into a technical spec, in a note linked to it,
+  source, read aloud in two voices, by Kokoro on this machine or a speech provider. Turn a voice session or a meeting into a technical spec, in a note linked to it,
   that keeps every decision, every no and every constraint in the speaker's own words, linked to when they said them,
   flags what was left to decide later and marks any quote the transcript doesn't hold. Keep notes beside every asset,
   entity and topic, written by you or the assistant, in a tree where notes are renamed, moved, copied and pinned (pins
@@ -307,10 +307,7 @@ still loading. ([Components](docs/components.md),
 
 ## In progress
 
-These are open pull requests, not yet part of Lens:
-
-- **Voice:** answers and podcasts read aloud with Kokoro on this machine
-  ([#538](https://github.com/adeelahmad/lense/pull/538)).
+Open pull requests, not yet part of Lens, are listed here; none right now.
 
 ## Planned
 

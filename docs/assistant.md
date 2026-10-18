@@ -221,8 +221,8 @@ Voice goes through one hook, `useVoice()` in `nextjs-frontend/lib/voice.ts` (`li
   Edge and Safari; Chrome sends the audio to its own speech service).
 - **Speaking.** Answers are read by a speech model when one is set (`voice.tts_model`: any OpenAI-compatible
   `/audio/speech`, such as Kokoro-FastAPI, LocalAI or OpenAI's `tts-1`, on `voice.tts_base_url` or the LLM provider),
-  or by ElevenLabs, Deepgram, Google Gemini or macOS `say` ([Speech providers](speech-providers.md#voices)); else by
-  the browser.
+  or by ElevenLabs, Deepgram, Google Gemini, macOS `say`, or Kokoro on this machine
+  ([Speech providers](speech-providers.md#kokoro)); else by the browser.
 
 #### Read a message aloud
 
