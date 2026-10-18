@@ -2537,8 +2537,25 @@
           "admin"
         ],
         "summary": "Test Llm",
-        "description": "Ask the configured model for one word, to check the address, key and model name.",
+        "description": "Ask the model for one word, to check the address, key and model name: what is given (typed, not saved yet),\nelse what is saved.",
         "operationId": "test_llm",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/LlmTry"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2546,6 +2563,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/LlmTestResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -49703,6 +49730,53 @@
           "ok"
         ],
         "title": "LlmTestResult"
+      },
+      "LlmTry": {
+        "properties": {
+          "base_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Url",
+            "description": "the server's address, as typed"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "the model name, as typed"
+          },
+          "api_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Key",
+            "description": "a key typed but not saved; the saved key is used only at the saved address"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "LlmTry",
+        "description": "What to test before saving it (Settings \u2192 LLM provider); anything left out is taken from what is saved."
       },
       "LocalLlmProgress": {
         "properties": {
