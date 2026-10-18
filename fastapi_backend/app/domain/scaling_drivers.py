@@ -58,6 +58,7 @@ class Driver:
     label = ""
     about = ""
     priced = True  # it charges money: its groups need a budget
+    kept: tuple[str, ...] = ()  # what a failed check keeps of the last one's answer
     needs_join = False  # its units are other machines, which join over the mesh's install line (scaling.bootstrap)
     extra = None  # the optional dependency (pyproject.toml) it needs, fetched when a provider of it is saved
     modules = ()  # what that extra installs, to see whether it's here
