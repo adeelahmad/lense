@@ -10598,6 +10598,12 @@ export type ImportRequest = {
    * a collection of the namespace to put it in; default: its default collection
    */
   collection?: number | null;
+  /**
+   * Content Type
+   *
+   * a text content type (GET /content-types), e.g. transcript, instead of the one recognised from it
+   */
+  content_type?: string | null;
 };
 
 /**
@@ -11424,6 +11430,12 @@ export type LinksImportRequest = {
    * a collection of the namespace to put them in; default: its default collection
    */
   collection?: number | null;
+  /**
+   * Content Type
+   *
+   * a text content type (GET /content-types) for each page instead of the one recognised from it
+   */
+  content_type?: string | null;
 };
 
 /**
@@ -26255,6 +26267,12 @@ export type Upload = {
    */
   pipeline?: number | null;
   /**
+   * Content Type
+   *
+   * the content type chosen for its asset (default: recognised from the file)
+   */
+  content_type?: string | null;
+  /**
    * Recording
    *
    * the asset it became (or was attached to), once done
@@ -26355,6 +26373,12 @@ export type UploadStart = {
    * run this pipeline once it's here instead of the namespace's (not with `recording`)
    */
   pipeline?: number | null;
+  /**
+   * Content Type
+   *
+   * the asset's content type (GET /content-types), one of its file's base type, instead of the one recognised from the file; its pipeline runs (not with `recording`)
+   */
+  content_type?: string | null;
   /**
    * Collection
    *
@@ -27384,6 +27408,12 @@ export type WebImportRequest = {
    * a collection of the namespace to put it in; default: its default collection
    */
   collection?: number | null;
+  /**
+   * Content Type
+   *
+   * a text content type (GET /content-types) for the page instead of the one recognised from it
+   */
+  content_type?: string | null;
 };
 
 /**

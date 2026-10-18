@@ -78,7 +78,9 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [API](docs/api.md), [the graph as files](docs/file-tree.md), [authentication](docs/authentication.md);
   [checks](docs/requirements.md#connect-your-agents))
 - **Ask, and get cited answers.** A chat assistant on every page, and by voice, searches your archive by words (and by
-  meaning, once turned on), reads it, cites it and acts on it with tools: changes wait for your approval. Once an admin
+  meaning, once turned on), reads it, cites it and acts on it with tools: changes wait for your approval. Ask it about
+  Lens itself ("what's the MCP address?", "is Telegram on?") and it answers from Lens's docs and this server, citing
+  both. Once an admin
   turns them on, it also searches the web and reads pages, cited like the archive, and runs Python and bash in a sandbox
   of each conversation's own. An admin's assistant searches and reads the mail, calendars and files connected to Lens
   (Gmail, Google Calendar, Google Drive, S3 and the rest), cites messages and events, and brings them in once you
@@ -112,7 +114,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   Office files, photos, JSON and zip or tar archives, and, with an Apache Tika server (an opt-in extra), documents
   nothing else here can read; capture web pages one at a time, from a link list or a bookmarks file, by API or by asking
   the assistant, from private networks you allow in Settings too; and import videos and podcasts by their address (off
-  by default).
+  by default). Say what a file or a page is as it comes in (a podcast, an interview, a scan), in Import, by API or
+  to the assistant, and its content type's pipeline runs from the start.
   ([Sensors](docs/sensors.md), [processing](docs/processing.md), [Apache Tika](docs/configuration.md#apache-tika),
   [import webhooks](docs/api.md#import-webhooks); [checks](docs/requirements.md#bring-in-everything))
 - **Clip from the browser.** The Lens web clipper for Chrome, Edge, Firefox and Safari turns a page, a selection or a

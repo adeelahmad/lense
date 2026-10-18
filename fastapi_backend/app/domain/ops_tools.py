@@ -14,6 +14,7 @@ from __future__ import annotations
 from . import (
     auth,
     blobs,
+    content_types,
     convert,
     decide,
     feeds,
@@ -264,8 +265,10 @@ FILE_TOOLS = [
         "import_files",
         "Put files the person attached to the conversation into a namespace, where they're transcribed or read like any "
         "upload. Use the attachment ids from their message. Leave namespace out unless the person named one: it's "
-        "chosen for them, and you're told when it's unclear and to ask.",
-        {"upload_ids": {"type": "array", "items": _S}, "namespace": _S, "collection_id": {"type": "integer"}},
+        "chosen for them, and you're told when it's unclear and to ask. Give content_type (a key from the content "
+        "types, of the files' base type) only when the person says what the files are, e.g. podcast or interview: "
+        "otherwise it's recognised from each file.",
+        {"upload_ids": {"type": "array", "items": _S}, "namespace": _S, "collection_id": {"type": "integer"}, "content_type": _S},
         ["upload_ids"],
         True,
     ),
@@ -274,13 +277,15 @@ FILE_TOOLS = [
         "Capture web pages as documents in a namespace, each kept as a PDF of the page as it is now and read like any "
         "document: one address, several, or a whole list. Give urls, or text holding them (a pasted list, one per line), "
         "or upload_id: an attached file listing them (a text list, a browser's bookmark export, Chrome's Bookmarks). "
-        "Leave namespace out unless the person named one: it's chosen for them, and you're told when it's unclear and to ask.",
+        "Leave namespace out unless the person named one: it's chosen for them, and you're told when it's unclear and to ask. "
+        "Give content_type (a text content type's key) only when the person says what the pages are; else it's recognised.",
         {
             "urls": {"type": "array", "items": _S},
             "text": _S,
             "upload_id": _S,
             "namespace": _S,
             "collection_id": {"type": "integer"},
+            "content_type": _S,
         },
         [],
         True,
@@ -369,7 +374,7 @@ def apply(db, cfg, base, tool, args, user, editable, admin, via="agent"):
             raise PermissionError(f"you can't add to {ns}")
         placed = []
         for uid in args["upload_ids"]:
-            up = uploads.place(db, cfg, uid, ns, user["id"], admin, args.get("collection_id"))
+            up = uploads.place(db, cfg, uid, ns, user["id"], admin, args.get("collection_id"), args.get("content_type"))
             auth.audit(db, user, "upload", f"recording:{up['recording']}", {"file": up["filename"], "namespace": ns, "assistant": True})
             placed.append({"file": up["filename"], "recording": up["recording"], "duplicate": bool(up.get("duplicate"))})
         return {"namespace": ns, "imported": placed}
@@ -404,7 +409,7 @@ def apply(db, cfg, base, tool, args, user, editable, admin, via="agent"):
             raise PermissionError(f"you can't add to {ns}")
         if args.get("collection_id") is not None:
             store.home(db, sid, args["collection_id"])
-        out = links.queue(db, cfg, sid, args["links"], user["email"], args.get("collection_id"))
+        out = links.queue(db, cfg, sid, args["links"], user["email"], args.get("collection_id"), content_type=args.get("content_type"))
         queued = sum(r["status"] == "queued" for r in out)
         auth.audit(db, user, "import.web", f"space:{sid}", {"links": queued, "namespace": ns, "assistant": True})
         return {"namespace": ns, "pages": out}
@@ -727,9 +732,10 @@ class OpsTools:
             return d["choice"], d
         return None, d
 
-    def t_import_files(self, upload_ids, namespace=None, collection_id=None):
+    def t_import_files(self, upload_ids, namespace=None, collection_id=None, content_type=None):
         if isinstance(upload_ids, str):
             upload_ids = [upload_ids]
+        content_type = (content_type or "").strip() or None
         names = []
         for uid in upload_ids:
             try:
@@ -739,6 +745,8 @@ class OpsTools:
             if up.get("account") != self.user["id"] or up.get("state") != "held":
                 raise ValueError(f"{uid} isn't a file attached here that's waiting to be imported")
             names.append(up["filename"])
+            if content_type:  # before anything is asked or placed: one that doesn't fit any of them stops all
+                content_types.check(self.db, content_type, content_types.base_of_file(up["filename"]))
         chosen = None
         if not (namespace or "").strip():
             files = [{"file": n, "title": (uploads.get(self.db, str(u)).get("title") or "")} for n, u in zip(names, upload_ids)]
@@ -750,8 +758,15 @@ class OpsTools:
                     f"Not sure where to put {', '.join(names)}",
                 )
         namespace = namespace.strip().lower()
-        args = {"upload_ids": [str(u) for u in upload_ids], "namespace": namespace, "collection_id": collection_id}
-        summary = f"Import {', '.join(names)} into {namespace}"
+        args = {
+            "upload_ids": [str(u) for u in upload_ids],
+            "namespace": namespace,
+            "collection_id": collection_id,
+            "content_type": content_type,
+        }
+        summary = f"Import {', '.join(names)} into {namespace}" + (
+            f" as {content_types.get(self.db, content_type)['label']}" if content_type else ""
+        )
         if chosen and chosen.get("by") != "only option":
             summary += f" (chosen, {round(100 * chosen['confidence'])}% sure)"
         out, said = self._change("import_files", store.clean(args), summary)
@@ -759,9 +774,12 @@ class OpsTools:
             out = {**out, "namespace_chosen": {"by": chosen["by"], "confidence": chosen["confidence"]}}
         return out, said
 
-    def t_import_urls(self, urls=None, text=None, upload_id=None, namespace=None, collection_id=None):
+    def t_import_urls(self, urls=None, text=None, upload_id=None, namespace=None, collection_id=None, content_type=None):
         if isinstance(urls, str):
             urls = [urls]
+        content_type = (content_type or "").strip() or None
+        if content_type:
+            content_types.check(self.db, content_type, "text")
         given = [bool(urls), bool((text or "").strip()), bool(upload_id)]
         if sum(given) != 1:
             raise ValueError("give the addresses as urls, as text, or as an attached file's upload_id: one of them")
@@ -794,8 +812,8 @@ class OpsTools:
                     f"Not sure where to put {shown}",
                 )
         namespace = namespace.strip().lower()
-        args = {"links": found, "namespace": namespace, "collection_id": collection_id}
-        summary = f"Capture {shown} into {namespace}"
+        args = {"links": found, "namespace": namespace, "collection_id": collection_id, "content_type": content_type}
+        summary = f"Capture {shown} into {namespace}" + (f" as {content_types.get(self.db, content_type)['label']}" if content_type else "")
         if chosen and chosen.get("by") != "only option":
             summary += f" (chosen, {round(100 * chosen['confidence'])}% sure)"
         out, said = self._change("import_urls", store.clean(args), summary)
