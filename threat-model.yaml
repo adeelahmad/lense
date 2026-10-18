@@ -447,7 +447,7 @@ entry_points:
         obligation_id: enable-only-trusted-extensions
         caller_must_enforce: "person enables only extensions they trust"
         provenance: {kind: documented, source: 'docs/assistant.md "other people''s run only when an admin shared them"'}
-  - id: "MCP servers: POST /extensions/mcp/read and /mcp/test, saving an extension of kind mcp, PATCH /extensions/{id}/tools"
+  - id: "MCP servers: POST /extensions/mcp/read and /mcp/test, GET /extensions/mcp/presets, saving an extension of kind mcp, PATCH /extensions/{id}/tools"
     component: assistant
     parameters:
       - name: "config text (JSON or YAML), a server's address and headers, or a command, its arguments and env; a tool name and its switches"
@@ -455,7 +455,7 @@ entry_points:
         x-condition: "admins only, except reading a config, which any signed-in person may and which reaches nothing"
         control_kinds: [data, x-network-destination, x-credential, callback-code]
         obligation_id: admin-is-trusted
-        caller_must_enforce: "admin is trusted with the address and the command; reading a config parses text only; a command runs only in the MCP runner; credential values are sealed to the extension and where they go and shown as ••••; a tool switched off isn't offered, and every MCP tool asks first after outside text"
+        caller_must_enforce: "admin is trusted with the address and the command; reading a config parses text only; a command runs only in the MCP runner; credential values are sealed to the extension and where they go and shown as ••••; a tool switched off isn't offered, and every MCP tool asks first after outside text; a server whose spec says keep reuses one session for every caller"
         provenance: {kind: documented, source: 'docs/assistant.md "Adding an MCP server"'}
   - id: "Python code tools, shipped and admin-created templates, workflows, pipelines, routines"
     component: assistant
@@ -568,12 +568,12 @@ entry_points:
   - id: "host control inbox and the monitoring scrape token"
     component: authz
     parameters:
-      - name: "inbox/upgrade request: release ref (empty: the version running) with https=0|1, public=0|1 and target=full|lean, or action=services with monitoring=on|off"
+      - name: "inbox/upgrade request: release ref (empty: the version running) with https=0|1, public=0|1 and target=full|lean, or action=services with profile=mcp|browser|monitoring and turn=on|off (or an older Lens's monitoring=on|off)"
         attacker_controllable: true
         x-condition: "writable by the containers and local users"
         control_kinds: [x-env-config]
         obligation_id: agent-allow-list
-        caller_must_enforce: "the agent installs only a release tag or the install's branch, changes only the HTTPS ports, the web app's network reach and the edition (other values dropped), and only toggles the monitoring profile; a writer can at most restart Lens with those choices or open it to the network"
+        caller_must_enforce: "the agent installs only a release tag or the install's branch, changes only the HTTPS ports, the web app's network reach and the edition (other values dropped), and only toggles the mcp, browser and monitoring profiles (any other refused); a writer can at most restart Lens with those choices or open it to the network"
         provenance: {kind: documented, source: "docs/updates.md"}
       - name: "/metrics scrape token, .lens-control/prometheus-token"
         attacker_controllable: true
@@ -592,6 +592,16 @@ entry_points:
         obligation_id: admin-is-trusted
         caller_must_enforce: "admin is trusted; audited (lens.install, https.ports); reaches the machine only as an inbox request the agent checks again"
         provenance: {kind: documented, source: 'docs/updates.md "Setting the machine up again"'}
+  - id: "admin optional container requests"
+    component: authz
+    parameters:
+      - name: "PUT /api/v1/admin/services/{profile} {on}, MCP set_service: profile mcp|browser|monitoring"
+        attacker_controllable: false
+        x-condition: "admin only (MCP: with the write scope)"
+        control_kinds: [x-env-config]
+        obligation_id: admin-is-trusted
+        caller_must_enforce: "admin is trusted; audited (lens.services, lens.monitoring); unknown profiles are a 404; one change at a time; reaches the machine only as an inbox request the agent checks again"
+        provenance: {kind: documented, source: 'docs/assistant.md "Optional containers"'}
   - id: "admin sandbox gateway"
     component: authz
     parameters:
@@ -1890,7 +1900,7 @@ properties_claimed:
 # ---------------------------------------------------------------- §1.12
 properties_disclaimed:
   - {id: N-ADMIN, components: [outbound, ingest, assistant, optional], tier: security-critical, false_friend: false, conditions: "protection from the instance admin or host operator (admin-set URLs reaching internal hosts, admin code, templates, regexes, component installs, api_key_env). Covers only operands an admin or operator alone can set. Excludes the guards Lens documents on them (P-ADMIN-GUARD): an escape of one is VALID. Excludes saved telemetry headers when the endpoint moves host (unresolved, Q35 -> MODEL-GAP). A non-admin reaching any admin operand is in model.", provenance: {kind: maintainer, date: "2026-10"}}
-  - {id: N-EGRESS, components: [outbound], tier: security-critical, false_friend: true, conditions: "an egress firewall; netguard guards web import, iCal and news feeds, extension http tools, notifications, the assistant's web search and page reads, and Chromium, nothing else; admin-set URLs other than iCal and news feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel, a SearXNG instance for web search) are unguarded", x-false-friend-note: "'public addresses only' reads as server-wide", provenance: {kind: maintainer, date: "2026-10"}}
+  - {id: N-EGRESS, components: [outbound], tier: security-critical, false_friend: true, conditions: "an egress firewall; netguard guards web import, iCal and news feeds, extension http tools, notifications, the assistant's web search and page reads, Chromium and the opt-in browser container (as browser-proxy), nothing else; admin-set URLs other than iCal and news feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel, a SearXNG instance for web search) are unguarded", x-false-friend-note: "'public addresses only' reads as server-wide", provenance: {kind: maintainer, date: "2026-10"}}
   - {id: N-CODE-GUARD, components: [assistant], tier: security-critical, false_friend: true, conditions: "a sandbox for Python code tools; audit hooks, rlimits and an optional network namespace only raise the bar; admin-written code; runs as the Lens user", x-false-friend-note: "guard is not isolation", provenance: {kind: documented, source: 'domain/code_tools.py docstring "they aren''t a wall"'}}
   - {id: N-DOWNLOADS, components: [optional], tier: security-critical, false_friend: false, conditions: "integrity beyond HTTPS and the publisher for llama.cpp, cloudflared, pip installs and hf: models; catalog GGUF files are still checked (P-MODEL-CHECKSUM)", provenance: {kind: maintainer, date: "2026-10"}}
   - {id: N-DB-PLAIN, components: [outbound], tier: security-critical, false_friend: true, conditions: "encryption of the SurrealDB content (assets' text, indexes), derived files, renditions, reports, exports and the storage-source cache; stated limit", x-false-friend-note: "vaults cover files only", provenance: {kind: documented, source: 'docs/encryption.md "the SurrealDB database itself"'}}
@@ -1982,6 +1992,7 @@ known_misuses:
   - {id: km-wide-web-networks, components: [outbound], pattern: "Wide LENS_WEB_NETWORKS", x-why-unsafe: "Editors, and iCal and news feed redirects, can then reach those networks", safer_alternative: "List single hosts", x-provenance-basis: "§1.6 web_networks row; §1.13 private networks row", provenance: {kind: documented, source: 'docs/configuration.md "loopback and cloud metadata addresses stay out"'}}
   - {id: km-push-token-in-url, components: [optional], pattern: "Webhook push token in a URL that proxies log", x-why-unsafe: "The token is a credential in the path", safer_alternative: "Use the header form", x-provenance-basis: "§1.13 row 'Keep logs that record request paths private'", provenance: {kind: documented, source: 'docs/sensors.md "Ways in"'}}
   - {id: km-hosted-model-sensitive, components: [assistant], pattern: "Pointing the assistant at a hosted model for sensitive archives", x-why-unsafe: "Assets' text leaves the machine", safer_alternative: "Use a local model server", x-provenance-basis: "§1.13 row 'Pick model and speech servers you trust'", provenance: {kind: maintainer, date: "2026-10"}}
+  - {id: km-browser-sign-in, components: [assistant], pattern: "Signing in to a site in the assistant's browser", x-why-unsafe: "One browser serves everyone whose assistant uses it, so they are signed in too until it stops", safer_alternative: "Give the assistant only public pages, or an account made for it", provenance: {kind: documented, source: 'docs/assistant.md "One browser for everyone"'}}
 
 # ---------------------------------------------------------------- §1.15
 known_non_findings:

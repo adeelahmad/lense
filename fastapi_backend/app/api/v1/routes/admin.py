@@ -65,6 +65,7 @@ from app.schemas.admin import (
     HttpsStatus,
     IndexQueued,
     LlmTestResult,
+    LlmTry,
     LocalLlmStatus,
     LogLine,
     LogStatus,
@@ -138,8 +139,11 @@ def get_encryption(user: AdminReader) -> EncryptionProgress:
 
 
 @router.post("/settings/llm/test")
-def test_llm(user: AdminWriter, cfg: Cfg) -> LlmTestResult:
-    """Ask the configured model for one word, to check the address, key and model name."""
+def test_llm(user: AdminWriter, cfg: Cfg, body: LlmTry | None = None) -> LlmTestResult:
+    """Ask the model for one word, to check the address, key and model name: what is given (typed, not saved yet),
+    else what is saved."""
+    if body:
+        cfg = {**cfg, "llm": llm.trying(cfg["llm"], body.base_url, body.model, body.api_key)}
     if not llm.configured(cfg):
         return LlmTestResult(ok=False, error="set a base URL and a model first")
     t0 = time.time()
