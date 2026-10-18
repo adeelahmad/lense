@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import io
 import json
+import threading
+import time
 
+import anyio
 import pytest
 
 from app.domain import ai_tools, auth, chat, store, topics
@@ -213,6 +216,80 @@ def test_stopping_an_answer(plain, client, new_client, db, cfg, folder, llm, mon
         "(no answer)",
         "429 from the LLM server",
     )
+
+
+async def _leave_after_first_token(app, path, headers, body, left):
+    """POST `path` as a browser that leaves once the first piece of the answer has arrived (a closed tab, a page that
+    moved on): the server tells the app the client disconnected, as uvicorn does. What it was sent before leaving."""
+    got, token, asked = [], anyio.Event(), False
+
+    async def receive():
+        nonlocal asked
+        if not asked:
+            asked = True
+            return {"type": "http.request", "body": body, "more_body": False}
+        await token.wait()
+        left.set()
+        return {"type": "http.disconnect"}
+
+    async def send(message):
+        if message["type"] == "http.response.body":
+            got.append(message.get("body", b""))
+            if b"event: token" in b"".join(got):
+                token.set()
+
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0", "spec_version": "2.3"},
+        "http_version": "1.1",
+        "method": "POST",
+        "scheme": "http",
+        "path": path,
+        "raw_path": path.encode(),
+        "root_path": "",
+        "query_string": b"",
+        "headers": [(b"host", b"127.0.0.1"), (b"content-type", b"application/json")]
+        + [(k.lower().encode(), v.encode()) for k, v in headers.items()],
+        "client": ("127.0.0.1", 50000),
+        "server": ("127.0.0.1", 80),
+    }
+    await app(scope, receive, send)
+    return b"".join(got).decode()
+
+
+def test_an_answer_is_saved_when_the_client_leaves(plain, app, client, db, cfg, folder, monkeypatch):
+    seed(db, cfg, folder)
+    make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor", "calls": "editor"})
+    h = login(client, "ed@x.io", "editor password 1")
+    cid = client.post("/api/v1/chats", headers=h, json={}).json()["id"]
+    left = threading.Event()
+
+    def stream(*_a, **_k):  # the rest of the answer comes after the browser has gone
+        yield "The shipment "
+        assert left.wait(10)
+        yield "leaves on Friday [1]."
+
+    monkeypatch.setattr(llm_mod, "stream_chat", stream)
+    body = json.dumps({"content": "When does the shipment leave?"}).encode()
+    seen = anyio.run(_leave_after_first_token, app, f"/api/v1/chats/{cid}/messages", h, body, left)
+    assert "event: token" in seen and "event: done" not in seen  # it left before the end
+
+    # the answer is finished and saved all the same, so opening the conversation again shows it, not a bare question
+    for _ in range(100):
+        msgs = client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"]
+        if len(msgs) == 2:
+            break
+        time.sleep(0.1)
+    assert [(m["role"], m["content"]) for m in msgs] == [
+        ("user", "When does the shipment leave?"),
+        ("assistant", "The shipment leaves on Friday [1]."),
+    ]
+    assert msgs[1]["passages"] and not msgs[1].get("stopped")
+    for _ in range(50):  # and it's no longer marked as being written, so Stop has nothing to stop
+        if not (db.one("SELECT answering FROM $r", r=store.R("chat", cid)) or {}).get("answering"):
+            break
+        time.sleep(0.1)
+    assert client.post(f"/api/v1/chats/{cid}/stop", headers=h).json()["stopping"] is False
 
 
 def test_stopping_between_tool_steps(client, db, cfg, folder, llm, monkeypatch):

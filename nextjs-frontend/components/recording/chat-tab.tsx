@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Chats } from "@/app/openapi-client";
 import { citeLabel } from "@/components/chat/cite";
-import { useStopAnswer } from "@/components/chat/data";
+import { refetchFresh, useStopAnswer } from "@/components/chat/data";
 import { usePlayerApi } from "@/components/player/media";
 import {
   applyChatEvent,
@@ -121,7 +121,7 @@ function ChatPanel() {
         setAnswer((a) => (a ? applyChatEvent(a, ev) : a));
       }
       setAnswer((a) => (a && a.status === "streaming" ? { ...a, status: "done" } : a));
-      await qc.invalidateQueries({ queryKey: ["chat", target] });
+      await refetchFresh(qc, ["chat", target]);
       setAnswer((a) => (a?.status === "done" || a?.saved ? null : a)); // a saved one shows in the conversation now
     } catch (e) {
       if (ctl.signal.aborted) setAnswer((a) => (a ? { ...a, status: "stopped" } : a));

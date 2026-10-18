@@ -1674,9 +1674,21 @@ export type Automation = {
   /**
    * Next At
    *
-   * in lists: when it runs next, from its schedules (coming soon)
+   * in lists: when it runs next, from its schedule, at and relative triggers and its joins' timers
    */
   next_at?: string | null;
+  /**
+   * Runs Today
+   *
+   * in lists: its runs since midnight (UTC), tries left out
+   */
+  runs_today?: number | null;
+  /**
+   * Reads
+   *
+   * in lists: what sets it off, in words: each trigger, then its join (match.describe_triggers)
+   */
+  reads?: string | null;
   [key: string]: unknown;
 };
 

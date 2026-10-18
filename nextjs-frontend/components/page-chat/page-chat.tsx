@@ -11,7 +11,7 @@ import { Chats } from "@/app/openapi-client";
 import type { ChatMessage, Passage, SharedContext } from "@/app/openapi-client/types.gen";
 import { NO_ANSWER } from "@/components/chat/cite";
 import { CitationChip } from "@/components/chat/citation";
-import { useChat, useLlmStatus, useStopAnswer } from "@/components/chat/data";
+import { refetchFresh, useChat, useLlmStatus, useStopAnswer } from "@/components/chat/data";
 import { RichText } from "@/components/chat/rich-text";
 import { SharedFiles } from "@/components/chat/shared-files";
 import { ToolSteps } from "@/components/chat/steps";
@@ -312,7 +312,7 @@ function ChatPanel({
     }
     if (cid == null) return setLive({ chatId: -1, turn, context: shown });
     setLive({ chatId: cid, turn, context: shown });
-    await qc.invalidateQueries({ queryKey: ["chat", cid] });
+    await refetchFresh(qc, ["chat", cid]);
     void qc.invalidateQueries({ queryKey: ["chats"] });
     // a saved answer is in the conversation now; one that wasn't saved stays shown
     if (turn.messageId != null) setLive(null);

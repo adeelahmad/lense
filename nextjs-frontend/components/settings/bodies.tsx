@@ -29,12 +29,16 @@ import { SandboxGatewaySwitch } from "@/components/settings/sandbox-gateway";
 import { ScalingGroups } from "@/components/settings/scaling-panel";
 import { SignInProviders } from "@/components/settings/sign-in-providers";
 import { UpdatesPanel } from "@/components/settings/updates-panel";
+import { settingHref } from "@/components/settings/find";
+import { ReferenceStatus } from "@/components/settings/vault-picker";
 import { VoicePicker } from "@/components/settings/voice-picker";
 import { AddConnection } from "@/components/storage/add-connection";
 import { NOT_STORAGE, fileStoreTry } from "@/components/storage/file-store";
 import {
   AI_TOOLS,
   BACKUP_SCHEDULES,
+  FIELDS,
+  SECTIONS,
   SPEECH_PROVIDERS,
   UPLOAD_TYPES,
   type FieldSpec,
@@ -600,6 +604,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
       );
     case "encryption":
       return <EncryptionBody ctx={ctx} />;
+    case "secrets":
+      return <SecretsBody ctx={ctx} />;
     case "backups":
       return <BackupsBody ctx={ctx} />;
     case "storage":
@@ -738,6 +744,7 @@ function LlmBody({ ctx }: { ctx: BodyCtx }) {
         key={ctx.view.llm?.updated_at ?? "none"}
         label="API key"
         isSet={Boolean(secret.set)}
+        saved={secret}
         updatedBy={ctx.view.llm?.updated_by}
         updatedAt={ctx.view.llm?.updated_at}
         value={key.value as string | undefined}
@@ -939,6 +946,7 @@ function TelemetryBody({ ctx }: { ctx: BodyCtx }) {
         label={locked.includes("headers") ? "Headers (set by LENS_TELEMETRY_HEADERS in .env)" : "Headers"}
         placeholder="Authorization=Bearer%20token,X-Scope-OrgID=home"
         isSet={Boolean(secret.set)}
+        saved={secret}
         updatedBy={t?.updated_by}
         updatedAt={t?.updated_at}
         value={headers.value as string | undefined}
@@ -1005,6 +1013,7 @@ function TelemetryBody({ ctx }: { ctx: BodyCtx }) {
         }
         placeholder="16 or more letters and digits, e.g. from openssl rand -hex 32"
         isSet={Boolean(promSecret.set)}
+        saved={promSecret}
         updatedBy={t?.updated_by}
         updatedAt={t?.updated_at}
         value={promToken.value as string | undefined}
@@ -1158,6 +1167,7 @@ function AnalyticsBody({ ctx }: { ctx: BodyCtx }) {
         }
         placeholder="From GA: Admin → Data streams → your stream → Measurement Protocol API secrets"
         isSet={Boolean(secret.set)}
+        saved={secret}
         updatedBy={a?.updated_by}
         updatedAt={a?.updated_at}
         value={apiSecret.value as string | undefined}
@@ -1237,6 +1247,131 @@ function EncryptionBody({ ctx }: { ctx: BodyCtx }) {
       <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
         Vaults are set on each namespace’s page: only their owners’ passkeys open them.
       </p>
+    </>
+  );
+}
+
+/** Settings › Secrets: the Vaultwarden vault secret fields can refer to (docs/secrets.md), a check of its sign-in, and
+ * the fields that refer to it with whether each could be read. Never a value. */
+function SecretsBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const s = ctx.view.secrets;
+  const secret = (k: string) => (s?.values?.[k] ?? {}) as { set?: boolean };
+  const clientSecret = ctx.state("secrets.vaultwarden_client_secret");
+  const password = ctx.state("secrets.vaultwarden_password");
+  const saved = Boolean(s?.values?.vaultwarden_url);
+  const refs = useQuery({
+    queryKey: ["secrets", s?.updated_at ?? null],
+    queryFn: () => data(Admin.getSecrets({ client })),
+  });
+  const test = useMutation({
+    mutationFn: () => data(Admin.testSecrets({ client, body: { provider: "vaultwarden" } })),
+  });
+  const where = (section: string, key: string) => {
+    const f = FIELDS.find((x) => x.section === section && x.key === key);
+    const sec = SECTIONS.find((x) => x.backend.includes(section));
+    return { label: f?.label ?? `${section}.${key}`, section: sec, href: sec ? settingHref(sec.id, f) : null };
+  };
+  const references = refs.data?.references ?? [];
+  return (
+    <>
+      <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+        Any secret field in Settings can hold a reference to an item in your vault, like vaultwarden://OpenAI/password,
+        instead of the secret. Lens reads the value and keeps only the reference; nobody sees the value, agents
+        included. Give Lens an account of its own on the vault, and put the items it may read in one folder.
+      </p>
+      <F ctx={ctx} id="secrets.vaultwarden_url" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="secrets.vaultwarden_email" />
+        <F ctx={ctx} id="secrets.vaultwarden_client_id" />
+      </div>
+      <SecretSetting
+        key={`client-${s?.updated_at ?? "none"}`}
+        label="API key client_secret"
+        placeholder="Paste the API key’s client_secret"
+        isSet={Boolean(secret("vaultwarden_client_secret").set)}
+        updatedBy={s?.updated_by}
+        updatedAt={s?.updated_at}
+        value={clientSecret.value as string | undefined}
+        onChange={(x) => clientSecret.onChange(x)}
+      />
+      <SecretSetting
+        key={`password-${s?.updated_at ?? "none"}`}
+        label="Master password"
+        placeholder="The account’s master password"
+        isSet={Boolean(secret("vaultwarden_password").set)}
+        updatedBy={s?.updated_by}
+        updatedAt={s?.updated_at}
+        value={password.value as string | undefined}
+        onChange={(x) => password.onChange(x)}
+        hint="The vault encrypts its items end to end, so it opens them"
+      />
+      <More
+        ctx={ctx}
+        ids={["secrets.vaultwarden_folder", "secrets.cache_minutes"]}
+        title="The folder Lens reads, and how often"
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          <F ctx={ctx} id="secrets.vaultwarden_folder" />
+          <F ctx={ctx} id="secrets.cache_minutes" />
+        </div>
+      </More>
+      {saved && (
+        <>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending}>
+              {test.isPending ? "Signing in…" : "Test"}
+            </Button>
+            <span className="text-[12px] text-fg-muted">
+              {ctx.dirty
+                ? "Uses the saved settings, not your unsaved changes"
+                : "Signs in to the vault and counts the items Lens may read"}
+            </span>
+          </div>
+          {test.data &&
+            (test.data.ok ? (
+              <Banner tone="success" title="Lens signs in to the vault.">
+                {test.data.items ?? 0} item(s) in the folder {test.data.folder} of {test.data.account}.
+              </Banner>
+            ) : (
+              <Banner tone="error" title="Not yet.">
+                {test.data.error}
+              </Banner>
+            ))}
+          {test.isError && <Banner tone="error">{test.error.message}</Banner>}
+        </>
+      )}
+      <Sub>Fields that refer to the vault</Sub>
+      {refs.isPending ? (
+        <Skeleton className="h-10" />
+      ) : references.length === 0 ? (
+        <p className="text-[12.5px] leading-[1.45] text-fg-muted">
+          None yet. In any secret field, pick From Vaultwarden, or paste a reference like vaultwarden://Item/field.
+        </p>
+      ) : (
+        <ul className="flex flex-col divide-y divide-border rounded-sm border border-border">
+          {references.map((r) => {
+            const w = where(r.section, r.key);
+            return (
+              <li key={`${r.section}.${r.key}`} className="flex flex-col gap-0.5 px-3 py-2 text-[13px]">
+                <span className="flex flex-wrap items-baseline gap-x-2">
+                  {w.href ? (
+                    <Link href={w.href} className="font-semibold text-fg-accent hover:underline">
+                      {w.section?.label} › {w.label}
+                    </Link>
+                  ) : (
+                    <span className="font-semibold">{w.label}</span>
+                  )}
+                  <span className="font-mono text-[12.5px] text-fg-secondary">{r.ref}</span>
+                </span>
+                <span className="text-[12px] text-fg-muted">
+                  <ReferenceStatus saved={r} />
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </>
   );
 }
@@ -1419,6 +1554,7 @@ function FedoraBody({ ctx }: { ctx: BodyCtx }) {
           label={locked.includes("password") ? "Password (set by LENS_FEDORA_PASSWORD in .env)" : "Password"}
           placeholder="fedoraAdmin"
           isSet={Boolean(secret.set)}
+          saved={secret}
           updatedBy={f?.updated_by}
           updatedAt={f?.updated_at}
           value={password.value as string | undefined}
@@ -1701,6 +1837,7 @@ function MailBody({ ctx }: { ctx: BodyCtx }) {
           key={m?.updated_at ?? "none"}
           label="Password"
           isSet={Boolean(((m?.values?.password ?? {}) as { set?: boolean }).set)}
+          saved={m?.values?.password}
           updatedBy={m?.updated_by}
           updatedAt={m?.updated_at}
           value={pw.value as string | undefined}
@@ -1902,6 +2039,7 @@ function HttpsBody({ ctx }: { ctx: BodyCtx }) {
                 label="Its fields, as JSON"
                 placeholder='{"api_token": "…"}'
                 isSet={secret("dns_credentials")}
+                saved={t?.values?.dns_credentials}
                 updatedBy={t?.updated_by}
                 updatedAt={t?.updated_at}
                 value={creds.value as string | undefined}
@@ -1979,6 +2117,7 @@ function HttpsBody({ ctx }: { ctx: BodyCtx }) {
                 label="EAB HMAC key"
                 placeholder="Paste the HMAC key"
                 isSet={secret("eab_hmac_key")}
+                saved={t?.values?.eab_hmac_key}
                 updatedBy={t?.updated_by}
                 updatedAt={t?.updated_at}
                 value={eab.value as string | undefined}
@@ -2072,6 +2211,7 @@ function TunnelBody({ ctx }: { ctx: BodyCtx }) {
             label="Cloudflare API token"
             placeholder="Paste a Cloudflare API token"
             isSet={secret("api_token")}
+            saved={t?.values?.api_token}
             updatedBy={t?.updated_by}
             updatedAt={t?.updated_at}
             value={apiToken.value as string | undefined}
@@ -2091,6 +2231,7 @@ function TunnelBody({ ctx }: { ctx: BodyCtx }) {
             label="Tunnel token"
             placeholder="Paste the tunnel’s token"
             isSet={secret("token")}
+            saved={t?.values?.token}
             updatedBy={t?.updated_by}
             updatedAt={t?.updated_at}
             value={token.value as string | undefined}
@@ -2173,6 +2314,7 @@ function BridgeBody({ ctx }: { ctx: BodyCtx }) {
             key={b?.updated_at ?? "none"}
             label="API token"
             isSet={Boolean(((b?.values?.token ?? {}) as { set?: boolean }).set)}
+            saved={b?.values?.token}
             updatedBy={b?.updated_by}
             updatedAt={b?.updated_at}
             value={token.value as string | undefined}
@@ -2282,6 +2424,7 @@ function TelegramBody({ ctx }: { ctx: BodyCtx }) {
         key={t?.updated_at ?? "none"}
         label="Bot token"
         isSet={Boolean(((t?.values?.token ?? {}) as { set?: boolean }).set)}
+        saved={t?.values?.token}
         updatedBy={t?.updated_by}
         updatedAt={t?.updated_at}
         value={token.value as string | undefined}
@@ -2339,6 +2482,7 @@ function SlackToken({ ctx, id, label }: { ctx: BodyCtx; id: "bot_token" | "app_t
       key={sl?.updated_at ?? "none"}
       label={label}
       isSet={Boolean(((sl?.values?.[id] ?? {}) as { set?: boolean }).set)}
+      saved={sl?.values?.[id]}
       updatedBy={sl?.updated_by}
       updatedAt={sl?.updated_at}
       value={st.value as string | undefined}
@@ -2515,6 +2659,7 @@ function MailboxBody({ ctx }: { ctx: BodyCtx }) {
         label="Password"
         placeholder="The mailbox’s password (an app password, for most providers)"
         isSet={Boolean(((m?.values?.password ?? {}) as { set?: boolean }).set)}
+        saved={m?.values?.password}
         updatedBy={m?.updated_by}
         updatedAt={m?.updated_at}
         value={password.value as string | undefined}
@@ -2585,6 +2730,7 @@ function MatterbridgeSecret({ ctx, id, label }: { ctx: BodyCtx; id: string; labe
       key={m?.updated_at ?? "none"}
       label={label}
       isSet={Boolean(((m?.values?.[id] ?? {}) as { set?: boolean }).set)}
+      saved={m?.values?.[id]}
       updatedBy={m?.updated_by}
       updatedAt={m?.updated_at}
       value={st.value as string | undefined}
@@ -2809,6 +2955,7 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
             key={ctx.view.voice?.updated_at ?? "none"}
             label="Speech server API key"
             isSet={Boolean(((ctx.view.voice?.values?.tts_api_key ?? {}) as { set?: boolean }).set)}
+            saved={ctx.view.voice?.values?.tts_api_key}
             updatedBy={ctx.view.voice?.updated_by}
             updatedAt={ctx.view.voice?.updated_at}
             value={ctx.state("voice.tts_api_key").value as string | undefined}
@@ -2874,6 +3021,7 @@ function WebSearch({ ctx }: { ctx: BodyCtx }) {
               key={web?.updated_at ?? "none"}
               label={`${provider === "brave" ? "Brave Search" : "Tavily"} API key`}
               isSet={Boolean(((web?.values?.api_key ?? {}) as { set?: boolean }).set)}
+              saved={web?.values?.api_key}
               updatedBy={web?.updated_by}
               updatedAt={web?.updated_at}
               value={ctx.state("web.api_key").value as string | undefined}
@@ -2960,6 +3108,7 @@ function RoutineChoices({ ctx }: { ctx: BodyCtx }) {
               key={d?.updated_at ?? "none"}
               label="Decision model API key"
               isSet={Boolean(secret.set)}
+              saved={secret}
               updatedBy={d?.updated_by}
               updatedAt={d?.updated_at}
               value={key.value as string | undefined}
@@ -3038,6 +3187,7 @@ function SearchBody({ ctx }: { ctx: BodyCtx }) {
               key={search?.updated_at ?? "none"}
               label="Password"
               isSet={Boolean(((search?.values?.opensearch_password ?? {}) as { set?: boolean }).set)}
+              saved={search?.values?.opensearch_password}
               updatedBy={search?.updated_by}
               updatedAt={search?.updated_at}
               value={osPassword.value as string | undefined}
@@ -3066,6 +3216,7 @@ function SearchBody({ ctx }: { ctx: BodyCtx }) {
             key={ctx.view.embeddings?.updated_at ?? "none"}
             label="API key"
             isSet={Boolean(secret.set)}
+            saved={secret}
             updatedBy={ctx.view.embeddings?.updated_by}
             updatedAt={ctx.view.embeddings?.updated_at}
             value={key.value as string | undefined}
@@ -3448,6 +3599,7 @@ function SpeechProvidersBody({ ctx }: { ctx: BodyCtx }) {
                 key={view?.updated_at ?? "none"}
                 label={`${p.label} API key`}
                 isSet={Boolean(((view?.values?.[`${p.id}_api_key`] ?? {}) as { set?: boolean }).set)}
+                saved={view?.values?.[`${p.id}_api_key`]}
                 updatedBy={view?.updated_by}
                 updatedAt={view?.updated_at}
                 value={ctx.state(`speech.${p.id}_api_key`).value as string | undefined}
