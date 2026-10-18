@@ -192,6 +192,9 @@ import type {
   CreateExtensionVersionData,
   CreateExtensionVersionErrors,
   CreateExtensionVersionResponses,
+  CreateFeedData,
+  CreateFeedErrors,
+  CreateFeedResponses,
   CreateFieldData,
   CreateFieldErrors,
   CreateFieldResponses,
@@ -338,6 +341,9 @@ import type {
   DeleteFaceTrackData,
   DeleteFaceTrackErrors,
   DeleteFaceTrackResponses,
+  DeleteFeedData,
+  DeleteFeedErrors,
+  DeleteFeedResponses,
   DeleteFieldData,
   DeleteFieldErrors,
   DeleteFieldResponses,
@@ -576,6 +582,9 @@ import type {
   GetExtensionResponses,
   GetFedoraStatusData,
   GetFedoraStatusResponses,
+  GetFeedData,
+  GetFeedErrors,
+  GetFeedResponses,
   GetFieldData,
   GetFieldErrors,
   GetFieldResponses,
@@ -910,6 +919,12 @@ import type {
   ListExtensionsData,
   ListExtensionsErrors,
   ListExtensionsResponses,
+  ListFeedItemsData,
+  ListFeedItemsErrors,
+  ListFeedItemsResponses,
+  ListFeedsData,
+  ListFeedsErrors,
+  ListFeedsResponses,
   ListFieldsData,
   ListFieldsErrors,
   ListFieldsResponses,
@@ -1228,6 +1243,9 @@ import type {
   ProposeGraphChangeData,
   ProposeGraphChangeErrors,
   ProposeGraphChangeResponses,
+  PublishToFeedData,
+  PublishToFeedErrors,
+  PublishToFeedResponses,
   PurgeDeletedData,
   PurgeDeletedErrors,
   PurgeDeletedResponses,
@@ -1260,6 +1278,12 @@ import type {
   QueueStepData,
   QueueStepErrors,
   QueueStepResponses,
+  ReadFeedAudioData,
+  ReadFeedAudioErrors,
+  ReadFeedAudioResponses,
+  ReadFeedData,
+  ReadFeedErrors,
+  ReadFeedResponses,
   ReadFileData,
   ReadFileErrors,
   ReadFileResponses,
@@ -1297,6 +1321,9 @@ import type {
   RemoveBudgetData,
   RemoveBudgetErrors,
   RemoveBudgetResponses,
+  RemoveFeedItemData,
+  RemoveFeedItemErrors,
+  RemoveFeedItemResponses,
   RemoveLocalModelData,
   RemoveLocalModelErrors,
   RemoveLocalModelResponses,
@@ -1407,6 +1434,9 @@ import type {
   RevokeTokenData,
   RevokeTokenErrors,
   RevokeTokenResponses,
+  RotateFeedTokenData,
+  RotateFeedTokenErrors,
+  RotateFeedTokenResponses,
   RotateNotifySecretData,
   RotateNotifySecretErrors,
   RotateNotifySecretResponses,
@@ -1742,6 +1772,9 @@ import type {
   UpdateExtensionData,
   UpdateExtensionErrors,
   UpdateExtensionResponses,
+  UpdateFeedData,
+  UpdateFeedErrors,
+  UpdateFeedResponses,
   UpdateFieldData,
   UpdateFieldErrors,
   UpdateFieldResponses,
@@ -10406,8 +10439,8 @@ export class Chats {
    * Get Chat
    *
    * A conversation with the version showing (`messages`, each with its `versions`) and every version's messages
-   * (`tree`). Citations follow your current access: ones you can no longer read are left out (web pages it cited stay:
-   * they aren't the archive's).
+   * (`tree`). Citations follow your current access: ones you can no longer read are left out (web pages, Lens's docs
+   * and this server's facts it cited stay: they aren't the archive's).
    */
   public static getChat<ThrowOnError extends boolean = false>(
     options: Options<GetChatData, ThrowOnError>,
@@ -12444,6 +12477,178 @@ export class Podcasts {
   ): RequestResult<RegeneratePodcastResponses, RegeneratePodcastErrors, ThrowOnError> {
     return (options.client ?? client).post<RegeneratePodcastResponses, RegeneratePodcastErrors, ThrowOnError>({
       url: "/api/v1/podcasts/{rid}/regenerate",
+      ...options,
+    });
+  }
+}
+
+export class Feeds {
+  /**
+   * Read Feed
+   *
+   * A feed as RSS 2.0, with Apple Podcasts' tags for a podcast feed: what feed readers and podcast apps subscribe
+   * to. No session: the token in the address is the credential (404 for any other). Answers 304 to a reader whose
+   * copy (If-None-Match) is current.
+   */
+  public static readFeed<ThrowOnError extends boolean = false>(
+    options: Options<ReadFeedData, ThrowOnError>,
+  ): RequestResult<ReadFeedResponses, ReadFeedErrors, ThrowOnError> {
+    return (options.client ?? client).get<ReadFeedResponses, ReadFeedErrors, ThrowOnError>({
+      url: "/api/v1/feeds/public/{token}",
+      ...options,
+    });
+  }
+
+  /**
+   * Read Feed Audio
+   *
+   * An item's audio (or video), with byte ranges, as podcast apps download it. The feed's token is the credential.
+   */
+  public static readFeedAudio<ThrowOnError extends boolean = false>(
+    options: Options<ReadFeedAudioData, ThrowOnError>,
+  ): RequestResult<ReadFeedAudioResponses, ReadFeedAudioErrors, ThrowOnError> {
+    return (options.client ?? client).get<ReadFeedAudioResponses, ReadFeedAudioErrors, ThrowOnError>({
+      url: "/api/v1/feeds/public/{token}/items/{iid}/audio",
+      ...options,
+    });
+  }
+
+  /**
+   * List Feeds
+   *
+   * Feeds in the namespaces you can read (or one of them), each with its private address.
+   */
+  public static listFeeds<ThrowOnError extends boolean = false>(
+    options?: Options<ListFeedsData, ThrowOnError>,
+  ): RequestResult<ListFeedsResponses, ListFeedsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListFeedsResponses, ListFeedsErrors, ThrowOnError>({
+      url: "/api/v1/feeds",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Feed
+   *
+   * A new feed in a namespace you edit, with its private address. Audited as `feed.create`.
+   */
+  public static createFeed<ThrowOnError extends boolean = false>(
+    options: Options<CreateFeedData, ThrowOnError>,
+  ): RequestResult<CreateFeedResponses, CreateFeedErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateFeedResponses, CreateFeedErrors, ThrowOnError>({
+      url: "/api/v1/feeds",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Feed
+   *
+   * Delete a feed and its items (editors): its address stops working at once. What the items were about stays.
+   * Audited as `feed.delete`.
+   */
+  public static deleteFeed<ThrowOnError extends boolean = false>(
+    options: Options<DeleteFeedData, ThrowOnError>,
+  ): RequestResult<DeleteFeedResponses, DeleteFeedErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteFeedResponses, DeleteFeedErrors, ThrowOnError>({
+      url: "/api/v1/feeds/{fid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Feed
+   */
+  public static getFeed<ThrowOnError extends boolean = false>(
+    options: Options<GetFeedData, ThrowOnError>,
+  ): RequestResult<GetFeedResponses, GetFeedErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetFeedResponses, GetFeedErrors, ThrowOnError>({
+      url: "/api/v1/feeds/{fid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Feed
+   *
+   * Change a feed's settings (editors of its namespace). Fields left out stay as they are.
+   */
+  public static updateFeed<ThrowOnError extends boolean = false>(
+    options: Options<UpdateFeedData, ThrowOnError>,
+  ): RequestResult<UpdateFeedResponses, UpdateFeedErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateFeedResponses, UpdateFeedErrors, ThrowOnError>({
+      url: "/api/v1/feeds/{fid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Rotate Feed Token
+   *
+   * A new private address for a feed (editors): the old one stops working at once, so readers subscribed to it
+   * need the new one. Audited as `feed.token`.
+   */
+  public static rotateFeedToken<ThrowOnError extends boolean = false>(
+    options: Options<RotateFeedTokenData, ThrowOnError>,
+  ): RequestResult<RotateFeedTokenResponses, RotateFeedTokenErrors, ThrowOnError> {
+    return (options.client ?? client).post<RotateFeedTokenResponses, RotateFeedTokenErrors, ThrowOnError>({
+      url: "/api/v1/feeds/{fid}/token",
+      ...options,
+    });
+  }
+
+  /**
+   * List Feed Items
+   *
+   * A feed's items, newest first.
+   */
+  public static listFeedItems<ThrowOnError extends boolean = false>(
+    options: Options<ListFeedItemsData, ThrowOnError>,
+  ): RequestResult<ListFeedItemsResponses, ListFeedItemsErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListFeedItemsResponses, ListFeedItemsErrors, ThrowOnError>({
+      url: "/api/v1/feeds/{fid}/items",
+      ...options,
+    });
+  }
+
+  /**
+   * Publish To Feed
+   *
+   * Add resources (podcast episodes too), timeline activities and text items to a feed (editors of its namespace).
+   * What's already in it isn't added twice; what may not show there (it's in a namespace not everyone who reads the
+   * feed can read) is refused, with why. Audited as `feed.publish`.
+   */
+  public static publishToFeed<ThrowOnError extends boolean = false>(
+    options: Options<PublishToFeedData, ThrowOnError>,
+  ): RequestResult<PublishToFeedResponses, PublishToFeedErrors, ThrowOnError> {
+    return (options.client ?? client).post<PublishToFeedResponses, PublishToFeedErrors, ThrowOnError>({
+      url: "/api/v1/feeds/{fid}/items",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Remove Feed Item
+   *
+   * Take an item out of a feed (editors). A routine may add it again; what it was about stays.
+   */
+  public static removeFeedItem<ThrowOnError extends boolean = false>(
+    options: Options<RemoveFeedItemData, ThrowOnError>,
+  ): RequestResult<RemoveFeedItemResponses, RemoveFeedItemErrors, ThrowOnError> {
+    return (options.client ?? client).delete<RemoveFeedItemResponses, RemoveFeedItemErrors, ThrowOnError>({
+      url: "/api/v1/feeds/{fid}/items/{iid}",
       ...options,
     });
   }

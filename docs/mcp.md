@@ -67,6 +67,7 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 
 | Tool | |
 |---|---|
+| `lens_help` | Lens itself rather than the archive: the sections of Lens's docs that match a question (or one page read whole), each with its link, and this server's own facts: version, addresses (web app, MCP, API), what is turned on and your access ([Questions about Lens itself](assistant.md#questions-about-lens-itself)) |
 | `search` | moments where words appear (written, spoken or shown on screen), best first: the asset, person, time, the matching text (matches in **bold**) and a link to that moment. Words, `"phrases"`, `OR`; by namespace, person or asset |
 | `find_similar` | the assets (recordings, documents and images) most like a text, an asset, a topic or an entity: why each is alike (meaning, key words, topics, entities in common) and the moments that show it, with links |
 | `find` | assets by any attribute: faces seen, people heard, entities, topics, kind, content type, dates (a day, month or year), tags, language, objects, emotions, length, collection and words in them; ids or names. Each says why it matched, with moments and links to cite ([Finding by any attribute](processing.md#finding-by-any-attribute)) |
@@ -100,6 +101,9 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 | `export_chat` | one of them as Markdown or JSON ([Copy and export](assistant.md#copy-and-export)): the version showing, one `message`, every version (`all_versions`) or OpenAI's `{"messages": [...]}` shape (`as_messages`) |
 | `create_podcast` | make a two-host learning [episode](podcasts.md) about assets or lines in them, with an angle, a length and a style; it's made in the background. Needs a write-scope token and editor access where it goes |
 | `get_podcast` | an episode: how far it has got, its script with each line's speaker and the sources it cites (links), and what the fact-check changed |
+| `list_feeds` | the RSS and podcast [feeds](feeds.md) your namespaces publish, each with its private address and how many items it holds; with `feed_id`, one feed and its newest items |
+| `create_feed` | make an RSS feed or a podcast feed in a namespace, for feed readers and podcast apps. Needs a write-scope token and editor access |
+| `publish_to_feed` | add resources, episodes, timeline activities and a text item to a feed; what's there already isn't added twice, and what may not show there comes back refused, with why. Needs a write-scope token and editor access |
 | `write_spec` | write a technical [spec](notes.md#specs-from-transcripts) from a recording's transcript as a note linked to it: every decision, no and constraint in the speaker's own words with links to when they said them, and the gaps left to decide later; it's written in the background. Needs a write-scope token and the right to process the recording |
 | `get_spec` | how a recording's spec is coming (`writing`, `ready` or `failed` with why), its note's id and link, and how many decisions, things turned down, constraints and gaps it holds and quotes the transcript doesn't |
 | `nsfw_settings` | how [NSFW classification](nsfw.md) works in a namespace: on or off, the threshold, how flagged resources show, and how many are classified, flagged and not classified yet |
@@ -155,7 +159,8 @@ Every tool reads, except `suggest_topic`, which adds suggestions people accept o
 which records an undoable change (proposed by default), `undo_graph_change`, `edit_entity`, `edit_topic`,
 `merge_topics`, `delete_topic` and `undo_topic_change`, which curate entities and topics as an editor does in the web
 app (merges and deletes can be undone), `write_note`, which adds a note, `create_podcast`, which
-queues an episode, `write_spec`, which queues a spec, `set_nsfw` and `mark_nsfw`, which change [NSFW classification](nsfw.md) (owners or admins, and
+queues an episode, `create_feed` and `publish_to_feed`, which make and fill a [published feed](feeds.md),
+`write_spec`, which queues a spec, `set_nsfw` and `mark_nsfw`, which change [NSFW classification](nsfw.md) (owners or admins, and
 editors), `set_namespace_integrations`, which turns a namespace's own MCP server or chat completions on or off (owners), `set_picture_descriptions`, which changes what describes pictures (admins), `set_file_storage`, which changes where new files are kept (admins), `subscribe_feed` and `unsubscribe_feed`, which follow and stop following news feeds (admins), and `set_monitoring`, `set_service`,
 `set_sandbox_gateway` (the [code sandbox](assistant.md#code-sandbox)'s gateway) and `set_install_settings`, which have the machine change how Lens runs (admins).
 Importing stays in the web app and the API.

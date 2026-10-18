@@ -206,6 +206,26 @@ def test_web_citations():
     assert "dc:creator" not in doc and doc["current_node"] == "2"
 
 
+def test_docs_citations_say_so():
+    """Lens's docs and this server's facts (lens_help) are pages too, and the JSON says which."""
+    c = {"id": 5, "title": "MCP", "scope": {}, "created_at": "2026-10-17T08:00:00+00:00"}
+    docs = {
+        "n": 1,
+        "source": "docs",
+        "url": "https://github.com/adeelahmad/lense/blob/main/docs/mcp.md#connecting",
+        "title": "MCP server › Connecting",
+        "text": "Add the server's /mcp address.",
+    }
+    msgs = [
+        {"id": 1, "role": "user", "content": "What is the MCP address?"},
+        {"id": 2, "role": "assistant", "content": "It is /mcp [1].", "parent": 1, "passages": [docs]},
+    ]
+    assert f"[^2-1]: [MCP server › Connecting]({docs['url']}): “Add the server's /mcp address.”" in chat_export.markdown(c, msgs, WEB)
+    doc = chat_export.document(c, msgs, WEB)
+    jsonschema.validate(doc, SCHEMA)
+    assert doc["mapping"]["2"]["lens"]["citations"] == [docs]
+
+
 def test_web_pages_stay_in_exports(client, db, conv):
     """A cited web page isn't the archive's, so it stays whatever the reader can read now."""
     page = {"n": 1, "source": "web", "url": "https://example.org/ships", "title": "Ships at sea", "site": "example.org", "text": "Slow."}

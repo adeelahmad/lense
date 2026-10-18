@@ -238,7 +238,8 @@ so nothing is stored twice:
 
 - `read(db, cfg, pos, spaces, limit, hint)`: activities strictly after `pos` (`[time, id]`, or `[time, null]` for
   after every row at that time), oldest first, at most `limit`, of the namespaces in `spaces` (null: all). `hint`
-  is narrowing a source may use.
+  is narrowing a source may use, like `{"actors": ["lens:sensor/5"]}`: what the triggers that want its kinds let
+  through.
 - `page(db, cfg, before, viewer, flt, limit)`: newest first, strictly before `before` (`key` of the last one shown),
   with what the viewer may see and the filters it can apply cheaply (the stream checks every filter again).
 - `get(db, cfg, activity_id)`: one activity by its id, or null; `now(db)`, `back(db, seconds)`: positions of now and of
@@ -291,6 +292,8 @@ where the next look starts (`event_cursor:<consumer>`, a position per source).
 
 - A consumer seen for the first time starts at now: nothing that happened before replays, not even through the
   lookback. What happens in the second it starts in isn't seen.
+- `hint` gives each source its own narrowing, by source name: `{"sensor_readings": {"actors": ["lens:sensor/5"]}}`
+  (`match.compile_triggers` makes it, as [Running automations](#running-automations) says).
 - Only `kinds` (and their descendants; null: every kind) in `spaces` (null: every namespace and none). A source that
   makes none of the kinds wanted isn't read, and its cursor moves to now, so a kind listened to later doesn't replay
   a backlog. `events.idle(db, consumer)` moves every cursor to now.
@@ -1120,6 +1123,13 @@ background work and `lens worker`). It follows the stream ([Following the stream
 kinds that switched-on automations' triggers listen for, every `events.poll_seconds` and at once when something is
 emitted or an automation is saved. With no automation switched on (or automations switched off in Settings), it only
 moves its place to now, so nothing replays when one is switched on.
+
+Which triggers listen comes from `match.compile_triggers(automations)`, an index of the switched-on automations'
+stream triggers (`event`, `relative`, and `webhook` for `webhook.received`): `kinds` (every kind they listen for, to
+follow), `by_kind` (for each kind, the kinds under the ones named included, the triggers listening, as `{automation,
+as, trigger, row}`; `match.candidates(index, activity)` reads it) and `hint`. For each source whose every listening
+trigger names the actors it takes (`actor.id` `equals` or `in` in its `where`), the hint gives that source
+`{"actors": [...]}`, so a busy source, such as sensor readings, is read only for the sensors someone listens to.
 
 Each new activity is checked against each trigger that listens for its kind (a webhook trigger listens for
 `webhook.received` calls to its own hook), and skipped when:

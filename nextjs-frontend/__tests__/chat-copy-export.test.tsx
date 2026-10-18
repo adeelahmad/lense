@@ -83,28 +83,32 @@ describe("copying an answer", () => {
     expect(plainText("## Steps\n\n```bash\nls\n```")).toBe("Steps\n\nls");
   });
 
-  it("copies from the answer's menu, and exports from it", async () => {
+  it("copies as Markdown in one click, and the rest from the arrow beside it", async () => {
     const onExport = jest.fn();
     show(<AnswerMenu text={ANSWER} passages={PASSAGES} onExport={onExport} />);
-    await choose("Copy", "Copy as Markdown");
-    expect(writeText).toHaveBeenCalledWith(answerMarkdown(ANSWER, PASSAGES, ORIGIN));
+    fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(answerMarkdown(ANSWER, PASSAGES, ORIGIN)));
     expect(await screen.findByText("Copied as Markdown")).toBeInTheDocument();
 
-    await choose("Copy", "Copy text");
+    const more = "More ways to copy and export";
+    await choose(more, "Copy text");
     expect(writeText).toHaveBeenLastCalledWith(plainText(ANSWER));
 
-    await choose("Copy", "PDF");
+    await choose(more, "Copy as Markdown");
+    expect(writeText).toHaveBeenLastCalledWith(answerMarkdown(ANSWER, PASSAGES, ORIGIN));
+
+    await choose(more, "PDF");
     await waitFor(() => expect(onExport).toHaveBeenCalledWith("pdf"));
   });
 
   it("says so when the browser won't copy", async () => {
     writeText.mockImplementation(() => Promise.reject(new Error("denied")));
     show(<AnswerMenu text="Hi" passages={[]} />);
-    await choose("Copy", "Copy text");
+    fireEvent.click(screen.getByRole("button", { name: "Copy" }));
     expect(await screen.findByText("Couldn’t copy")).toBeInTheDocument();
     // not saved yet: nothing to export
-    fireEvent.keyDown(screen.getByRole("button", { name: "Copy" }), { key: "Enter" });
-    expect(await screen.findByRole("menuitem", { name: "Copy as Markdown" })).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole("button", { name: "More ways to copy" }), { key: "Enter" });
+    expect(await screen.findByRole("menuitem", { name: "Copy text" })).toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: "PDF" })).not.toBeInTheDocument();
   });
 

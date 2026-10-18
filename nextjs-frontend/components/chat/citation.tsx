@@ -4,7 +4,18 @@ import * as T from "@radix-ui/react-tooltip";
 import Link from "next/link";
 
 import type { Passage } from "@/app/openapi-client/types.gen";
-import { citeLabel, isWeb, passageHref, passageTime, quoteOf, shortTitle, siteOf } from "@/components/chat/cite";
+import {
+  citeLabel,
+  isPage,
+  isWeb,
+  passageAction,
+  passageHref,
+  passageTime,
+  passageTitle,
+  quoteOf,
+  shortTitle,
+  siteOf,
+} from "@/components/chat/cite";
 import { speakerColor } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -85,9 +96,9 @@ function WebChip({
 }
 
 /**
- * A citation chip, "Ep. 12 · 14:29 · Host B". Hover or focus shows the quoted segment; click opens the recording at
+ * A citation chip, "Ep. 12 · 14:29 · Host B". Hover or focus shows the quoted segment; click opens the asset at
  * that moment (⌘-click for a new tab). On a phone, a tap previews it in a sheet instead. A web page's chip shows its
- * site and opens the page in a new tab.
+ * site and opens the page in a new tab, and so does a section of Lens's docs ("Docs · MCP server › Connecting").
  */
 export function CitationChip({
   passage,
@@ -129,11 +140,13 @@ export function CitationChip({
     );
   const quote = quoteOf(passage);
   const color = nameTone(quote.speaker ?? passage.speaker);
+  const page = isPage(passage);
   return (
     <T.Root delayDuration={120}>
       <T.Trigger asChild>
         <Link
           href={passageHref(passage)}
+          {...(page ? { target: "_blank", rel: "noopener noreferrer" } : {})}
           onClick={(e) => {
             if (onPreview && isNarrow() && !e.metaKey && !e.ctrlKey) {
               e.preventDefault();
@@ -144,7 +157,7 @@ export function CitationChip({
           onMouseLeave={() => onHover?.(null)}
           onFocus={() => onHover?.(n)}
           onBlur={() => onHover?.(null)}
-          aria-label={`Source ${n}: ${citeLabel(passage)}. Opens the asset there.`}
+          aria-label={`Source ${n}: ${citeLabel(passage)}. ${passageAction(passage)}.`}
           className={cn(
             chip,
             "bg-blue-surface text-fg-accent hover:border-blue",
@@ -171,12 +184,14 @@ export function CitationChip({
         >
           <span className="flex items-center gap-1.5 text-[12px] font-semibold" style={{ color }}>
             <span aria-hidden className="size-2 rounded-[2px]" style={{ background: color }} />
-            {[quote.speaker ?? passage.speaker, passageTime(passage), shortTitle(passage.title, 40)]
+            {[quote.speaker ?? passage.speaker, passageTime(passage), passageTitle(passage, 40)]
               .filter(Boolean)
               .join(" · ")}
           </span>
           <span className="font-serif text-[15px] leading-normal text-fg">“{quote.text}”</span>
-          <span className="text-[12px] font-medium text-fg-muted">Click to open the player here · Enter</span>
+          <span className="text-[12px] font-medium text-fg-muted">
+            {page ? `${passageAction(passage)} · Enter` : "Click to open the player here · Enter"}
+          </span>
         </T.Content>
       </T.Portal>
     </T.Root>

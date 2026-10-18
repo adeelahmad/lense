@@ -78,7 +78,9 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
 - **Ask, and get cited answers.** A chat assistant on every page, and by voice, searches your archive by words (and by
   meaning, once turned on), reads it, cites it and acts on it with tools: changes wait for your approval. Once an admin
   turns them on, it also searches the web and reads pages, cited like the archive, and runs Python and bash in a sandbox
-  of each conversation's own. Regenerating an answer or editing a question makes a new version beside the old one, and
+  of each conversation's own. An admin's assistant searches and reads the mail, calendars and files connected to Lens
+  (Gmail, Google Calendar, Google Drive, S3 and the rest), cites messages and events, and brings them in once you
+  approve. Regenerating an answer or editing a question makes a new version beside the old one, and
   nothing is lost. Each answer keeps a record of what produced it (the model, its tools, how long it took and what it
   cost), opened from its header. It reads answers aloud with a speech provider, macOS `say` or StyleTTS2 on this machine
   (opt-in), any message in one click, and `/clear` and `/compact` keep long conversations short. Conversations title
@@ -86,7 +88,7 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   its own name, instructions and memory, answering in Telegram and Slack (built in, with voice notes and files), in
   Discord, Matrix, WhatsApp and other chat rooms through Matterbridge, and by email at an address of its own that you
   email or forward things to. ([Chat](docs/assistant.md), [web search](docs/assistant.md#web-search-and-reading-pages),
-  [code sandbox](docs/assistant.md#code-sandbox), [answer records](docs/assistant.md#what-each-answer-records),
+  [mail, calendars and files](docs/assistant.md#mail-calendars-and-files), [code sandbox](docs/assistant.md#code-sandbox), [answer records](docs/assistant.md#what-each-answer-records),
   [chat rooms](docs/chat-rooms.md), [email](docs/assistant-email.md), [speech providers](docs/speech-providers.md);
   [checks](docs/requirements.md#ask-and-get-cited-answers))
 - **Extend the assistant.** Add tools (a prompt, a web request, a graph drawn on the canvas, or sandboxed Python),
@@ -120,12 +122,12 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   SPARQL, and see as it was at any version. Every entity has its own page at a wiki address
   (`/wiki/<namespace>/<Name>`), and entities, topics and people are edited and merged from their lists, the graph or an
   asset, with Undo instead of a confirm. Names get their real types (people, places, organisations, events, works) by
-  rules, without a model. Find what is most like a passage, an asset, a topic or an entity, in a Similar
-  tab on every asset or by selecting text anywhere, and, with anytopdf, photos by what they show. Pages and shots are
-  described in words by the model provider's vision model or, off by default, by Florence-2 or Moondream on your own
-  server. Transcripts can be cleaned up before analysis (stutters, "um"s, spacing and, with a local model, punctuation
-  put back), entities found by spaCy instead of the rules, and the dates people say read as days on the calendar, each
-  off by default.
+  rules, without a model, and a decision model types the ones the rules can't. Find what is most like a passage, an
+  asset, a topic or an entity, in a Similar tab on every asset or by selecting text anywhere, and, with anytopdf, photos
+  by what they show. Pages and shots are described in words by the model provider's vision model or, off by default, by
+  Florence-2 or Moondream on your own server. Transcripts can be cleaned up before analysis (stutters, "um"s, spacing
+  and, with a local model, punctuation put back), entities found by spaCy instead of the rules, and the dates people say
+  read as days on the calendar, each off by default.
   ([Graph](docs/graph.md), [entity pages](docs/notes.md#entity-pages),
   [similar content](docs/processing.md#similar-content), [graph history](docs/graph-history.md),
   [topics](docs/topics.md), [video](docs/video.md), [NSFW classification](docs/nsfw.md),
@@ -140,8 +142,11 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   are your own) and each note shows the notes it's inside and the ones inside it, with today's note one click away,
   templates to start from, a search by their words, a download as Markdown, and Undo and Recently deleted instead of a
   confirm. Export an asset or a collection as an evidence PDF with everything Lens found about it, or the parts you
-  pick. ([Podcasts](docs/podcasts.md), [specs from transcripts](docs/notes.md#specs-from-transcripts),
-  [notes](docs/notes.md), [evidence PDFs](docs/api.md#evidence-pdfs); [checks](docs/requirements.md#learn-from-it))
+  pick. Publish a namespace's resources, episodes, timeline activities or text as a private RSS feed or a podcast
+  feed that any feed reader or podcast app follows. ([Podcasts](docs/podcasts.md),
+  [specs from transcripts](docs/notes.md#specs-from-transcripts), [notes](docs/notes.md),
+  [evidence PDFs](docs/api.md#evidence-pdfs), [published feeds](docs/feeds.md);
+  [checks](docs/requirements.md#learn-from-it))
 - **Automate it.** Pipelines and workflows on a canvas, routines on a schedule, batch runs over a collection, and
   notifications to webhooks, Slack, Discord and Matterbridge. Everything that happens in Lens (new assets, emails,
   calendar events, files, feed posts, what people say to Lens, sensor readings, notes, graph changes, runs, budget

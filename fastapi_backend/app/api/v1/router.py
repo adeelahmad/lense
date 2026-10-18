@@ -28,6 +28,7 @@ from app.api.v1.routes import (
     extensions,
     external,
     fedora,
+    feeds,
     fields,
     files,
     filetree,
@@ -154,6 +155,7 @@ for module in (
     voice,
     vaults,
     podcasts,
+    feeds,
     specs,
 ):
     api_router.include_router(module.router)
