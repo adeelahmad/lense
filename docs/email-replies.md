@@ -7,9 +7,22 @@ Lens never sends a reply on its own.
 It works on any email Lens has imported: mail that a watched [Gmail or IMAP mailbox](processing.md#gmail-and-google-workspace) brought in, or an
 `.eml` file you uploaded. It needs a language model (Settings › LLM provider).
 
+## The Replies page
+
+**Replies**, in the web app's menu while any email waits for an answer, lists that email, newest first, with the one
+you were linked to (`/replies?email=42`, or **Reply to this email…** in an email's More actions menu) at the top. The
+first email's field has focus: type what the reply should say, or nothing, and press Enter to draft it.
+
+A draft shows under its email with To, Cc and Subject to change, and its sources below it, each `[n]` linking to the
+moment or page it came from. What's left to confirm is said under the text. **Open in your mail app** starts the reply
+in your own mail app, without its citations, for you to send; **Copy** copies the same text. Ctrl+Enter (⌘+Enter)
+saves an edit, which Undo takes back. **Reply to all** adds who else the email was for to Cc. **Set aside** takes it
+off the list at once, with Undo instead of a question; **Draft again…** writes a new one, with what it should say.
+Viewers read the drafts; editors of the email's namespace draft and change them.
+
 ## Drafting a reply
 
-Ask for one email's reply through the API or MCP, with what it should say if you like ("say yes, Tuesday works"):
+Ask for one email's reply on the Replies page, or through the API or MCP, with what it should say if you like ("say yes, Tuesday works"):
 
 ```bash
 curl -X POST "$LENS/api/v1/recordings/42/reply" -H "Authorization: Bearer $TOKEN" \
@@ -84,6 +97,6 @@ excerpt the model wasn't given is taken out. The draft says only what the email'
 
 ## Refine later
 
-- Send a reply through the mailbox it came in to, after your yes, and a Replies page in the web app (in progress).
+- Send a reply through the mailbox it came in to, after your yes (in progress).
 - A signature in Settings; a decision model choosing which mail needs an answer; drafts from a whole thread rather than
   its newest message; replies with attachments.

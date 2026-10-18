@@ -24,6 +24,7 @@ import {
   Pencil,
   Podcast,
   RefreshCw,
+  Reply,
   RotateCw,
   ScrollText,
   Workflow,
@@ -51,6 +52,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { absolute, shortDate, tc } from "@/lib/format";
 import { EXPORTS, failureImpact, sourceLabel } from "@/components/recording/labels";
 import { specAction } from "@/components/recording/spec-model";
+import { isEmail } from "@/components/replies/model";
 import { needRole } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
@@ -429,6 +431,14 @@ function MoreMenu({ compact }: { compact?: boolean }) {
           <MenuItem icon={<ScrollText />} disabled={sa.disabled} onSelect={startSpec}>
             {sa.write}
           </MenuItem>
+          {isEmail(r.rec) && (
+            <MenuItem asChild>
+              <Link href={`/replies?email=${r.id}`} className="flex items-center gap-2.5">
+                <Reply />
+                <span className="flex-1">Reply to this email…</span>
+              </Link>
+            </MenuItem>
+          )}
           {compact && (
             <>
               {!r.paged && (
