@@ -128,6 +128,7 @@ EDITABLE = {
         "convert_seconds",
         "attachment_resources",
         "video_urls",
+        "video_captions",
         "converter",
         "anytopdf_url",
         "anytopdf_token",
@@ -632,6 +633,7 @@ def _check(section, key, value, default):
     if (section, key) in (
         ("documents", "attachment_resources"),
         ("documents", "video_urls"),
+        ("documents", "video_captions"),
         ("documents", "tika_text"),
         ("documents", "tika_metadata"),
     ):

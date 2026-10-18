@@ -27,7 +27,10 @@ if "nothing" in url:
     sys.exit(1)
 with wave.open("media.wav", "wb") as w:
     w.setnchannels(1), w.setsampwidth(2), w.setframerate(16000), w.writeframes(b"\0\0" * 16000)
-json.dump({"title": "Harbour talk: episode 4", "webpage_url": url, "extractor_key": "Generic", "uploader": "Harbour FM"}, open("media.info.json", "w"))
+json.dump({"title": "Harbour talk: episode 4", "webpage_url": url, "extractor_key": "Generic", "uploader": "Harbour FM", "language": "cy"}, open("media.info.json", "w"))
+if "--write-subs" in args and "nocaptions" not in url:
+    for lang, line in (("en", "Welcome to the harbour."), ("cy", "Croeso i'r harbwr.")):
+        open(f"media.{lang}.vtt", "w").write(f"WEBVTT\n\n00:00:00.000 --> 00:00:00.900\n{line}\n")
 """
 
 
@@ -103,12 +106,41 @@ def test_a_video_by_its_address_is_downloaded_then_transcribed(client, env, cfg,
     args = run["args"]
     for flag in ("--ignore-config", "--no-plugin-dirs", "--no-playlist", "--no-cache-dir", "--hls-prefer-native"):
         assert flag in args
+    assert "--write-subs" not in args  # captions only when asked for
     proxy = args[args.index("--proxy") + 1]
     assert proxy.startswith("http://127.0.0.1:") and run["https_proxy"] == proxy
     assert args[args.index("--max-filesize") + 1] == f"{cfg['uploads']['max_mb']}M" and args[-2:] == ["--", "https://8.8.8.8/watch?v=1"]
 
     jobs._transcribe(db, cfg, rid, said.append)  # again: the media is kept, not downloaded twice
     assert len(log.read_text().splitlines()) == 1 and heard == [rid, rid]
+
+
+def test_a_videos_own_captions_become_its_transcript(client, env, cfg, db, tmp_path, monkeypatch):
+    cfg["documents"]["video_urls"] = cfg["documents"]["video_captions"] = True
+    log = fake(cfg, tmp_path)
+    heard = []
+    monkeypatch.setattr(ingest, "transcribe_one", lambda db, cfg, rid, say: heard.append(rid))
+    sid = store.ns_id(db, "pods")
+    rid = mediaurl.create(db, sid, "https://8.8.8.8/watch?v=2")
+    said = []
+    jobs._transcribe(db, cfg, rid, said.append)
+    args = json.loads(log.read_text().splitlines()[-1])["args"]
+    assert "--write-subs" in args and "--no-write-auto-subs" in args  # people's captions, never automatic ones
+    assert heard == []  # nothing transcribed
+    rec = db.one("SELECT engine, language, status, web FROM $r", r=R("recording", rid))
+    assert (rec["engine"], rec["language"], rec["status"]) == ("import:captions", "cy", "transcribed")  # the video's own
+    assert rec["web"]["captions"]["language"] == "cy"
+    assert [s["text"] for s in db.rows("SELECT text FROM segment WHERE recording = $r", r=rid)] == ["Croeso i'r harbwr."]
+    assert "used the cy captions" in said[-1]
+
+    cfg["transcribe"]["language"] = "en"  # the transcription language wins
+    other = mediaurl.create(db, sid, "https://8.8.8.8/watch?v=3")
+    jobs._transcribe(db, cfg, other, said.append)
+    assert db.one("SELECT language FROM $r", r=R("recording", other))["language"] == "en"
+
+    none = mediaurl.create(db, sid, "https://8.8.8.8/watch?v=nocaptions")
+    jobs._transcribe(db, cfg, none, said.append)
+    assert heard == [none]  # no captions: transcribed as before
 
 
 def test_what_it_cant_download_says_why(cfg, db, tmp_path, monkeypatch):

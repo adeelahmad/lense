@@ -10,6 +10,10 @@ file holding both sound and picture, 720 lines at most, so nothing needs joining
 
 Downloading happens in the resource's transcribe step, once: the media is the resource's file,
 data_dir/media/<resource>/<title>.<ext>, and a resource transcribed again keeps it.
+
+With documents.video_captions on (off by default), captions people wrote for the video (a site's subtitles, never its
+automatic ones) come down with it, in the language set for transcription when there is one, else the video's own,
+else the first there is: they become its transcript, so nothing is transcribed. A video without them is transcribed.
 """
 
 from __future__ import annotations
@@ -142,9 +146,28 @@ def _why(err):
     return last.removeprefix("ERROR:").strip()[:300] or "it ended without saying why"
 
 
+def captions_on(cfg):
+    return bool((cfg.get("documents") or {}).get("video_captions"))
+
+
+def pick_captions(into, info, cfg):
+    """The captions file yt-dlp wrote next to the media (media.<language>.vtt) to use: the transcription language's,
+    else the video's own language's, else the first; None when there are none."""
+    got = {p.name[len("media.") : -len(".vtt")]: p for p in sorted(into.glob("media.*.vtt")) if p.is_file()}
+    if not got:
+        return None
+    want = [(cfg.get("transcribe") or {}).get("language"), info.get("language")]
+    for w in (str(x).lower() for x in want if x and x != "auto"):
+        for lang, p in got.items():
+            if lang.lower() == w or lang.lower().split("-")[0] == w.split("-")[0]:
+                return lang, p
+    lang = next(iter(got))
+    return lang, got[lang]
+
+
 def download(cfg, url, into, say=None):
     """The media at `url`, downloaded into the folder `into`: (its path, what yt-dlp said of it). ValueError when it
-    can't be had."""
+    can't be had. With documents.video_captions on, the captions people wrote for it come too (media.<lang>.vtt)."""
     argv = ready(cfg, say)
     most = cfg["uploads"]["max_mb"]
     into.mkdir(parents=True, exist_ok=True)
@@ -164,6 +187,7 @@ def download(cfg, url, into, say=None):
             "--hls-prefer-native",
             "--write-info-json",
             "--no-write-comments",
+            *(["--write-subs", "--no-write-auto-subs", "--sub-langs", "all,-live_chat", "--sub-format", "vtt"] if captions_on(cfg) else []),
             "-o",
             "media.%(ext)s",
             "--",
@@ -174,7 +198,7 @@ def download(cfg, url, into, say=None):
         except subprocess.TimeoutExpired:
             raise ValueError(f"downloading it took longer than {SECONDS // 3600} hours") from None
         refused = f"; refused: {guard.refused[0]}" if guard.refused else ""
-    got = [p for p in into.glob("media.*") if p.suffix not in (".json", ".part", ".ytdl") and p.is_file()]
+    got = [p for p in into.glob("media.*") if p.suffix not in (".json", ".part", ".ytdl", ".vtt") and p.is_file()]
     if run.returncode or not got:
         raise ValueError(f"its media couldn't be downloaded ({_why(run.stderr)}){refused}")
     info = {}
@@ -202,6 +226,10 @@ def ensure(db, cfg, rid, rec, say):
         d.mkdir(parents=True, exist_ok=True)
         out = d / f"{render.slug(title or webcapture.placeholder(web['url']))}{path.suffix.lower()}"
         shutil.move(str(path), out)
+        picked = pick_captions(pathlib.Path(tmp), info, cfg) if captions_on(cfg) else None
+        if picked:
+            subs = d / f"captions.{render.slug(picked[0]) or 'und'}.vtt"
+            shutil.move(str(picked[1]), subs)
     st = out.stat()
     dur, ch = ingest.probe(out)
     patch = store.clean(
@@ -219,6 +247,7 @@ def ensure(db, cfg, rid, rec, say):
                     "site": str(info.get("extractor_key") or "")[:100] or None,
                     "by": str(info.get("uploader") or info.get("channel") or "")[:200] or None,
                     "captured_at": store.now(),
+                    "captions": {"file": subs.name, "language": picked[0][:20]} if picked else None,
                 }
             ),
         }
@@ -226,6 +255,47 @@ def ensure(db, cfg, rid, rec, say):
     if title and rec.get("title") == webcapture.placeholder(web["url"]):  # still called by its address: its own title
         patch["title"] = title
     keyring.protect(db, cfg, rec["space"], out)
+    if picked:
+        keyring.protect(db, cfg, rec["space"], subs)
     db.q("UPDATE $r MERGE $d", r=R("recording", rid), d=patch)
-    say(f"downloaded {patch['web']['final']}")
+    say(f"downloaded {patch['web']['final']}" + (f", with its {picked[0]} captions" if picked else ""))
     return str(out)
+
+
+def use_captions(db, cfg, rid, say):
+    """The captions that came with a video, as its transcript (documents.video_captions): True when they were used;
+    False when it has none, so it is transcribed."""
+    rec = db.one("SELECT space, path, remote, web FROM $r", r=R("recording", rid)) or {}
+    cap = ((rec.get("web") or {}).get("captions")) or {}
+    f = folder(cfg, rid) / str(cap.get("file") or "")
+    if not (captions_on(cfg) and cap.get("file") and f.is_file()):
+        return False
+    with keyring.open_plain(db, cfg, f) as fh:
+        text = fh.read().decode("utf-8-sig", errors="replace")
+    segs = ingest.read_text_transcript(text, "vtt", f.name)["segments"]
+    if not segs:
+        return False
+    try:
+        env = ingest.envelope(ingest.decode(ingest.audio_path(db, cfg, rec)))
+    except (RuntimeError, OSError):
+        env = None
+    lang = str(cap.get("language") or "").lower() or None
+    for s in segs:
+        s.setdefault("lang", lang)
+    ingest.write_transcript(
+        db,
+        rid,
+        rec["space"],
+        segs,
+        store.clean(
+            {
+                "status": "transcribed",
+                "engine": "import:captions",
+                "language": lang,
+                "envelope": env,
+                "transcribed_at": store.now(),
+            }
+        ),
+    )
+    say(f"used the {cap.get('language')} captions that came with it: {len(segs)} lines, nothing transcribed")
+    return True
