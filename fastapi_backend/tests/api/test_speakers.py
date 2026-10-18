@@ -110,3 +110,43 @@ def test_not_the_same_unlink_and_merge_history(app, client, db, cfg, folder):
     assert m["undone"] is True and m["undone_by"] == "ed@x.io" and m["undone_at"]
     acts = set(db.values("SELECT VALUE action FROM audit_log"))
     assert {"speaker.not_same", "speaker.link", "speaker.unlink", "speaker.merge", "speaker.merge.undo"} <= acts
+
+
+def test_detach_one_assets_voice(client, db, cfg, folder):
+    seed(db, cfg, folder)
+    make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor"})
+    make_user(db, "vi@x.io", "viewer password 1", roles={"pods": "viewer"})
+    he, hv = login(client, "ed@x.io", "editor password 1"), login(client, "vi@x.io", "viewer password 1")
+    by = {}
+    for r in db.rows(
+        "SELECT speaker, recording FROM segment WHERE space = $s AND speaker > 0 GROUP BY speaker, recording", s=store.ns_id(db, "pods")
+    ):
+        by.setdefault(r["speaker"], []).append(r["recording"])
+    sid, (keep, wrong, *_) = next((s, rs) for s, rs in by.items() if len(rs) >= 2)
+    rng = np.random.default_rng(5)
+    voice, other = (v / np.linalg.norm(v) for v in rng.normal(size=(2, 192)))
+    for rid, e in ((keep, voice), (wrong, other)):
+        db.q("DELETE appearance WHERE recording = $r AND speaker = $s", r=rid, s=sid)
+        db.q(
+            "CREATE appearance CONTENT $a",
+            a={"recording": rid, "speaker": sid, "local_label": "S0", "method": "voice", "embedding": list(e)},
+        )
+    db.q("UPDATE $r SET embedding = $e", r=store.R("speaker", sid), e=list((voice + other) / np.linalg.norm(voice + other)))
+
+    path = f"/api/v1/speakers/{sid}/detach"
+    assert client.post(path, json={"recording": wrong}, headers=hv).status_code == 403
+    r = client.post(path, json={"recording": wrong}, headers=he)
+    assert r.status_code == 200, r.text
+    new = r.json()["speaker"]
+    assert set(db.values("SELECT VALUE speaker FROM segment WHERE recording = $r AND speaker IN [$a, $b]", r=wrong, a=sid, b=new)) == {new}
+    assert db.values("SELECT VALUE speaker FROM appearance WHERE recording = $r AND local_label = 'S0'", r=wrong) == [new]
+    centre = np.asarray(db.one("SELECT embedding FROM $r", r=store.R("speaker", sid))["embedding"])
+    assert float(np.dot(centre, voice)) > 0.99  # their voice without the other one's
+    assert db.rows("SELECT a, b FROM not_same") == [{"a": min(sid, new), "b": max(sid, new)}]  # never suggested again
+    assert client.post(path, json={"recording": wrong}, headers=he).status_code == 400  # not heard there any more
+    if len(by[sid]) == 2:
+        assert client.post(path, json={"recording": keep}, headers=he).status_code == 400  # only heard here: rename
+    assert client.post("/api/v1/speakers/99999/detach", json={"recording": wrong}, headers=he).status_code == 404
+
+    assert client.post(f"/api/v1/speakers/{new}/merge", json={"into": sid}, headers=he).status_code == 200  # Undo
+    assert sid in db.values("SELECT VALUE speaker FROM segment WHERE recording = $r", r=wrong)

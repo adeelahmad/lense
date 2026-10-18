@@ -1316,6 +1316,7 @@ GET    /api/v1/speakers
 GET    /api/v1/speakers/{sid}/recordings
 POST   /api/v1/speakers/{sid}
 POST   /api/v1/speakers/{sid}/merge
+POST   /api/v1/speakers/{sid}/detach
 POST   /api/v1/merges/{mid}/undo
 POST   /api/v1/speakers/{sid}/link
 POST   /api/v1/speakers/{sid}/unlink
@@ -1328,8 +1329,11 @@ People (everyone recognised by voice or face) live under `/speakers`.
 `recordings` and `segments` that moved, and `undone_by`/`undone_at`), its links to other namespaces, and `cross`:
 voices in other shared namespaces you can read that are likely the same person (`score`, best first). `not-same
 {with}` says two entries aren't the same person (one namespace or two): the suggestion goes and isn't made again.
-`unlink {with}` removes a link (404 when there's none). Linking, unlinking, "not the same" and undoing a merge need
-editor access to both people's namespaces and are audited (`speaker.link`, `speaker.unlink`, `speaker.not_same`,
+`detach {recording}` says the voice heard as this person in one asset is someone else: its lines there go to a new
+person (`speaker` in the answer), this person's voice is worked out again from the assets they're still in, and the two
+are marked not the same; merging the new person back undoes it. It's a 400 when they aren't heard in that asset, or
+are heard only there (rename them instead). `unlink {with}` removes a link (404 when there's none). Linking, unlinking, "not the same" and undoing a merge need
+editor access to both people's namespaces and are audited (`speaker.link`, `speaker.unlink`, `speaker.not_same`, `speaker.detach`,
 `speaker.merge.undo`).
 
 ## entities

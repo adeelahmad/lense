@@ -470,6 +470,9 @@ import type {
   DeleteWatchData,
   DeleteWatchErrors,
   DeleteWatchResponses,
+  DetachSpeakerData,
+  DetachSpeakerErrors,
+  DetachSpeakerResponses,
   DetectLlmData,
   DetectLlmResponses,
   DiffTemplateVersionsData,
@@ -8013,6 +8016,26 @@ export class Speakers {
   ): RequestResult<MergeSpeakerResponses, MergeSpeakerErrors, ThrowOnError> {
     return (options.client ?? client).post<MergeSpeakerResponses, MergeSpeakerErrors, ThrowOnError>({
       url: "/api/v1/speakers/{sid}/merge",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Detach Speaker
+   *
+   * The voice heard as this person in one asset is someone else: its lines there go to a new person, this person's
+   * voice is worked out again without them, and the two are never suggested as the same. Undo by merging the new person
+   * back (POST /speakers/{speaker}/merge with ``into`` this one). Audited as speaker.detach.
+   */
+  public static detachSpeaker<ThrowOnError extends boolean = false>(
+    options: Options<DetachSpeakerData, ThrowOnError>,
+  ): RequestResult<DetachSpeakerResponses, DetachSpeakerErrors, ThrowOnError> {
+    return (options.client ?? client).post<DetachSpeakerResponses, DetachSpeakerErrors, ThrowOnError>({
+      url: "/api/v1/speakers/{sid}/detach",
       ...options,
       headers: {
         "Content-Type": "application/json",
