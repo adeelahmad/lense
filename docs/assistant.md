@@ -847,6 +847,13 @@ Lens reads Anthropic's open plugin and skill formats as they are, so what's made
   and any other is added by its address (`owner/repo`, a GitHub or GitLab link, or a link to its marketplace.json),
   which is how a team runs a custom one. Everyone who can edit browses them, previews a plugin (what it adds and what
   Lens leaves out) and installs it.
+- **Finding and updating**: `GET /api/v1/marketplaces/plugins?q=` looks for a plugin across every marketplace added,
+  by the words in its name, description, category or author. A plugin you installed says which version you have, and
+  when its marketplace (read again on **Refresh**) lists another, its button reads **Update to** that version;
+  `?updates=true` lists only those.
+- **For agents**: over [MCP](mcp.md), `find_plugins` finds them (`updates` for the ones with another version) and
+  `install_plugin` installs one, or with `preview` says what it would add. In chat the assistant has the same two
+  tools, and installing waits for your yes, like saving an extension.
 - **Links and files** (`POST /api/v1/extensions/import`, `/import/archive`): a plugin or a skill from a GitHub or
   GitLab repository or folder, or a `.zip`, `.skill` or `.tar.gz`.
 

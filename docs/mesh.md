@@ -2,9 +2,9 @@
 
 Status: **in progress**. Built: Lens as the mesh's certificate authority, join tokens, joining without sending the
 token, each machine's Nebula config, a node's renewals and reports, removing a node, the `mesh` settings, the API
-under `/api/v1/mesh`, Nebula running on the primary in the `mesh` container, relaying the database and the API, and
-`lens node` with the install line that joins another machine, and worker nodes running jobs. Coming in their own pull
-requests: Settings › Network and Nodes in the web app, and running code on compute nodes.
+under `/api/v1/mesh`, Nebula running on the primary in the `mesh` container, relaying the database and the API,
+`lens node` with the install line that joins another machine, worker nodes running jobs, and Settings › Network and
+Nodes in the web app. Coming in its own pull request: running code on compute nodes.
 
 Lens runs on one machine until you add another: a Mac with a GPU to transcribe on, a box to run the assistant's code
 on, a server with more disk. Those machines talk to this install over a private network of Lens's own, a
@@ -185,6 +185,21 @@ Everything is in **Settings › Network** (`mesh`), editable in the app with def
 out, last report, and the job workers running on it. `PATCH` renames a node or changes its namespaces; `DELETE`
 removes it (undo with `POST /nodes/{id}/restore` while its certificate is good). Tokens: `GET`, `POST`, `DELETE
 /api/v1/mesh/tokens`.
+
+In the web app:
+
+- **Settings › Network** says whether the mesh is off (until a node is added), on and running, or on while the `mesh`
+  container isn't running (with the line that starts it, where the machine has no upgrade agent), and Nebula's error.
+  It shows this machine's mesh address and the CA's fingerprint and expiry, the settings above (all but `enabled`
+  folded away), and what Nebula said last.
+- **Settings › Nodes** adds a node: pick Worker or Compute, optionally a name and the namespaces it serves, and press
+  Enter. The install line is shown once, with a Copy button and how long it works ("works once, for 24 hours"); the
+  machine shows in the list when it joins. Every machine is listed, this one first, with its role, mesh address,
+  online or when it was last seen (offline after three minutes without a report), Nebula, its Lens version, its
+  processors, memory and system, when its certificate runs out, the namespaces it serves (ticked in place), its
+  workers and Nebula's last lines. Click the pencil to rename a node (Enter saves, Escape keeps the name). Remove
+  asks nothing: the row stays, dimmed and marked Removed, with Undo while its certificate is good. Join tokens not
+  used yet are listed under it, each with Withdraw. The list refreshes every 15 seconds.
 
 ## What keeps it safe
 

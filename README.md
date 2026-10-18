@@ -109,15 +109,16 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
 - **Answer your email.** Lens drafts a reply to an email a watched mailbox brought in, from what that email's
   namespace holds: each fact cited to its excerpt, what the archive doesn't say marked for you to confirm, addressed
   and threaded as a reply to it. Drafts wait for you to edit or set aside, and nothing is sent on its own; ask for one
-  through the API or MCP (agents list what waits and draft with your instructions), or add the reply step to a
-  pipeline to draft each new email, which skips mailing lists, no-reply senders and your own mail without a model
-  call. ([Email replies](docs/email-replies.md); [checks](docs/requirements.md#answer-your-email))
+  on the Replies page (Enter drafts the first, then copy it or open it in your mail app), through the API or MCP
+  (agents list what waits and draft with your instructions), or add the reply step to a pipeline to draft each new
+  email, which skips mailing lists, no-reply senders and your own mail without a model call.
+  ([Email replies](docs/email-replies.md); [checks](docs/requirements.md#answer-your-email))
 - **Work toward a goal in projects.** A project has a name, a goal in your words, instructions and the namespaces it
   draws on. Its coordinator conversation looks at the project as a whole: it is told about every thread, starts threads
   with a brief that the assistant answers there in the background, reads them and marks them done. Each thread is a
   conversation about one part of the work, scoped to the project's namespaces. Every answer in a project reads its goal
-  and instructions. Agents start and change projects over MCP and the API.
-  ([Projects](docs/projects.md); [checks](docs/requirements.md#work-toward-a-goal-in-projects))
+  and instructions. The Projects page, under Chat, starts threads with a brief and shows which are working. Agents
+  start and change projects over MCP and the API. ([Projects](docs/projects.md); [checks](docs/requirements.md#work-toward-a-goal-in-projects))
 - **Extend the assistant.** Add tools (a prompt, a web request, a graph drawn on the canvas, or sandboxed Python),
   skills, hooks and MCP servers, by code, on the canvas or just by asking. Remote MCP servers connect by address, and
   ones that run as a program (`npx`, `uvx`) run in a sandboxed container of their own, off until you turn it on. Add one
@@ -127,7 +128,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   them all, and agents list and add them over MCP. The MCP runner, the browser and monitoring are containers Lens starts
   next to itself from the web app, through the machine's upgrade agent, each off until an admin turns it on. Install
   skills and plugins from marketplaces in the open plugin format, or from a repository or an archive, and keep your own
-  as files in a folder with `lens ext` (pull, push, check). ([Extending the
+  as files in a folder with `lens ext` (pull, push, check). Agents find and install them too, and an installed plugin
+  says when a new version is listed. ([Extending the
   assistant](docs/assistant.md#extending-the-assistant-tools-skills-hooks-and-plugins), [adding an MCP
   server](docs/assistant.md#adding-an-mcp-server), [the MCP runner](docs/assistant.md#the-mcp-runner), [the
   browser](docs/assistant.md#the-browser), [optional containers](docs/assistant.md#optional-containers);
@@ -289,10 +291,6 @@ These are open pull requests, not yet part of Lens:
 
 - **Voice:** answers and podcasts read aloud with Kokoro on this machine
   ([#538](https://github.com/adeelahmad/lense/pull/538)).
-- **Nodes:** Lens's own private network between the machines it runs on, a Nebula mesh it issues the certificates
-  for: its certificate authority, join tokens, Nebula on the primary and another machine joining with the install line
-  and `lens node` are built, and Settings › Nodes and Network in the web app is next
-  ([#602](https://github.com/adeelahmad/lense/pull/602); [nodes and the mesh](docs/mesh.md)).
 
 ## Planned
 
@@ -313,6 +311,8 @@ Next, and not in a pull request yet; each links to where it is tracked:
 - **Secrets:** references in sources' credentials and MCP servers ([secrets](docs/secrets.md)).
 - **Logging:** sending straight to Loki or another HTTP endpoint, and client certificates for TLS
   ([logging](docs/logging.md)).
+- **Nodes:** running code on compute nodes; Lens's Nebula mesh, machines joining it with the install line and
+  `lens node`, and Settings › Nodes and Network are built ([nodes and the mesh](docs/mesh.md)).
 - **Proof:** the install timed on a real Raspberry Pi, where GitHub's faster arm64 runner gives only a floor
   ([scorecard](docs/contributing.md#scorecard)).
 

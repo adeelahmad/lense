@@ -3450,6 +3450,12 @@ export type Chat = {
    */
   account: number;
   /**
+   * Answering
+   *
+   * an answer is being written in it now: streamed, or a brief's in the background
+   */
+  answering?: boolean;
+  /**
    * Head
    *
    * the last message of the version showing, which the next question follows
@@ -12464,6 +12470,87 @@ export type MarketplacePlugin = {
    * your extension installed from it, if you installed it
    */
   installed?: number | null;
+  /**
+   * Installed Version
+   *
+   * the version you installed, when the marketplace gave one
+   */
+  installed_version?: string | null;
+  /**
+   * Update
+   *
+   * the marketplace lists another version than the one you installed
+   */
+  update?: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * MarketplacePluginFound
+ */
+export type MarketplacePluginFound = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Version
+   */
+  version?: string | null;
+  /**
+   * Category
+   */
+  category?: string | null;
+  /**
+   * Author
+   */
+  author?: string | null;
+  /**
+   * Homepage
+   */
+  homepage?: string | null;
+  /**
+   * Installable
+   *
+   * whether Lens can read it (why_not says why when it can't)
+   */
+  installable: boolean;
+  /**
+   * Why Not
+   */
+  why_not?: string | null;
+  /**
+   * Installed
+   *
+   * your extension installed from it, if you installed it
+   */
+  installed?: number | null;
+  /**
+   * Installed Version
+   *
+   * the version you installed, when the marketplace gave one
+   */
+  installed_version?: string | null;
+  /**
+   * Update
+   *
+   * the marketplace lists another version than the one you installed
+   */
+  update?: boolean;
+  /**
+   * Marketplace
+   *
+   * the marketplace that lists it
+   */
+  marketplace: number;
+  /**
+   * Marketplace Name
+   */
+  marketplace_name: string;
   [key: string]: unknown;
 };
 
@@ -44669,6 +44756,50 @@ export type SuggestedMarketplacesResponses = {
 };
 
 export type SuggestedMarketplacesResponse = SuggestedMarketplacesResponses[keyof SuggestedMarketplacesResponses];
+
+export type FindMarketplacePluginsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Q
+     *
+     * words its name, description, category or author has
+     */
+    q?: string | null;
+    /**
+     * Updates
+     *
+     * only plugins you installed that their marketplace lists another version of
+     */
+    updates?: boolean;
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/marketplaces/plugins";
+};
+
+export type FindMarketplacePluginsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type FindMarketplacePluginsError = FindMarketplacePluginsErrors[keyof FindMarketplacePluginsErrors];
+
+export type FindMarketplacePluginsResponses = {
+  /**
+   * Response Extensions-Find Marketplace Plugins
+   *
+   * Successful Response
+   */
+  200: Array<MarketplacePluginFound>;
+};
+
+export type FindMarketplacePluginsResponse = FindMarketplacePluginsResponses[keyof FindMarketplacePluginsResponses];
 
 export type RefreshMarketplaceData = {
   body?: never;

@@ -323,6 +323,7 @@ class ChatMemory(ResponseModel):
 
 class Chat(ChatSummary):
     account: int
+    answering: bool = Field(False, description="an answer is being written in it now: streamed, or a brief's in the background")
     head: int | None = Field(None, description="the last message of the version showing, which the next question follows")
     messages: list[ChatMessage] = Field(default_factory=list, description="the version showing, from the first message to `head`")
     tree: list[ChatNode] = Field(default_factory=list, description="every message of every version, oldest first")

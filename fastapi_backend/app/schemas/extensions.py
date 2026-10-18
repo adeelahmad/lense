@@ -168,6 +168,13 @@ class MarketplacePlugin(ResponseModel):
     installable: bool = Field(description="whether Lens can read it (why_not says why when it can't)")
     why_not: str | None = None
     installed: int | None = Field(None, description="your extension installed from it, if you installed it")
+    installed_version: str | None = Field(None, description="the version you installed, when the marketplace gave one")
+    update: bool = Field(False, description="the marketplace lists another version than the one you installed")
+
+
+class MarketplacePluginFound(MarketplacePlugin):
+    marketplace: int = Field(description="the marketplace that lists it")
+    marketplace_name: str
 
 
 class ExtensionSkipped(ResponseModel):
