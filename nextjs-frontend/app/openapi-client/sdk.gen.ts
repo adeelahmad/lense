@@ -1144,6 +1144,8 @@ import type {
   ListSpeakersData,
   ListSpeakersErrors,
   ListSpeakersResponses,
+  ListStartersData,
+  ListStartersResponses,
   ListTagsData,
   ListTagsErrors,
   ListTagsResponses,
@@ -4365,6 +4367,21 @@ export class Automations {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * List Starters
+   *
+   * Starter automations: each a draft to open, change and save (POST /automations), switched off until you turn
+   * it on.
+   */
+  public static listStarters<ThrowOnError extends boolean = false>(
+    options?: Options<ListStartersData, ThrowOnError>,
+  ): RequestResult<ListStartersResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListStartersResponses, unknown, ThrowOnError>({
+      url: "/api/v1/automations/starters",
+      ...options,
     });
   }
 

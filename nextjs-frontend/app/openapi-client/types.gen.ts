@@ -2133,6 +2133,46 @@ export type AutomationStarted = {
 };
 
 /**
+ * AutomationStarter
+ */
+export type AutomationStarter = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Description
+   *
+   * what it does, and what to change before turning it on
+   */
+  description: string;
+  /**
+   * Draft
+   *
+   * what POST /automations takes, switched off
+   */
+  draft: {
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+};
+
+/**
+ * AutomationStarters
+ */
+export type AutomationStarters = {
+  /**
+   * Starters
+   */
+  starters: Array<AutomationStarter>;
+  [key: string]: unknown;
+};
+
+/**
  * AutomationSwitch
  */
 export type AutomationSwitch = {
@@ -32713,6 +32753,22 @@ export type CallAutomationHookResponses = {
 };
 
 export type CallAutomationHookResponse = CallAutomationHookResponses[keyof CallAutomationHookResponses];
+
+export type ListStartersData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/automations/starters";
+};
+
+export type ListStartersResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationStarters;
+};
+
+export type ListStartersResponse = ListStartersResponses[keyof ListStartersResponses];
 
 export type GetAutomationVarsData = {
   body?: never;

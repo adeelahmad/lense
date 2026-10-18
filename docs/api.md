@@ -187,6 +187,7 @@ GET    /api/v1/automations
 POST   /api/v1/automations
 GET    /api/v1/automations/actions
 POST   /api/v1/automations/draft
+GET    /api/v1/automations/starters
 GET    /api/v1/automations/{id}
 PATCH  /api/v1/automations/{id}
 DELETE /api/v1/automations/{id}

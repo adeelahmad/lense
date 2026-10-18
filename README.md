@@ -195,9 +195,9 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   to group under a broader one, making the changes they're sure of and proposing the rest, each one undoable. Anything that reaches outside Lens or changes
   more than what set it off asks first, until you let it run on its own: on the Approvals page or, for a change inside
   Lens, with a yes in the chat it told you in; agents can decline an approval but never give one. Each automation has
-  limits and budgets, and agents make, try and run them over MCP and in the assistant, or draft one from a sentence. An
-  automation's workflow is drawn and tried on the workflow canvas, with its actions in the palette, and the studio
-  lists your automations, builds one in When, If and Then (tested on a recent activity before you save it), and shows
+  limits and budgets, and agents make, try and run them over MCP and in the assistant, draft one from a sentence, or
+  start from one of five starters that stay off until you turn them on. An automation's workflow is drawn and tried
+  on the workflow canvas, with its actions in the palette, and the studio lists your automations, builds one in When, If and Then (tested on a recent activity before you save it), and shows
   its runs, what's coming up, its variables and its costs.
   ([Processing](docs/processing.md#workflows-and-the-canvas),
   [converting assets](docs/processing.md#converting-assets), [notifications](docs/notifications.md),
