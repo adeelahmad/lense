@@ -449,7 +449,7 @@ def pem(text, key=False):
     text = _rebuild(blocks)
     if key:
         if not any("PRIVATE KEY" in k for k, _ in blocks):
-            raise ValueError(f"paste {want}: the key (-----BEGIN PRIVATE KEY-----, unencrypted) is missing")
+            raise ValueError(f"paste {want}: its unencrypted private key, in PEM, is missing")
         tls_context(client_cert=text)
     else:
         tls_context(server_ca=text)

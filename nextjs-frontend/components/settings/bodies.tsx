@@ -1231,7 +1231,7 @@ function LogsBody({ ctx }: { ctx: BodyCtx }) {
       <SecretSetting
         key={`cert-${l?.updated_at ?? "none"}`}
         label="Client certificate"
-        placeholder="-----BEGIN CERTIFICATE-----… -----BEGIN PRIVATE KEY-----…"
+        placeholder="The certificate, then its unencrypted key, both PEM"
         isSet={Boolean(certSecret.set)}
         saved={certSecret}
         updatedBy={l?.updated_by}
