@@ -58,6 +58,7 @@ const view = (voice: Record<string, unknown>) =>
         laya_url: null,
       },
     },
+    research: { values: { max_tool_calls: 40, max_minutes: 20, model: null, agents_skip_review: false } },
     voice: {
       values: {
         input: "auto",
