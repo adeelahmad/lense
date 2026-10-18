@@ -10825,7 +10825,13 @@ export type ImportResult = {
   /**
    * Job
    */
-  job: number;
+  job?: number | null;
+  /**
+   * Duplicate
+   *
+   * the namespace already had this page or video: `id` is that resource
+   */
+  duplicate?: boolean;
   [key: string]: unknown;
 };
 

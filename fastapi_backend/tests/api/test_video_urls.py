@@ -134,3 +134,15 @@ def test_yt_dlp_is_fetched_only_when_it_matches_its_checksum(cfg, monkeypatch):
     monkeypatch.setattr(mediaurl, "build", lambda *a: ("yt-dlp_linux", hashlib.sha256(body).hexdigest()))
     got = mediaurl.fetch(cfg)
     assert pathlib.Path(got).read_bytes() == body and mediaurl.program(cfg) == [got]
+
+
+def test_an_address_imported_again_links_to_what_the_namespace_has(client, env, cfg, db):
+    """A video (or a page) at an address the namespace has already is not fetched again: the import gives that one."""
+    assert client.put("/api/v1/settings/documents", headers=env["ha"], json={"video_urls": True}).status_code == 200
+    body = {"namespace": "pods", "url": "https://8.8.8.8/watch?v=7"}
+    first = client.post("/api/v1/import/video", headers=env["he"], json=body).json()
+    again = client.post("/api/v1/import/video", headers=env["he"], json=body).json()
+    assert (first["duplicate"], again) == (False, {"ok": True, "id": first["id"], "job": None, "duplicate": True})
+    other = client.post("/api/v1/import/video", headers=env["ha"], json={**body, "namespace": "calls"}).json()
+    assert other["id"] != first["id"] and not other["duplicate"]  # namespaces keep their own
+    assert len(db.values("SELECT VALUE id FROM job")) == 2
