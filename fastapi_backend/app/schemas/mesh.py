@@ -104,6 +104,7 @@ class MeshTokenCreated(ResponseModel):
     token: MeshToken
     secret: str = Field(description="the join token itself, shown this once")
     join_url: str = Field(description="this install's address the machine joins at")
+    install_line: str = Field(description="the line to run on the machine: install.sh with LENS_JOIN and LENS_JOIN_TOKEN")
 
 
 class MeshJoin(RequestModel):

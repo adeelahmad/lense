@@ -21,6 +21,7 @@ import { uploadKindName } from "@/components/import/files";
 import { NsfwDetail } from "@/components/nsfw/nsfw";
 import { ContentTypePicker } from "@/components/recording/content-type";
 import { useRec } from "@/components/recording/context";
+import { EnhanceDetail } from "@/components/recording/enhance";
 import {
   describedRows,
   emailRows,
@@ -104,6 +105,7 @@ export function DetailsTab() {
     ["Fingerprint", rec.fingerprint ?? null, true],
   ];
   const processing: Row[] = [
+    ["Enhance", model.media.kind === "image" ? <EnhanceDetail key="enhance" /> : null],
     [
       "Transcribe",
       rec.transcribed_at

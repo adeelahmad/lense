@@ -574,6 +574,8 @@ PUT    /api/v1/resources/{rid}/ip-groups/{gid}
 DELETE /api/v1/resources/{rid}/ip-groups/{gid}
 GET    /api/v1/resources/{rid}/player
 PUT    /api/v1/resources/{rid}/nsfw
+POST   /api/v1/resources/{rid}/enhance
+GET    /api/v1/resources/{rid}/enhanced
 GET    /api/v1/resources/{rid}/embed-link
 GET    /api/v1/resources/{rid}/audio
 GET    /api/v1/resources/{rid}/wordcloud.svg
@@ -1397,6 +1399,17 @@ Audited as `recording.nsfw`. `GET /resources/nsfw` (`ns` for one namespace) says
 you read, how many resources are `flagged`, and how many of those the Library leaves out (`hidden`). Search hits and
 photo search results carry `nsfw: true` for the ones the web app blurs.
 
+### Enhancing images
+
+The `enhance` step comes first in the standard pipeline: where [enhancing images](enhance.md) is on (off by
+default), it measures an image and, when it's small, blurry, noisy, dull or has small faces, keeps an enhanced copy
+that `read` and the steps after it work from; the original stays as it is. Other resources skip it. A resource
+carries `enhanced`: `{kind, low, measured, enhanced, engine, scale, width, height, forced, at, download}` (`download`
+a signed link to the copy), or `null` until the step looked at it. `POST /resources/{rid}/enhance` (the process
+permission) enhances an image whatever the settings and its quality and runs its pipeline's later steps again,
+answering the `job`; 400 for anything but an image. Audited as `recording.enhance`. `GET /resources/{rid}/enhanced`
+is the copy, for members of its namespace.
+
 ### Descriptions
 
 The `describe` step has a model that can see images say in a few sentences what each page of a document or an image
@@ -1439,8 +1452,11 @@ POST   /api/v1/jobs
 GET    /api/v1/jobs/{jid}
 GET    /api/v1/jobs/{jid}/log
 POST   /api/v1/jobs/steps/{step}
+POST   /api/v1/jobs/cancel
+POST   /api/v1/jobs/retry
 POST   /api/v1/jobs/{jid}/cancel
 POST   /api/v1/jobs/{jid}/retry
+POST   /api/v1/jobs/{jid}/move
 GET    /api/v1/workers
 POST   /api/v1/workers/{name}/pause
 POST   /api/v1/workers/{name}/drain
@@ -1466,6 +1482,21 @@ Every job names its asset (`title`) and the pipeline it runs with the version it
 `worker`, `log_from`/`log_to` (its lines of the whole log) and `outputs` (`[{key, template, version, model}]`, saved as
 `outputs.<key>`). It also adds `estimates`, how long each step usually takes on this asset in seconds (from the
 last 25 runs of that step or template; null with none), and while the job is queued or running `eta_seconds`.
+
+`GET /jobs?status=queued&order=queue` lists queued jobs in the order workers take them, the next first (each job
+carries its `priority`: the highest is taken first, among the jobs a worker can run). `POST /jobs/{jid}/move` moves a
+queued job: `{to: "top"}` or `{to: "bottom"}`, or `{before: <jid>}` or `{after: <jid>}` another queued job you can
+see. The queue is numbered again around it, so the others keep their order, and jobs queued later join the back. It
+returns `position` (1 is next) and `queued`, both among the jobs you can see.
+
+Bulk changes work in every namespace where you may process (or `namespace`), or on `jobs` (ids, each checked):
+`POST /jobs/cancel {jobs?, namespace?, status?}` clears the queue, cancelling queued and held jobs; with `running` in
+`status`, running jobs stop after the step they're on (`stopping`). `POST /jobs/retry {jobs?, namespace?, status?}`
+retries the failed jobs (the dead letter queue; `status: ["failed", "cancelled"]` takes cancelled ones too), each
+from the step it stopped at and at the back of the queue; a job whose asset was deleted, or whose asset already has a
+job queued or running, is left alone (`skipped`). So `POST /jobs/retry {jobs: <the ids cancel returned>, status:
+["cancelled"]}` undoes clearing the queue. Both return the ids they changed (`jobs`) and are audited as `jobs.cancel`
+and `jobs.retry`. Retrying one job puts it at the back of the queue too.
 
 A run keeps its whole log (up to 100,000 lines); the job itself carries its last 200 lines (`log`) and how many there
 are (`log_total`). `GET /jobs/{jid}/log?after=&limit=` pages through it: `{start, lines, total, more}`, up to 5,000

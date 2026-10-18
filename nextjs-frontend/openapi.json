@@ -11119,6 +11119,49 @@
         }
       }
     },
+    "/api/v1/resources/{rid}/enhance": {
+      "post": {
+        "tags": [
+          "resources"
+        ],
+        "summary": "Enhance Recording",
+        "description": "Enhance an image whatever the settings and its quality (docs/enhance.md): an enhanced copy is made, and its\npipeline's steps after enhance (reading its text, faces, objects, \u2026) run again on that copy. The original stays as\nit is. 400 for anything but an image. Audited as `recording.enhance`.",
+        "operationId": "enhance_recording",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobQueued"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/resources/{rid}/share": {
       "post": {
         "tags": [
@@ -21057,6 +21100,55 @@
         }
       }
     },
+    "/api/v1/resources/{rid}/enhanced": {
+      "get": {
+        "tags": [
+          "video"
+        ],
+        "summary": "Get Enhanced",
+        "description": "The enhanced copy the enhance step made of a low quality image (docs/enhance.md), to save. Members of its\nnamespace only (a bearer token, or a signed link the API gave one): visitors get its pages, with faces pixelated\nwhere the namespace does that.",
+        "operationId": "get_enhanced",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          },
+          {
+            "name": "s",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "S"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "image/jpeg": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/resources/{rid}/frames/{name}": {
       "get": {
         "tags": [
@@ -21880,7 +21972,7 @@
           "jobs"
         ],
         "summary": "List Jobs",
-        "description": "Recent jobs, newest first, with counts by status and by namespace (of the jobs in `namespace` and `batch`, of\nany status), plus the latest job's step and log (for the progress bar). With `recording`, that asset's runs,\nalso for someone who sees it through a role on its collection (then the counts are of those runs only).",
+        "description": "Recent jobs, newest first (or with `order=queue` in the order workers take them), with counts by status and by\nnamespace (of the jobs in `namespace` and `batch`, of any status), plus the latest job's step and log (for the\nprogress bar). With `recording`, that asset's runs, also for someone who sees it through a role on its\ncollection (then the counts are of those runs only).",
         "operationId": "list_jobs",
         "parameters": [
           {
@@ -21964,6 +22056,22 @@
               "default": 100,
               "title": "Limit"
             }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "newest",
+                "queue"
+              ],
+              "type": "string",
+              "description": "queue: in the order workers take them, the next first",
+              "default": "newest",
+              "title": "Order"
+            },
+            "description": "queue: in the order workers take them, the next first"
           }
         ],
         "responses": {
@@ -22167,6 +22275,143 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StepQueued"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/jobs/cancel": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Cancel Jobs",
+        "description": "Clear the queue: cancel every queued and held run in the namespaces you may process in (or `namespace`), or\njust `jobs`. With `running` in `status`, running runs stop after the step they're on. POST /jobs/retry with the\nids it returns queues them again. Audited as ``jobs.cancel``.",
+        "operationId": "cancel_jobs",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobsPick"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobsChanged"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/jobs/retry": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Retry Jobs",
+        "description": "Retry in bulk: every failed run (the dead letter queue; cancelled ones too with `status`) in the namespaces you\nmay process in (or `namespace`), or just `jobs`, each from the step it stopped at, at the back of the queue. A run\nwhose asset was deleted or already has a run queued or running is skipped. Audited as ``jobs.retry``.",
+        "operationId": "retry_jobs",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobsPick"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobsChanged"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/jobs/{jid}/move": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Move Job",
+        "description": "Reprioritise a queued run: move it to the `top` (next) or `bottom` of the queue, or just `before` or `after`\nanother queued run (one you can see). Workers take queued runs in this order, when they can run their step.",
+        "operationId": "move_job",
+        "parameters": [
+          {
+            "name": "jid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Jid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobMove"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobMoved"
                 }
               }
             }
@@ -27054,7 +27299,7 @@
           "projects"
         ],
         "summary": "Start Thread",
-        "description": "A new thread: a conversation in the project's namespaces (ask in it with POST /chats/{id}/messages). With `chat`,\none of your conversations joins the project instead, drawing on its namespaces from then on.",
+        "description": "A new thread: a conversation in the project's namespaces (ask in it with POST /chats/{id}/messages). With a\n`brief`, it is asked there at once and answered in the background, as you, with your tools and approvals: GET\n/chats/{id} shows the answer once it's written (the thread is `answering` until then). With `chat`, one of your\nconversations joins the project instead, drawing on its namespaces from then on (with a brief, asked there next).",
         "operationId": "start_thread",
         "parameters": [
           {
@@ -45673,6 +45918,197 @@
         "title": "EncryptionProgress",
         "description": "Converting the files already kept after encryption.files changed: `to` \"encrypted\" or \"plain\" (vaults stay\nencrypted), how many changed and how many were skipped (a locked vault, a damaged file), and why a run stopped\nearly."
       },
+      "EnhanceMeasured": {
+        "properties": {
+          "width": {
+            "type": "integer",
+            "title": "Width"
+          },
+          "height": {
+            "type": "integer",
+            "title": "Height"
+          },
+          "sharpness": {
+            "type": "number",
+            "title": "Sharpness",
+            "description": "the variance of its Laplacian: how sharply its tones change"
+          },
+          "noise": {
+            "type": "number",
+            "title": "Noise",
+            "description": "its estimated noise, in levels out of 255"
+          },
+          "contrast": {
+            "type": "number",
+            "title": "Contrast",
+            "description": "the standard deviation of its tones (0 to 255)"
+          },
+          "brightness": {
+            "type": "number",
+            "title": "Brightness",
+            "description": "the mean of its tones (0 to 255)"
+          },
+          "faces": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Faces",
+            "description": "how many faces it has, where they were looked for"
+          },
+          "smallest_face": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smallest Face",
+            "description": "the height of its smallest face, in pixels"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "width",
+          "height",
+          "sharpness",
+          "noise",
+          "contrast",
+          "brightness"
+        ],
+        "title": "EnhanceMeasured",
+        "description": "How good a picture looked to the enhance step (docs/enhance.md)."
+      },
+      "Enhanced": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "image",
+            "title": "Kind"
+          },
+          "low": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "small",
+                "blurry",
+                "noisy",
+                "dull",
+                "small_faces"
+              ]
+            },
+            "type": "array",
+            "title": "Low",
+            "description": "why it looked low quality; empty when it looked good enough"
+          },
+          "measured": {
+            "$ref": "#/components/schemas/EnhanceMeasured"
+          },
+          "enhanced": {
+            "type": "boolean",
+            "title": "Enhanced",
+            "description": "an enhanced copy was made, and the steps after it read that"
+          },
+          "engine": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engine",
+            "description": "what enhanced it: classic, or realesr-general-x4v3 (Real-ESRGAN)"
+          },
+          "scale": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scale",
+            "description": "how many times bigger the copy is"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width",
+            "description": "the copy's width in pixels"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height"
+          },
+          "forced": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Forced",
+            "description": "enhanced on request, whatever the settings and its quality"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "download": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Download",
+            "description": "a signed link to save the enhanced copy"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "kind",
+          "measured",
+          "enhanced"
+        ],
+        "title": "Enhanced",
+        "description": "What the enhance step found and did (docs/enhance.md): whether the picture looked low quality and why, and the\nenhanced copy it's read from, if one was made. The original stays as it is."
+      },
       "EnrichedDate": {
         "properties": {
           "text": {
@@ -46816,7 +47252,9 @@
               "batch.finished",
               "recording.added",
               "lens.release",
-              "approval.waiting"
+              "approval.waiting",
+              "routine.failed",
+              "routine.proposed"
             ],
             "title": "Type"
           },
@@ -50680,7 +51118,8 @@
               "merge",
               "link",
               "retype",
-              "hide"
+              "hide",
+              "cluster"
             ],
             "title": "Kind"
           },
@@ -50688,7 +51127,7 @@
             "additionalProperties": true,
             "type": "object",
             "title": "A",
-            "description": "the entity changed, or the first of a pair"
+            "description": "the entity changed, the first of a pair, or a group's broader topic (no id when new)"
           },
           "b": {
             "anyOf": [
@@ -50714,6 +51153,61 @@
             ],
             "title": "To",
             "description": "a retype's new type"
+          },
+          "topics": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topics",
+            "description": "a group's topics, to put under its broader topic"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent",
+            "description": "an applied group's broader topic"
+          },
+          "created": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created",
+            "description": "the broader topic an applied group made"
+          },
+          "grouped": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grouped",
+            "description": "the topics an applied group put under its broader topic"
           },
           "spaces": {
             "items": {
@@ -50881,6 +51375,19 @@
             ],
             "title": "To",
             "description": "for a retype: the type to give (default: the one proposed)"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "for a group under a new topic: its label (default: the one proposed)"
           }
         },
         "additionalProperties": false,
@@ -54202,6 +54709,18 @@
             "title": "Cost Estimate",
             "description": "true: some calls had no price or token counts, so cost_usd is a floor"
           },
+          "priority": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority",
+            "description": "its place among queued runs: the highest is taken first (POST /jobs/{jid}/move sets it)"
+          },
           "hold": {
             "anyOf": [
               {
@@ -54402,6 +54921,79 @@
         ],
         "title": "JobLog"
       },
+      "JobMove": {
+        "properties": {
+          "to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "top",
+                  "bottom"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To",
+            "description": "the front of the queue (next) or its back"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before",
+            "description": "just before this queued run"
+          },
+          "after": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After",
+            "description": "just after this queued run"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "JobMove"
+      },
+      "JobMoved": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position",
+            "description": "its place now among the queued runs you can see: 1 is next"
+          },
+          "queued": {
+            "type": "integer",
+            "title": "Queued",
+            "description": "how many runs you can see are queued"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "position",
+          "queued"
+        ],
+        "title": "JobMoved"
+      },
       "JobPipeline": {
         "properties": {
           "id": {
@@ -54458,6 +55050,43 @@
           "job"
         ],
         "title": "JobQueued"
+      },
+      "JobsChanged": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          },
+          "jobs": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Jobs",
+            "description": "the runs cancelled, or queued again"
+          },
+          "stopping": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Stopping",
+            "description": "running runs asked to stop after the step they're on"
+          },
+          "skipped": {
+            "type": "integer",
+            "title": "Skipped",
+            "description": "runs retry left alone: their asset was deleted, or already has a run queued or running",
+            "default": 0
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "jobs"
+        ],
+        "title": "JobsChanged"
       },
       "JobsCreate": {
         "properties": {
@@ -54517,6 +55146,63 @@
         "additionalProperties": false,
         "type": "object",
         "title": "JobsCreate"
+      },
+      "JobsPick": {
+        "properties": {
+          "jobs": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array",
+                "maxItems": 5000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jobs",
+            "description": "these runs; leave out for every run with `status`"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace",
+            "description": "only this namespace's runs (default: every one you can process in)"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "queued",
+                    "held",
+                    "running",
+                    "failed",
+                    "cancelled"
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status",
+            "description": "POST /jobs/cancel: default queued and held (clearing the queue), running too to stop those after their step; POST /jobs/retry: default failed (the dead letter queue), cancelled too"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "JobsPick"
       },
       "JobsQueued": {
         "properties": {
@@ -57774,6 +58460,11 @@
             "type": "string",
             "title": "Join Url",
             "description": "this install's address the machine joins at"
+          },
+          "install_line": {
+            "type": "string",
+            "title": "Install Line",
+            "description": "the line to run on the machine: install.sh with LENS_JOIN and LENS_JOIN_TOKEN"
           }
         },
         "additionalProperties": true,
@@ -57781,7 +58472,8 @@
         "required": [
           "token",
           "secret",
-          "join_url"
+          "join_url",
+          "install_line"
         ],
         "title": "MeshTokenCreated"
       },
@@ -58147,7 +58839,8 @@
                   "room",
                   "voice",
                   "automation",
-                  "completions"
+                  "completions",
+                  "project"
                 ]
               },
               {
@@ -58155,7 +58848,7 @@
               }
             ],
             "title": "Via",
-            "description": "a question: how it was sent"
+            "description": "a question: how it was sent (project: a brief a project's coordinator wrote)"
           },
           "options": {
             "anyOf": [
@@ -61803,7 +62496,9 @@
                 "batch.finished",
                 "recording.added",
                 "lens.release",
-                "approval.waiting"
+                "approval.waiting",
+                "routine.failed",
+                "routine.proposed"
               ]
             },
             "type": "array",
@@ -61953,7 +62648,9 @@
                     "batch.finished",
                     "recording.added",
                     "lens.release",
-                    "approval.waiting"
+                    "approval.waiting",
+                    "routine.failed",
+                    "routine.proposed"
                   ]
                 },
                 "type": "array"
@@ -62084,7 +62781,9 @@
                     "batch.finished",
                     "recording.added",
                     "lens.release",
-                    "approval.waiting"
+                    "approval.waiting",
+                    "routine.failed",
+                    "routine.proposed"
                   ]
                 },
                 "type": "array"
@@ -68026,6 +68725,17 @@
               }
             ],
             "description": "NSFW classification, where it's on in its namespace and it was classified"
+          },
+          "enhanced": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Enhanced"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "an image the enhance step looked at: what it found, and its enhanced copy"
           }
         },
         "additionalProperties": true,
@@ -79575,6 +80285,19 @@
             ],
             "title": "Chat",
             "description": "bring in one of your conversations instead of starting a new one"
+          },
+          "brief": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brief",
+            "description": "what to do: asked as the thread's first question and answered in the background, with your tools and approvals (follow it with GET /chats/{id})"
           }
         },
         "additionalProperties": false,

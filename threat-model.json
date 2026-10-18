@@ -6,7 +6,7 @@
   "scope_subpath": null,
   "description": "Lens is a self-hosted archive for documents, recordings, photos and messages: it reads, transcribes, indexes and publishes them, and people search and chat over them. One operator (the instance admin) runs an instance for their own people: a FastAPI API, a Next.js web app that proxies the API and holds the sign-in session, and background workers, around one SurrealDB database, with content split into namespaces and per-namespace roles. Exposing an instance to the internet behind HTTPS (reverse proxy or Cloudflare tunnel) is supported. Only the instance admin (equivalent to host code execution) and the host operator are trusted; everyone else is trusted only as far as their role.",
   "confidence": {
-    "documented": 258,
+    "documented": 259,
     "inferred": 99
   },
   "components": [
@@ -777,7 +777,7 @@
       "parameter": "a public key to certify; a status report: whether Nebula runs, its peers, its machine, its log lines",
       "attacker_controllable": "yes",
       "component": "optional",
-      "caller_must_enforce": "the node token is 256 random bits kept only as a hash; a node gets its own config and a certificate for its own address and groups only; reports are capped",
+      "caller_must_enforce": "the node token is 256 random bits kept only as a hash; a node gets its own config and a certificate for its own address and groups only; reports are capped; they arrive at the primary's mesh address, which the API's host check admits for these paths alone while the mesh is on",
       "provenance": "documented",
       "source": "docs/mesh.md \"After joining\""
     },
@@ -1540,7 +1540,7 @@
       "property": "P-MESH",
       "violation_symptom": "info-leak, integrity-bypass",
       "severity_tier": "security",
-      "conditions": "the mesh (mesh.enabled, off until an admin adds a node) admits only machines that joined with a token an admin made, spent on use and expiring, which never crosses the wire (HMAC proof; answer sealed with a key derived from it); each machine's certificate names only its own address, role and namespaces; the rendered firewall opens the database port to worker nodes and the API port to every node on the primary, a node's agent port to the primary only; removing a node blocklists every certificate it was given on every machine and stops its node token; nodes still sign in to Lens as any client does; on the primary Nebula runs in the mesh container, the only one holding NET_ADMIN, with a key pair it makes itself and Nebula's release checked against the kept checksum; its relays listen on the mesh address only",
+      "conditions": "the mesh (mesh.enabled, off until an admin adds a node) admits only machines that joined with a token an admin made, spent on use and expiring, which never crosses the wire (HMAC proof; answer sealed with a key derived from it); each machine's certificate names only its own address, role and namespaces; the rendered firewall opens the database port to worker nodes and the API port to every node on the primary, a node's agent port to the primary only; removing a node blocklists every certificate it was given on every machine and stops its node token; nodes still sign in to Lens as any client does; on the primary Nebula runs in the mesh container, the only one holding NET_ADMIN, with a key pair it makes itself and Nebula's release checked against the kept checksum; its relays listen on the mesh address only; a node runs lens node and Nebula in two containers with nothing published, its node token and agent key in its own volume (0600), the join token in the first start's environment only",
       "provenance": "documented",
       "source": "docs/mesh.md \"What keeps it safe\""
     }
