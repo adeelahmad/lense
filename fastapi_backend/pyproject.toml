@@ -1,6 +1,6 @@
 [project]
 name = "lens"
-version = "0.14.0"
+version = "0.15.0"
 description = "Lens: intelligence for your agent. Safe, secure and cost-effective. Turns your live data streams into a cited knowledge graph your agent can reason over."
 requires-python = ">=3.12,<3.14"
 readme = "README.md"
@@ -71,6 +71,9 @@ sandbox = ["openshell>=0.1.4,<0.2"]
 web = ["ddgs>=9.16,<10"]
 # Outlook .msg emails (extract-msg is GPL-3.0; .eml needs nothing)
 msg = ["extract-msg"]
+# secrets read from a Vaultwarden or Bitwarden vault (vaultwarden_secrets.py): python-vaultwarden (Apache-2.0); fetched
+# when Settings › Secrets has a Vaultwarden address
+vaultwarden = ["python-vaultwarden>=1.1.2,<2"]
 
 [project.scripts]
 lens = "app.cli:main"
@@ -100,6 +103,7 @@ dev = [
     "impacket>=0.13",  # the SMB share's server, and the SMB client its tests sign in with
     "openshell>=0.1.4,<0.2",  # the code sandbox's client, tested against a fake OpenShell gateway
     "botocore>=1.43.113",
+    "python-vaultwarden>=1.1.2,<2",  # the Vaultwarden client, tested against a fake Vaultwarden
 ]
 
 [tool.hatch.build.targets.wheel]

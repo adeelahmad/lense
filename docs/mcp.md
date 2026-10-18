@@ -132,6 +132,9 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 | `set_file_storage` | keep new files on this machine or a storage connection (folder, rclone crypt); checked before it's saved. Admins only, with a write-scope token |
 | `services` | Lens's optional containers ([Optional containers](assistant.md#optional-containers)): the MCP runner, the browser and monitoring, whether each is on and answering, and how the machine's last change went. Admins only |
 | `set_service` | start or stop one of them (`mcp`, `browser` or `monitoring`): the machine's upgrade agent does it. Admins only, with a write-scope token |
+| `list_secrets` | every secret field in Settings: whether it's set, and for one that refers to a password manager ([Secrets](secrets.md)) its reference and whether it could be read; and the password managers there are. Never a value. Admins only |
+| `list_vault_items` | the items of a password manager Lens may refer to (those in its folder): name, type, the fields that hold something and the reference to each; never their values. Admins only |
+| `set_secret_reference` | point a secret field (`llm.api_key`, `slack.bot_token`, ...) at a password manager's item, like `vaultwarden://OpenAI/password`; checked against the vault before it's saved. Admins only, with a write-scope token |
 | `picture_descriptions` | what describes the pages and shots of resources ([Descriptions](configuration.md#descriptions)): the LLM provider's model that can see images, or Florence-2 or Moondream on this server, its model, whether it's ready and why not, and the engines there are. Admins only |
 | `set_picture_descriptions` | choose what describes pictures (`engine` `llm`, `florence-2` or `moondream`), the provider's `vision_model`, Florence-2's size (`florence_model`), which Moondream (`moondream_model`) and `describe_max`. Admins only, with a write-scope token |
 | `mcp_servers` | the MCP servers the assistant calls ([Adding an MCP server](assistant.md#adding-an-mcp-server)): each one's address or command, the names of its headers and env (never their values), whether it's on, its tools and those switched off, and its page; and the ready-made ones (browser, github), whether each is added and what it needs. Admins only |
@@ -161,7 +164,7 @@ which records an undoable change (proposed by default), `undo_graph_change`, `ed
 app (merges and deletes can be undone), `write_note`, which adds a note, `create_podcast`, which
 queues an episode, `create_feed` and `publish_to_feed`, which make and fill a [published feed](feeds.md),
 `write_spec`, which queues a spec, `set_nsfw` and `mark_nsfw`, which change [NSFW classification](nsfw.md) (owners or admins, and
-editors), `set_namespace_integrations`, which turns a namespace's own MCP server or chat completions on or off (owners), `set_picture_descriptions`, which changes what describes pictures (admins), `set_file_storage`, which changes where new files are kept (admins), `add_mcp_server`, which adds an
+editors), `set_namespace_integrations`, which turns a namespace's own MCP server or chat completions on or off (owners), `set_picture_descriptions`, which changes what describes pictures (admins), `set_file_storage`, which changes where new files are kept (admins), `set_secret_reference`, which points a secret field at a password manager's item (admins), `add_mcp_server`, which adds an
 MCP server (admins), `subscribe_feed` and `unsubscribe_feed`, which follow and stop following news feeds (admins), and `set_monitoring`, `set_service`,
 `set_sandbox_gateway` (the [code sandbox](assistant.md#code-sandbox)'s gateway) and `set_install_settings`, which have the machine change how Lens runs (admins).
 Importing stays in the web app and the API.

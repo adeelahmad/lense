@@ -255,6 +255,15 @@ class AttachedTo(ResponseModel):
     title: str | None = None
 
 
+class ConvertedFrom(ResponseModel):
+    """The asset a convert step made this one from (docs/processing.md#converting-assets)."""
+
+    resource: int
+    to: Literal["audio", "images"]
+    page: int | None = Field(None, description="the page it is, from 0, for images made of a document's pages")
+    title: str | None = None
+
+
 class Recording(ResponseModel):
     """The asset row (less its envelope) plus what the asset page needs."""
 
@@ -282,6 +291,7 @@ class Recording(ResponseModel):
     rendition: Rendition | None = Field(None, description="a document that isn't a PDF: how the PDF it's read from was made")
     described: Described | None = Field(None, description="a document: what it says about itself (title, authors, dates), read by Tika")
     attached_to: AttachedTo | None = Field(None, description="an email's attachment made a resource of its own: that email")
+    converted_from: ConvertedFrom | None = Field(None, description="made by a convert step: the asset it was made from")
     web: WebPage | None = Field(None, description="a web page captured as a document")
     enrichment: Enrichment | None = Field(None, description="the places and dates anytopdf found (analysis.anytopdf)")
     nsfw: NsfwState | None = Field(None, description="NSFW classification, where it's on in its namespace and it was classified")
