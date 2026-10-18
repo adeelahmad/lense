@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
-import { Copy, Download, FileText, Type } from "lucide-react";
+import { ChevronDown, Copy, Download, FileText, Type } from "lucide-react";
 
 import { Chats } from "@/app/openapi-client";
 import { answerMarkdown, copyText, plainText, type Cited } from "@/components/chat/copy";
@@ -98,7 +98,8 @@ export function ExportMenu({
 
 const ITEM = "w-full text-left";
 
-/** An answer's copy menu: Copy as Markdown, Copy text and, once it's saved, Export it as Markdown, PDF or JSON. */
+/** An answer's copy button, which copies it as Markdown in one click, and the arrow beside it: Copy as Markdown, Copy
+ * text and, once it's saved, Export it as Markdown, PDF or JSON. */
 export function AnswerMenu({
   text,
   passages,
@@ -109,45 +110,50 @@ export function AnswerMenu({
   onExport?: (fmt: ExportFormat) => void;
 }) {
   const toast = useToast();
+  // in the click itself, not after a menu closes: some browsers only let a click write to the clipboard
+  const asMarkdown = () =>
+    void copyText(answerMarkdown(text, passages, window.location.origin), toast, "Copied as Markdown");
   return (
-    <Menu>
-      <MenuTrigger asChild>
-        <IconButton label="Copy" size={32} className="print:hidden [&_svg]:size-4">
-          <Copy />
-        </IconButton>
-      </MenuTrigger>
-      <MenuContent align="start" className="min-w-[210px]">
-        {/* in the click itself, not after the menu closes: some browsers only let a click write to the clipboard */}
-        <MenuItem asChild>
-          <button
-            type="button"
-            className={ITEM}
-            onClick={() =>
-              void copyText(answerMarkdown(text, passages, window.location.origin), toast, "Copied as Markdown")
-            }
+    <span className="inline-flex items-center print:hidden">
+      <IconButton label="Copy" size={32} onClick={asMarkdown} className="[&_svg]:size-4">
+        <Copy />
+      </IconButton>
+      <Menu>
+        <MenuTrigger asChild>
+          <IconButton
+            label={onExport ? "More ways to copy and export" : "More ways to copy"}
+            size={24}
+            className="[&_svg]:size-3.5"
           >
-            <FileText />
-            <span className="flex-1">Copy as Markdown</span>
-          </button>
-        </MenuItem>
-        <MenuItem asChild>
-          <button type="button" className={ITEM} onClick={() => void copyText(plainText(text), toast, "Copied")}>
-            <Type />
-            <span className="flex-1">Copy text</span>
-          </button>
-        </MenuItem>
-        {onExport && (
-          <>
-            <MenuSeparator />
-            <MenuLabel>Export as</MenuLabel>
-            {FORMATS.map(({ fmt, label }) => (
-              <MenuItem key={fmt} onSelect={() => onExport(fmt)}>
-                {label}
-              </MenuItem>
-            ))}
-          </>
-        )}
-      </MenuContent>
-    </Menu>
+            <ChevronDown />
+          </IconButton>
+        </MenuTrigger>
+        <MenuContent align="start" className="min-w-[210px]">
+          <MenuItem asChild>
+            <button type="button" className={ITEM} onClick={asMarkdown}>
+              <FileText />
+              <span className="flex-1">Copy as Markdown</span>
+            </button>
+          </MenuItem>
+          <MenuItem asChild>
+            <button type="button" className={ITEM} onClick={() => void copyText(plainText(text), toast, "Copied")}>
+              <Type />
+              <span className="flex-1">Copy text</span>
+            </button>
+          </MenuItem>
+          {onExport && (
+            <>
+              <MenuSeparator />
+              <MenuLabel>Export as</MenuLabel>
+              {FORMATS.map(({ fmt, label }) => (
+                <MenuItem key={fmt} onSelect={() => onExport(fmt)}>
+                  {label}
+                </MenuItem>
+              ))}
+            </>
+          )}
+        </MenuContent>
+      </Menu>
+    </span>
   );
 }
