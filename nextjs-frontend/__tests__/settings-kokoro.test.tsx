@@ -33,6 +33,7 @@ const view = (voice: Record<string, unknown>) =>
         untrusted_asks: true,
         injection_check: "patterns",
         disabled_tools: [],
+        answer_comments: true,
         max_steps: 6,
         max_tool_calls: 50,
         browser_steps: 25,
