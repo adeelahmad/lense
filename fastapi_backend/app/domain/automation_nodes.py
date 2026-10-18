@@ -368,7 +368,11 @@ def _action(r, f, node):
 
 
 def finish(trace, box):
-    """The trace with each action that failed marked failed, with why (flow.py saw it pass nothing on)."""
+    """The trace with each action that failed marked failed, with why, and each that waits for a pick or a time marked
+    waiting or scheduled (flow.py saw them pass nothing on, and called them done)."""
+    for i in box.items:
+        if i["status"] in ("waiting", "scheduled") and i["path"] in trace:
+            trace[i["path"]] = {**trace[i["path"]], "status": i["status"]}
     for path, why in box.failed.items():
         if path in trace:
             trace[path] = {**trace[path], "status": "failed", "error": why}

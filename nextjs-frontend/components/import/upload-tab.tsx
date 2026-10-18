@@ -31,6 +31,7 @@ import {
 import { MappingField, PreviewLines } from "@/components/import/mapping";
 import { chooseFiles, isFileDrag } from "@/components/import/pending";
 import { pieceCount, resumeFrom, sentShare } from "@/components/import/upload-model";
+import { baseOf, ContentTypeField } from "@/components/import/content-type-field";
 import { ImportAs } from "@/components/import/import-as";
 import type { Item } from "@/components/import/use-import";
 import { Badge } from "@/components/ui/badge";
@@ -340,6 +341,11 @@ export function FileDetail({
         </Badge>
       </div>
       {onKind && <ImportAs it={it} onKind={onKind} limits={limits} />}
+      <ContentTypeField
+        base={baseOf(it.kind)}
+        value={it.contentType ?? null}
+        onChange={(contentType) => onPatch({ contentType })}
+      />
       <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         <Stat k="Format" v={formatName(pv.format)} />
         <Stat k="Speakers found" v={count(pv.speakers.length)} />
@@ -420,6 +426,13 @@ export function MediaDetail({
         </Badge>
       </div>
       {onKind && <ImportAs it={it} onKind={onKind} limits={limits} />}
+      {!twinOf && (
+        <ContentTypeField
+          base={baseOf(it.kind)}
+          value={it.contentType ?? null}
+          onChange={(contentType) => onPatch({ contentType })}
+        />
+      )}
       <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-3">
         <Stat k="Type" v={`${uploadKindName(it.kind, it.file.name)} (${extOf(it.file.name).slice(1)})`} />
         <Stat k="Size" v={bytes(it.file.size)} />

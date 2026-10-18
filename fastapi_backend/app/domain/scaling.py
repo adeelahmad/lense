@@ -1190,7 +1190,7 @@ class Scaler:
             db.q("UPDATE $r SET error = $e", r=R("scale_node", n["id"]), e=f"{type(e).__name__}: {e}"[:300])
             return True
         if d.get("state") == "gone":
-            why = "stopped at the provider" if state != "launching" else "never came up at the provider"
+            why = d.get("why") or ("stopped at the provider" if state != "launching" else "never came up at the provider")
             _terminate(db, cfg, drv, p, {**n, "external_id": None}, why, state="failed" if state == "launching" else "terminated", now=now)
             did["terminated"] += 1
             return False

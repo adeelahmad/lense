@@ -282,3 +282,5 @@ def get(driver_id):
 
 
 register(Local())
+
+from . import scaling_aws  # noqa: E402,F401 - AWS EC2 registers itself

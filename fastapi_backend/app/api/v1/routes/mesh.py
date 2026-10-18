@@ -113,7 +113,8 @@ def make_mesh_token(body: MeshTokenCreate, user: AdminWriter, request: Request, 
             settings.save(db, request.app.state.archive.base, "mesh", {"enabled": True}, user.email)
             auth.audit(db, user.as_audit(), "settings.save", "mesh", ["enabled"])
     auth.audit(db, user.as_audit(), "mesh.token.create", f"mesh_token:{tok['id']}", {"role": body.role, "uses": body.uses})
-    return MeshTokenCreated(token=MeshToken(**tok), secret=secret, join_url=web_origin(request))
+    url = web_origin(request)
+    return MeshTokenCreated(token=MeshToken(**tok), secret=secret, join_url=url, install_line=mesh.join_line(cfg, secret, url))
 
 
 @router.delete("/tokens/{token_id}")

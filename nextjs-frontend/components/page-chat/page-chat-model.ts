@@ -35,6 +35,15 @@ export function readState(raw: string | null | undefined): PageChatState {
   }
 }
 
+/** The event a page's own buttons send to open the page chat with a quote (askAbout). */
+export const ASK_ABOUT_EVENT = "lens:ask-about";
+
+/** Open the page chat with `quote` as what the question is about, as "Ask about this" on highlighted text does: for
+ * buttons that hand it something of the page, like a timeline item. */
+export function askAbout(quote: string): void {
+  window.dispatchEvent(new CustomEvent<string>(ASK_ABOUT_EVENT, { detail: quote }));
+}
+
 /** Pages where the page chat stays out of the way: the Chat page is the full chat already. */
 export function hiddenOn(pathname: string): boolean {
   return pathname === "/chat" || pathname.startsWith("/chat/");
