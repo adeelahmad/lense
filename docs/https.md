@@ -114,8 +114,10 @@ All in Settings › HTTPS (`PUT /api/v1/settings/https`; `POST /api/v1/settings/
   `notifications.app_url` says otherwise.
 - **Changes**: a saved change restarts Caddy with the new configuration within a few seconds.
 - **What it serves**: the web app, and what the web app serves at its own address: the API, the MCP server at `/mcp`,
-  and the file shares at `/s3` and `/dav` once Settings › File shares allows them there
-  ([The graph as files](file-tree.md#at-the-web-apps-address)). MQTT, syslog, SMB and NFS keep their own ports.
+  the file shares at `/s3` and `/dav` once Settings › File shares allows them there
+  ([The graph as files](file-tree.md#at-the-web-apps-address)), and MQTT over WebSockets at `/mqtt` once Settings ›
+  Sensors does ([Sensors](sensors.md#at-the-web-apps-address)). MQTT on port 1883, syslog, SMB and NFS keep their own
+  ports.
 
 By hand, with Docker:
 

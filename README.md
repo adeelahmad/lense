@@ -70,7 +70,7 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   answer OpenAI's chat completions API for any app, cited from that namespace alone, each off until its owner turns it
   on, with API keys that open that one namespace and nothing else. The same folders and files can be mounted over S3,
   WebDAV, NFS or SMB (S3 and WebDAV also at the web app's address, through remote access), so file managers and scripts
-  read Lens too, and a file copied in over S3 or WebDAV is imported where it was put. The web app runs on the same REST
+  read Lens too, and a file copied into any of them is imported where it was put. The web app runs on the same REST
   API, so an agent can do what a person can. ([MCP](docs/mcp.md), [one namespace's MCP
   server](docs/mcp.md#one-namespaces-mcp-server), [chat completions](docs/api.md#chat-completions-for-any-app),
   [API](docs/api.md), [the graph as files](docs/file-tree.md), [authentication](docs/authentication.md);
@@ -81,8 +81,9 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   of each conversation's own. Regenerating an answer or editing a question makes a new version beside the old one, and
   nothing is lost. Each answer keeps a record of what produced it (the model, its tools, how long it took and what it
   cost), opened from its header. It reads answers aloud with a speech provider, macOS `say` or StyleTTS2 on this machine
-  (opt-in). Long conversations are summarised before they fill the model's context, and `/clear` and `/compact` start
-  afresh or summarise now. Each namespace can have its own assistant with
+  (opt-in), any message in one click. Long conversations are summarised before they fill the model's context, and
+  `/clear` and `/compact` start afresh or summarise now. Conversations title themselves after their first answer, unless
+  you name them. Each namespace can have its own assistant with
   its own name, instructions and memory, answering in Telegram and Slack (built in, with voice notes and files), in
   Discord, Matrix, WhatsApp and other chat rooms through Matterbridge, and by email at an address of its own that you
   email or forward things to. ([Chat](docs/assistant.md), [web search](docs/assistant.md#web-search-and-reading-pages),
@@ -122,10 +123,10 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   asset, with Undo instead of a confirm. Names get their real types (people, places, organisations, events, works) by
   rules, without a model. Find what is most like a passage, an asset, a topic or an entity, in a Similar
   tab on every asset or by selecting text anywhere, and, with anytopdf, photos by what they show. Pages and shots are
-  described in words by the model provider's vision model or, off by default, by Florence-2 on your own server.
-  Transcripts can be cleaned up before analysis (stutters, "um"s, spacing and, with a local model, punctuation put
-  back), entities found by spaCy instead of the rules, and the dates people say read as days on the calendar, each off
-  by default.
+  described in words by the model provider's vision model or, off by default, by Florence-2 or Moondream on your own
+  server. Transcripts can be cleaned up before analysis (stutters, "um"s, spacing and, with a local model, punctuation
+  put back), entities found by spaCy instead of the rules, and the dates people say read as days on the calendar, each
+  off by default.
   ([Graph](docs/graph.md), [entity pages](docs/notes.md#entity-pages),
   [similar content](docs/processing.md#similar-content), [graph history](docs/graph-history.md),
   [topics](docs/topics.md), [video](docs/video.md), [NSFW classification](docs/nsfw.md),
@@ -144,19 +145,22 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [notes](docs/notes.md), [evidence PDFs](docs/api.md#evidence-pdfs); [checks](docs/requirements.md#learn-from-it))
 - **Automate it.** Pipelines and workflows on a canvas, routines on a schedule, batch runs over a collection, and
   notifications to webhooks, Slack, Discord and Matterbridge. Everything that happens in Lens (new assets, emails,
-  calendar events, files, what people say to Lens, sensor readings, notes, graph changes, runs, budget warnings) is kept
-  as a stream of activities in W3C Activity Streams form, which agents read through the API, MCP and the assistant, and
-  people review on the Timeline page (and Latest on Home), marking what they've seen. Automations act on that stream, on
-  a schedule, at a time or when their own webhook is called: they test conditions, then tell you in your own chat app,
-  ask the model or the agent, use a tool, call a web address (its credentials kept sealed), run a workflow, pipeline or
-  routine, or change assets and notes. A Classify node in a workflow sorts an asset into labels, content types or
-  topics, acting only on a sure answer. Anything that reaches outside Lens or changes more than what set it off asks
-  first, until you let it run on its own: on the Approvals page or, for a change inside Lens, with a yes in the chat it
-  told you in; agents can decline an approval but never give one. Each automation has limits and budgets, and agents
-  make, try and run them over MCP and in the assistant, or draft one from a sentence; the studio to draw them in the web
-  app is planned. ([Processing](docs/processing.md#workflows-and-the-canvas), [notifications](docs/notifications.md),
-  [automations](docs/automations.md), [approvals](docs/automations.md#approvals), [timeline](docs/timeline.md);
-  [checks](docs/requirements.md#automate-it))
+  calendar events, files, feed posts, what people say to Lens, sensor readings, notes, graph changes, runs, budget
+  warnings) is kept as a stream of activities in W3C Activity Streams form, which agents read through the API, MCP and
+  the assistant, and people review on the Timeline page (and Latest on Home), marking what they've seen. Automations act
+  on that stream, on a schedule, at a time or when their own webhook is called, alone or with their triggers joined (all
+  of them, a number of times, one that doesn't come in time, or a batch): they test conditions (text, patterns,
+  numbers, lists, times, days, whether a value changed and whether something like it happened before in their
+  namespaces), then tell you in
+  your own chat app, ask the model or the agent, use a tool, call a web address (its credentials kept sealed), run a
+  workflow, pipeline or routine, or change assets and notes. A Classify node in a workflow sorts an asset into labels,
+  content types or topics, acting only on a sure answer. Anything that reaches outside Lens or changes more than what
+  set it off asks first, until you let it run on its own: on the Approvals page or, for a change inside Lens, with a yes
+  in the chat it told you in; agents can decline an approval but never give one. Each automation has limits and budgets,
+  and agents make, try and run them over MCP and in the assistant, or draft one from a sentence; the studio to draw them
+  in the web app is planned. ([Processing](docs/processing.md#workflows-and-the-canvas),
+  [notifications](docs/notifications.md), [automations](docs/automations.md),
+  [approvals](docs/automations.md#approvals), [timeline](docs/timeline.md); [checks](docs/requirements.md#automate-it))
 - **See what it costs.** An activity ledger of every model call, with reports, charts and budgets that cap spending.
   Setup asks for one overall budget after a cloud model, with a soft limit that warns and a hard limit that stops paid
   calls. A meter in the top bar shows spend against the budget, and the Costs page breaks it down by day, model and
@@ -181,17 +185,19 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   machine; the same daily events can also go to a Google Analytics 4 property of your own (off unless you turn it on).
   ([Logging](docs/logging.md), [telemetry](docs/telemetry.md), [Prometheus](docs/prometheus.md),
   [usage analytics](docs/analytics.md); [checks](docs/requirements.md#watch-it-run))
-- **Stay private and safe.** Passkeys instead of passwords, encryption at rest with a key per namespace, roles per
-  namespace (viewer, editor, owner, or custom roles made of permissions), email invitations, removing someone for
-  good, and an audit log. Prompt injection meets several layers: what the assistant reads (recordings,
-  documents, web pages, tool results) reaches the model marked as data, not instructions, and text that reads like
-  instructions to an AI is flagged (by free patterns, or an optional classifier model that runs on your machine and is
-  fetched only when you pick it). Once an answer has read such text, sending anything out, or the browser opening or
-  typing what the assistant wrote, waits for your yes. Chat-room answers have links they built themselves broken up,
-  agents over MCP get the archive as data, and what Lens caught goes into the audit log. Serve Lens over HTTPS, set
+- **Stay private and safe.** Passkeys instead of passwords (one at Lens's remote address added from a signed-in one with
+  Open signed in), encryption at rest with a key per namespace, roles per namespace (viewer, editor, owner, or custom
+  roles made of permissions), email invitations, removing someone for good, and an audit log. Prompt injection meets
+  several layers: what the assistant reads (recordings, documents, web pages, tool results) reaches the model marked as
+  data, not instructions, and text that reads like instructions to an AI is flagged (by free patterns, or an optional
+  classifier model that runs on your machine and is fetched only when you pick it). Once an answer has read such text,
+  sending anything out, or the browser opening or typing what the assistant wrote, waits for your yes. Chat-room answers
+  have links they built themselves broken up, agents over MCP get the archive as data, and what Lens caught goes into
+  the audit log. Serve Lens over HTTPS, set
   up in Settings, with certificates from Let's Encrypt or ZeroSSL that renew on their own, answering only for its own
   domains and, if you choose, only to devices holding a client certificate; or reach it from anywhere through a
-  Cloudflare tunnel with nothing opened on your router. ([Encryption](docs/encryption.md), [access](docs/access.md),
+  Cloudflare tunnel with nothing opened on your router. Either way, the S3 and WebDAV shares and the MQTT hub answer at
+  that same address once you turn them on. ([Encryption](docs/encryption.md), [access](docs/access.md),
   [prompt injection](docs/assistant.md#third-party-content-and-prompt-injection), [HTTPS](docs/https.md),
   [remote access](docs/remote-access.md); [checks](docs/requirements.md#stay-private-and-safe))
 - **Use open standards.** RDF and Dublin Core for every record, OAuth for apps and OpenID Connect sign-in, MCP, MQTT,
@@ -226,7 +232,7 @@ These are open pull requests, not yet part of Lens:
 
 Next, and not in a pull request yet; each links to where it is tracked:
 
-- **The automations studio:** drawing automations in the web app, joins, and the decide node, where a decision model
+- **The automations studio:** drawing automations in the web app, and the decide node, where a decision model
   picks the branch ([automations](docs/automations.md)).
 - **Timeline:** what each item caused, and Approve and Decline on waiting approvals ([timeline](docs/timeline.md)).
 - **Notes:** nesting a note under its project or area without a click, pages in the graph, and wiki addresses for

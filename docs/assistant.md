@@ -14,7 +14,8 @@ then.
 - **Answers:** the model answers only from those excerpts and cites them as [n]. Each citation carries the asset
   and timestamp.
 - **Streaming:** answers arrive over server-sent events: `passages`, then `token`s, then `meta` (the answer's
-  record, [below](#what-each-answer-records)) and `done`.
+  record, [below](#what-each-answer-records)) and `done`; after a conversation's first answer, `title`
+  ([Titles](#titles)).
 - **Stopping:** Stop asks the server to end the answer after the piece or tool step it's on (whichever server process
   is writing it); what came before is saved, marked stopped. A model call already under way finishes first.
 - **Reopening:** a conversation's answers keep the tools the assistant used (and with what), any notice (the model
@@ -49,6 +50,18 @@ then.
   written in as many calls as it takes to fit that model's context, each in the [activity ledger](activity.md) as the
   conversation's. Settings › AI assistant › Summarise long conversations (`ai.compact`, on) turns it off; off, or with
   no model, only the last six messages are read.
+- **Titles:**{#titles} a conversation nobody named is titled with its first question's words as soon as it's asked,
+  then, after the first answer, the model gives it a short title of a few words from the question and the answer
+  (streamed as `title` at the end of the answer's stream). It's one small call, written by **Model for summaries**
+  (`ai.compact_model`) when set, else the chat's model, and counted in the activity ledger for the conversation
+  (`chat:<id>`), not for the answer. Editing the first question titles it again. A conversation you name, when you
+  start it (`POST /api/v1/chats` with `title`) or later (rename in the list, `PATCH /api/v1/chats/<id>` with `title`),
+  keeps its name; `title_by` on a conversation says which it is (`assistant` or `person`). `POST
+  /api/v1/chats/<id>/title` has Lens title one now from how it starts, even one you named, and the title is Lens's
+  again; agents do both with the MCP tool `rename_chat` (a `title`, or none for Lens's). Settings › AI assistant ›
+  Title conversations (`ai.auto_title`, on) turns the model's titles off: a conversation then keeps its first
+  question's words. Without a model, or when the call fails or the budget's hard limit stops it, the first question's
+  words stay too. Chat rooms, setup conversations and automations' conversations keep the names Lens gives them.
 - **/clear and /compact:** typed as a message, in the app or in a chat room (`Lens /clear`). `/clear` makes the
   assistant start afresh: the messages stay to read, but the model no longer sees them or their summary.
   `/compact` folds the whole conversation into its summary now, and `/compact keep the dates and owners` tells the
@@ -200,6 +213,17 @@ Voice goes through one hook, `useVoice()` in `nextjs-frontend/lib/voice.ts` (`li
   or by ElevenLabs, Deepgram, Google Gemini or macOS `say` ([Speech providers](speech-providers.md#voices)); else by
   the browser.
 
+#### Read a message aloud
+
+Every question and answer in a conversation has a speaker button: one click reads it aloud, another stops it. It goes
+through the same `POST /voice/speak` as voice mode, so it uses the speech model and the voice picked in Settings → AI
+assistant → Voice, without citation marks or Markdown, and falls back to the browser's own speech when the server has
+none. One message is read at a time (starting another stops the first, and so does leaving the conversation). Long
+answers are sent in pieces of at most 1,500 characters, cut after a sentence, under every provider's limit; the next
+piece is asked for while one plays. Each piece's audio is kept in the page (the 32 most recently played), so playing
+a message again doesn't call the speech model again. Each call is a `model.speech` row in the
+[activity ledger](activity.md), like voice mode's.
+
 Settings → AI assistant → Voice holds these. The API: `GET /voice` (what the server does; it also starts loading the
 engine), `POST /voice/transcribe` (a clip as the raw body; nothing is kept), `POST /voice/speak` (`{text, voice?}`;
 204 when the browser should read it), `GET /voice/voices` (the voices a provider reads in).
@@ -329,6 +353,7 @@ tools it may use, how many tool calls it may make, and which namespaces it reads
     - `changes` (proposals that become approvals);
     - `files` (importing files and web pages);
     - `code` (the [code sandbox](#code-sandbox): Python and bash, once an admin turns it on);
+    - `research` ([deep research](#deep-research): `start_research` plans research that waits for your approval);
     - `extensions`;
     - `server` (admins);
     - `browser`;
@@ -454,6 +479,83 @@ isn't listed; the gateway's port (17670) as a setting; the gateway on macOS (Doc
 driver); the Podman driver for hosts without Docker; GPUs; a direct sandbox API for agents (today an agent asks the
 assistant); one real run against OpenShell in CI (the tests use a fake gateway with OpenShell's own client); showing
 an image the sandbox shared inline in the answer, not only as a download; the 20-file cap as a setting.
+
+## Deep research
+
+Built: the web app, the API, MCP, chat rooms and the assistant's tools.
+Give the assistant a goal that needs many look-ups, and it comes back with a plan; once you approve it, the research
+runs in the background and a cited report comes back in the conversation.
+
+- **Asking.** Turn on the composer's Deep research switch (the telescope) and type the goal, start a question with
+  `/research` (`/research what changed in the capsid work this year?`), send it with
+  `research: true` (`POST /api/v1/chats/<id>/messages`), call `POST /api/v1/chats/<id>/research {goal}`, or ask the
+  assistant for research: its `start_research` tool (the `research` [tool group](#choosing-tools-namespaces-and-a-limit))
+  works from chat, voice and [chat rooms](chat-rooms.md). It needs a language model that uses tools.
+- **The plan.** One model call reads the goal and writes up to three follow-up questions, each with answers to pick
+  from, and a plan: a title, the sub-questions it will answer, where it will look (`archive`, `graph`, `notes`, `web`,
+  `code`: only the sources this person has, and of those only what the conversation's choice of tools keeps), the
+  most tool calls it may make, and the report's outline. With it comes an estimate of what it will cost, always
+  labelled an estimate: from what each tool call of past research runs cost in the activity ledger, else its likely
+  tokens at the model's price in Settings (no figure when the model has no price). The plan is the answer to the
+  question, and it waits as an approval of the assistant's (tool `research`).
+- **The plan card.** In the conversation the plan is a card: the follow-up questions with their answers to tap (or
+  type your own), the sub-questions as a list to reword, add to or remove from, where it looks as ticks (only the
+  sources you have), a stepper for its tool calls with the estimate beside it, and the report's outline. Enter
+  approves it, with your edits; once you've answered a question, Enter revises it with your answers instead (Approve
+  as it is stays one click away). Decline drops it.
+- **Approve, edit or revise.** Approve it as it is, or with your edits (`POST /api/v1/approvals/<id>` with
+  `decision: approve` and `params`: any of `title`, `sub_questions`, `sources`, `max_tool_calls`, `report_outline`), in
+  the conversation or the Approvals page; or send your answers and edits back for one more planning call (`POST
+  /api/v1/research/<id>/revise {answers, plan}`), which changes the plan and its approval in place. In a chat room,
+  "yes" approves the plan as it is. Decline it and nothing runs. `review: false` on `POST /chats/<id>/research` starts
+  it at once, as your own pick.
+- **Agents only decline.** An API key, an app or an agent (MCP, the assistant) can decline a plan but not approve it,
+  as for every approval, unless an admin turns on `research.agents_skip_review` (off by default): then an agent's plan
+  starts without review. The `research` settings are in Settings → AI assistant → Deep research, and
+  `PUT /api/v1/settings/research`.
+- **The run.** Once approved, one process runs it at a time (a claim it keeps with a heartbeat every 10 seconds;
+  another process takes it over after two minutes of silence and goes on from the last finished step), in stages:
+    - *gather*: each sub-question in turn, with the assistant's tool loop, its share of the tool calls that are left,
+      and the plan's sources' tools alone (read tools only). Searches and page reads on the web, and code runs that
+      reach the web, don't ask each time: approving the plan approved them. Any other tool that changes something
+      still asks.
+    - *write*: one call writes the report in Markdown, following the outline, citing [n] across every finding,
+      numbered as one list.
+    - *check*: each cited claim is checked against what it cites ([check the sources](#chat)); one that isn't
+      supported is rewritten once, or marked "(not supported by its sources)".
+    - *done*: the report is an answer in the conversation (`kind: research`), after its last message, with its
+      [record](#what-each-answer-records) (`research` is its id; its tokens and cost are the whole run's).
+- **Limits.** A person has one run going at a time; the next waits its turn. `research.max_tool_calls` (40) caps a
+  plan's tool calls, and `research.max_minutes` (20) a run's time: past it, the report is written from what it found
+  and says which sub-questions it didn't get to (outcome `limit`). `research.model` picks another model for research
+  (empty: the conversation's).
+- **Budgets.** Before each stage the [budgets](budgets.md) of the conversation's namespaces and `all` are checked. One
+  that is over holds the run (`held`, saying why) until the budget allows it, or until you let it go on anyway (`POST
+  /api/v1/research/<id>/resume`); a budget that skips stops it with what it found.
+- **Progress and stopping.** Once approved, the plan card becomes a progress card that reads the run again every few
+  seconds, so it carries on after a reload and on a phone: its stage, a bar of the sub-questions done with each one
+  ticked off, sources found, tool calls, cost and minutes, why a budget holds it with Go on anyway, and Stop. When the
+  report is saved, the conversation shows it. `GET /api/v1/research/<id>` gives its status (planned, declined, queued, running, held,
+  done, stopped, failed), stage, and progress: sub-questions done, sources found, tool calls, minutes, and tokens and
+  cost so far. `GET /api/v1/research?chat_id=<id>` lists a conversation's. `POST /api/v1/research/<id>/stop` stops it
+  after the step it's on (at once while it waits), and what it found so far is saved in the conversation as its
+  answer, marked stopped.
+- **After.** `POST /api/v1/research/<id>/note` saves the report as a [note](notes.md) in the namespace it looked in
+  (`namespace` when there are several), its archive citations as mention links to what they cite, web ones as links,
+  and a link back to the conversation (`@[Research: title](chat:12)`), which only you see named. `POST
+  /api/v1/research/<id>/podcast` makes a [podcast episode](podcasts.md) from the assets the report cites, about its
+  goal. In the web app the report has these as Save as note (asking which namespace when it could go in several),
+  Read aloud (with the voice in Settings → AI assistant), Make a podcast, and Export (a Markdown file with the sources
+  it cites). Follow-up questions go on from the report.
+- **Agents.** MCP has `start_research` (a new conversation unless `chat_id` is given; `namespaces`, `tools`,
+  `max_tool_calls`) and `research_status` (the plan and progress, and once it's done the report with its sources and
+  their links).
+- **Cost.** Planning is one call; gathering makes at most the plan's tool calls, each round a call; writing and
+  checking are two or three calls. Every call is in the activity ledger for the conversation and `research:<id>`.
+
+Refine later: sub-questions in parallel, research on a schedule, sharing a report with a namespace's members, research
+as an automation action, a report template people can edit, and the report posted back into the chat room it was
+asked in (today the room gets the plan, and the report is in the conversation in Lens).
 
 ## Third-party content and prompt injection
 
@@ -616,10 +718,17 @@ or the command it runs as with its arguments and environment. **Paste a config**
 servers in, one server or many: Claude's `.mcp.json` (or `mcpServers` in its settings), VS Code's `mcp.json`
 (`servers`), or a server on its own as its README gives it. A server without a name is named after its package or its
 address (`@modelcontextprotocol/server-github` is `github`), and values written as `${NAME}`, which those apps fill in
-from their own settings, are pointed out to fill in. Servers on the older SSE transport are left out with a note.
+from their own settings, get a field of their own to type them in, which goes in their place when the server is tested
+or saved. Servers on the older SSE transport are left out with a note.
 **Test** asks the server for its tools before anything is saved, and Enter adds it. Over the API:
 `POST /api/v1/extensions/mcp/read` reads a config (nothing is reached), `POST /api/v1/extensions/mcp/test` lists a
 server's tools without saving it, and `POST /api/v1/extensions` saves it as an extension of kind `mcp`.
+
+**Ready-made** lists servers Lens knows. **Browser** adds [the browser](#the-browser) with one click once its container
+runs (until then its switch is there to turn it on). **GitHub** puts GitHub's own server
+(`https://api.githubcopilot.com/mcp/`) in the form with a field for a personal access token. The list is
+`GET /api/v1/extensions/mcp/presets` (admins), each with the spec to save and, for the browser, whether its container
+is on and answering.
 
 Header and environment values whose names say they carry a credential (Authorization, API keys, tokens, secrets,
 passwords, cookies, sessions) are sealed when the server is saved, with the server's key (as notification targets and
@@ -638,11 +747,18 @@ each change is a new version (`PATCH /api/v1/extensions/{id}/tools` with `{tool,
 an MCP tool still asks first after the conversation read outside text, as every tool that sends to another host does
 ([Third-party content and prompt injection](#third-party-content-and-prompt-injection)).
 
+Lens opens a new MCP session for each call, except for a server whose spec says `keep: true`, one that remembers
+things between calls (the browser's open page): its calls share one session, kept for ten minutes after the last one
+and opened again when the server no longer knows it. That session is the server's, shared by everyone whose assistant
+uses it, as its address and token are.
+
 ### The MCP runner
 
 MCP servers that run as a program run in a container of their own, the MCP runner
 ([`mcp-runner/`](https://github.com/adeelahmad/lense/tree/main/mcp-runner)), never next to Lens. It's off until you
-turn it on: add `COMPOSE_PROFILES=mcp` to Lens's `.env` and run the install command again (or
+turn it on: **Run the MCP runner on this machine** under **Command** in **Add MCP server** has the machine's upgrade
+agent add `mcp` to `COMPOSE_PROFILES` in `.env` and start it (see [Optional containers](#optional-containers)),
+or by hand, add `COMPOSE_PROFILES=mcp` to Lens's `.env` and run the install command again (or
 `docker compose --profile mcp up -d`). The container is the sandbox: it has none of Lens's data, keys or database, runs
 as an unprivileged user with every capability dropped, a read-only image and memory and process limits, and shares a
 network only with Lens's backend (and the internet, which `npx` and `uvx` need to fetch the servers). Each server gets
@@ -650,13 +766,47 @@ an empty folder as its home and only the environment its extension gives it; Len
 a token the runner writes to a volume only the two share. A server starts on first use, stays up while it's used,
 and stops after 15 idle minutes. Installs that don't run on Docker don't have the runner yet.
 
+### The browser
+
+The browser is a headless Chromium the assistant drives over MCP: it opens pages, reads them, clicks, types and fills
+in forms. It is [Playwright MCP](https://github.com/microsoft/playwright-mcp) (Apache-2.0), in a container of its own
+(the optional `browser` profile, `mcr.microsoft.com/playwright/mcp`, pinned in the compose file: about 400 MB to
+download, and at most 1 GB of memory). It's off until you turn it on: **Run the browser on this
+machine** under **Ready-made** in **Add MCP server**, then **Add Browser**, which adds it as the MCP server `browser`
+(its tools are `browser__browser_navigate`, `browser__browser_snapshot`, `browser__browser_click` and so on).
+
+- **Its sandbox.** None of Lens's data, keys or database; every capability dropped, a read-only image, memory and
+  process limits, and its profile (cookies, history) in memory only, gone when it stops (after an hour unused, or with
+  the switch). Its network has no way out but its proxy, `browser-proxy`: the same guard that captures web pages
+  (`netguard.py`), on its own, which goes to public addresses on ports 80 and 443 only and refuses this machine, the
+  local network and a cloud's metadata address. Lens's backend reaches it at `http://browser:8931/mcp`, and it
+  answers only to that name.
+- **What asks first.** Going to a page, going back and waiting for one run at once until the conversation has read
+  outside text; clicking, typing, filling in forms and anything else that acts on a page ask first, and after the
+  conversation read a page every browser tool asks, as every tool that sends to another host does. Running code in
+  the browser's own server process (`browser_run_code_unsafe`) starts switched off; turn it on in the server's page
+  only if you mean to.
+- **One browser for everyone.** Every conversation that uses it drives the same browser, with the same open pages and
+  cookies, so a site someone signs in to through it is signed in for the others too until it stops.
+- Installs that don't run on Docker don't have the browser yet; by hand, it's `docker compose --profile browser up -d`.
+
+### Optional containers
+
+The MCP runner, the browser and monitoring ([Prometheus and Grafana](prometheus.md)) are containers Lens can run next
+to it, off until an admin turns one on. The web app can't start containers itself, so the machine's upgrade agent does
+([Updates](updates.md)): it adds the profile to `COMPOSE_PROFILES` in Lens's `.env`, or takes it out, and starts or
+stops that profile's containers, one change at a time. Without an agent (Lens wasn't installed with `install.sh`), the
+switch shows the line to run on the machine instead. Agents use the same switches: `GET /api/v1/admin/services` and
+`PUT /api/v1/admin/services/{profile}` with `{"on": true}`, or the MCP tools `services` and `set_service` (admins).
+
 `ai.extensions: false` turns every extension off.
 
 ## Setting up and running the server by chat
 
 Admins also get the server tools: `server_status` (what's set up and what's missing), `find_model_servers`,
-`read_settings` and `change_settings` (the processing and AI sections, not the server's hosts, cookies or tokens) and
-`create_namespace`, and the people tools: `list_people`, `invite_person` (an account, optionally with a role in one
+`read_settings` and `change_settings` (the processing and AI sections, not the server's hosts, cookies or tokens),
+`create_namespace`, the news feed tools: `news_feeds`, `subscribe_feed` (follow a feed into a namespace in one step,
+[News feeds](processing.md#news-feeds-rss-and-atom)) and `unsubscribe_feed`, and the people tools: `list_people`, `invite_person` (an account, optionally with a role in one
 namespace; Lens emails the sign-in link when mail is set up) and `change_person` (a role in a namespace, or disabling
 and enabling an account). Removing an account for good stays in the web app and the API. In an ordinary conversation
 their changes are approval cards. In a **setup conversation**

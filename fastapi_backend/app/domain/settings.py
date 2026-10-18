@@ -37,6 +37,7 @@ EDITABLE = {
     "ai": None,
     "sandbox": None,
     "web": None,
+    "research": None,
     "decisions": None,
     "components": None,
     "voice": None,
@@ -65,15 +66,17 @@ EDITABLE = {
     "tunnel": None,
     "https": None,
     # bind is a startup setting only
-    "nfs": ("enabled", "port", "allowed_networks", "account"),
+    "nfs": ("enabled", "port", "allowed_networks", "account", "add_files"),
     # bind is a startup setting only
     # the SMB share of the file tree (smb_share.py): bind and port are startup settings only (Docker publishes the port)
-    "smb": ("enabled", "allowed_networks"),
+    "smb": ("enabled", "allowed_networks", "add_files"),
     "sensors": (
         "enabled",
         "mqtt",
         "mqtt_port",
         "mqtt_anonymous",
+        "mqtt_web",
+        "mqtt_web_port",
         "syslog",
         "syslog_port",
         "syslog_networks",
@@ -162,8 +165,9 @@ ENUMS = {
     ("search", "stemming"): {"english", "none"},
     ("search", "engine"): set(store.SEARCH_ENGINES),
     ("reports", "audio"): {"link", "embed", "none"},
-    ("llm", "describe_engine"): {"llm", "florence-2"},
+    ("llm", "describe_engine"): {"llm", "florence-2", "moondream"},
     ("llm", "florence_model"): {"base", "large"},
+    ("llm", "moondream_model"): {"moondream3-preview", "moondream2"},
     ("video", "ocr_engine"): {"auto", "tesseract", "apple-vision", "rapidocr", "doctr", "none"},
     ("video", "face_engine"): {"opencv", "insightface", "anytopdf", "none"},
     ("video", "object_engine"): {"yolox", "ultralytics", "anytopdf", "off"},
@@ -513,6 +517,8 @@ def _check(section, key, value, default):
         return _sandbox_setting(key, value)
     if section == "web" and key != "search":
         return _web_setting(key, value)
+    if section == "research":
+        return _research_setting(key, value)
     if section == "components":
         return _component_setting(key, value)
     if section == "nsfw":
@@ -1196,6 +1202,7 @@ def _notify_setting(key, value):
 
 SENSOR_RANGES = {
     "mqtt_port": (1, 65535),
+    "mqtt_web_port": (1, 65535),
     "syslog_port": (1, 65535),
     "max_payload_kb": (1, 16384),
     "raw_days": (1, 36500),
@@ -1206,7 +1213,7 @@ SENSOR_RANGES = {
 
 
 def _sensor_setting(key, value):
-    if key in ("enabled", "mqtt", "mqtt_anonymous", "syslog", "triage"):
+    if key in ("enabled", "mqtt", "mqtt_anonymous", "mqtt_web", "syslog", "triage"):
         if not isinstance(value, bool):
             raise ValueError(f"sensors.{key} is true or false")
         return value
@@ -1281,9 +1288,9 @@ def _logs_setting(key, value):
 
 
 def _nfs_setting(key, value):
-    if key == "enabled":
+    if key in ("enabled", "add_files"):
         if not isinstance(value, bool):
-            raise ValueError("nfs.enabled is true or false")
+            raise ValueError(f"nfs.{key} is true or false")
         return value
     if key == "port":
         if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 65535):
@@ -1310,9 +1317,9 @@ def _nfs_setting(key, value):
 
 
 def _smb_setting(key, value):
-    if key == "enabled":
+    if key in ("enabled", "add_files"):
         if not isinstance(value, bool):
-            raise ValueError("smb.enabled is true or false")
+            raise ValueError(f"smb.{key} is true or false")
         return value
     if not isinstance(value, list) or len(value) > 100:
         raise ValueError("smb.allowed_networks is a list of networks like 192.168.1.0/24")
@@ -1425,6 +1432,24 @@ def _web_setting(key, value):
     lo, hi = WEB_RANGES[key]
     if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
         raise ValueError(f"web.{key} is a whole number from {lo} to {hi}")
+    return value
+
+
+RESEARCH_RANGES = {"max_tool_calls": (1, 500), "max_minutes": (1, 240)}
+
+
+def _research_setting(key, value):
+    if key == "agents_skip_review":
+        if not isinstance(value, bool):
+            raise ValueError("research.agents_skip_review is true or false")
+        return value
+    if key == "model":
+        if value is not None and not (isinstance(value, str) and len(value.strip()) <= 200):
+            raise ValueError("research.model is a model's name")
+        return (value or "").strip() or None
+    lo, hi = RESEARCH_RANGES[key]
+    if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+        raise ValueError(f"research.{key} is a whole number from {lo} to {hi}")
     return value
 
 

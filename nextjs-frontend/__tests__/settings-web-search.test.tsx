@@ -27,6 +27,7 @@ const web = (values: Record<string, unknown>) =>
         refine_notes: true,
         organise_notes: true,
         compact: true,
+        auto_title: true,
         untrusted_marking: true,
         untrusted_asks: true,
         injection_check: "patterns",
@@ -57,6 +58,7 @@ const web = (values: Record<string, unknown>) =>
         laya_url: null,
       },
     },
+    research: { values: { max_tool_calls: 40, max_minutes: 20, model: null, agents_skip_review: false } },
     voice: {
       values: {
         input: "auto",
@@ -128,5 +130,25 @@ describe("web search settings", () => {
     show(web({ search: "brave" }));
     expect(screen.getByText("Brave Search API key")).toBeInTheDocument();
     expect(screen.queryByLabelText("SearXNG address")).not.toBeInTheDocument();
+  });
+});
+
+describe("conversation titles", () => {
+  beforeEach(() => {
+    (Admin.updateSettings as jest.Mock).mockReset().mockImplementation(() => ok({ ok: true }));
+    (Admin.decisionStatus as jest.Mock).mockReset().mockImplementation(() => ok({}));
+  });
+
+  it("are on, and one switch turns them off", async () => {
+    show(web({}));
+    const titles = screen.getByRole("switch", { name: /Title conversations/ });
+    expect(titles).toBeChecked();
+    fireEvent.click(titles);
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(Admin.updateSettings).toHaveBeenCalledTimes(1));
+    expect((Admin.updateSettings as jest.Mock).mock.calls[0][0]).toMatchObject({
+      path: { section: "ai" },
+      body: { auto_title: false },
+    });
   });
 });
