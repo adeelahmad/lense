@@ -815,6 +815,8 @@ The assistant makes routine choices for you instead of asking. The first is wher
 `import_files` without a namespace picks one from the namespaces you can add to, judging from their descriptions,
 what's in them lately, the file names and your message. You're asked only when it isn't sure: below
 `decisions.act_above` (0.8) confidence it lists the namespaces, its best guess first.
+Analysis takes routine choices too: what a name the rules can't type is (a person, an organisation, a product...;
+[Names the rules can't type](processing.md#entities-and-the-graph-explorer)).
 
 A **decision model** answers these: Jev, typesafe.ai's System One, which takes a few hundred milliseconds and costs a
 fraction of an LLM call. Set its key in **Settings → AI assistant → Routine choices**, or `TYPESAFE_API_KEY` in `.env`.

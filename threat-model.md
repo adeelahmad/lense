@@ -701,6 +701,7 @@ The operator (and, for the last rows, integrators that consume Lens output) must
 | Webhook push token in a URL that proxies log | The token is a credential in the path | Use the header form |
 | Pointing the assistant at a hosted model for sensitive archives | Assets' text leaves the machine | Use a local model server |
 | Signing in to a site in the assistant's browser | One browser serves everyone whose assistant uses it, so they are signed in too until it stops | Give the assistant only public pages, or an account made for it |
+| A hosted decision model (Jev) for sensitive archives | Routine choices send it excerpts, notes and the lines that name what analysis can't type | Use Laya, or set Settings › Analysis › Names the rules can't type to Leave them terms |
 
 ## 1.15 Known non-findings
 

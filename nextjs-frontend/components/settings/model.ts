@@ -741,6 +741,18 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "analysis",
+    key: "typing",
+    label: "Names the rules can't type",
+    kind: "select",
+    options: [
+      { value: "auto", label: "Ask the decision model, when one is set up" },
+      { value: "model", label: "Ask the decision model, else the language model" },
+      { value: "rules", label: "Leave them terms" },
+    ],
+    hint: "A single unknown word, such as a brand or a project, is a term to the rules. The model reads the lines it's said in and gives it a type only when it's sure. Calls count in Activity and stop at the budget's hard limit.",
+  },
+  {
+    section: "analysis",
     key: "spacy_model",
     label: "spaCy model",
     kind: "text",
