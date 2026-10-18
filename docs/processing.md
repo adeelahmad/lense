@@ -754,20 +754,36 @@ log.
 A workflow's scope is assets (above), the graph, or an event: an automation's workflow, run by its automation
 ([The event workflow scope](automations.md#the-event-workflow-scope)). Graph workflows have their own nodes:
 
-- **Candidates** finds pairs of entities that may be one thing, by the same rules as the merge suggestions (same
-  letters, acronym, spelling, sounds alike, one name inside the other): inside each namespace (merge) or across
-  namespaces whose graph is shared (link). Pairs someone marked as different, and pairs already proposed, are skipped.
-- **Ask the model** (`llm_judge`) shows the model each pair with lines where the names appear and asks whether
-  they are the same thing, how sure it is, and which name to keep.
-- **Filter** keeps the pairs that pass a test, e.g. `verdict.same` equals true.
-- **Apply changes** merges or links the pairs whose confidence is at least *apply above* (at most *max apply* a run)
-  and proposes the rest. Without *apply above* it only proposes.
+- **Find what to tidy** (`candidates`) finds, by rules and without a model, what *Look for* says:
+  - **Look-alikes** (merge, link): pairs of entities that may be one thing, by the same rules as the merge
+    suggestions (same letters, acronym, spelling, sounds alike, one name inside the other), inside each namespace
+    (merge) or across namespaces whose graph is shared (link). Pairs someone marked as different are skipped.
+  - **Wrong types** (retype): entities whose type the naming rules read differently now, from the name itself (a
+    title, an ending like *Labs* or *Inc*, a known place or organisation: 90% for a term, 80% for another type) or from
+    most of the lines that say it, at least two (up to 90%). An entity is typed by its first asset; this catches a
+    term that later lines show is a person. Types a person or an agent set, entities on a fixed list and hidden ones
+    are left alone, and so are types the namespace doesn't keep.
+  - **Noise** (hide): entities with no letters or one letter, made of filler words (*Okay so*; not acronyms like
+    *US*), or a phrase rather than a name (95%; filler words are 70% when the entity has a type other than Term), and
+    terms said only once (50%, below the default 70%). Entities someone showed again are left alone.
+  Anything already proposed, dismissed or undone is skipped too, so a run never redoes what someone took back.
+- **Ask the model** (`llm_judge`) shows the model each candidate with lines where the names appear and asks, a kind
+  at a time: whether a pair is the same thing and which name to keep, what type a name is (from the namespace's
+  types), or whether it is noise; and how sure it is. Each gets a `verdict`, with `agree` true when the change
+  should be made (and, for pairs, `same`).
+- **Filter** keeps the candidates that pass a test, e.g. `verdict.agree` (or `verdict.same`) equals true.
+- **Apply changes** merges, links, retypes or hides the candidates whose confidence (the model's, else the rules') is
+  at least *apply above* (at most *max apply* a run) and proposes the rest. Without *apply above* it only proposes. A
+  candidate the model said no to is skipped.
 
 A fresh archive has the workflow *Organise the entity graph* (both kinds of candidates, the model, then merges at 95%
 or more, 25 a run) and the routine *Organise the graph every night* that runs it at 03:00 UTC, switched off. Turn it
 on, or Run now with *propose only* first to see what it would do.
 
-Every change is recorded (`GET /api/v1/graph-changes`): editors of the namespaces involved accept or dismiss
-proposals (dismissing says the two are different, so the pair isn't suggested again) and undo applied changes; an
-admin can undo everything a run applied at once (`POST /api/v1/routine-runs/{id}/undo`). Merges are undone exactly as
-from an entity's page.
+Every change is recorded (`GET /api/v1/graph-changes`), and shows in Routines › Proposed changes: editors of the
+namespaces involved accept or dismiss proposals (dismissing a pair says the two are different; dismissing a type or a
+hide leaves the entity as it is; neither is suggested again), choose another type when accepting a retype (`to`), and
+undo applied changes; an admin can undo everything a run applied at once (`POST /api/v1/routine-runs/{id}/undo`).
+Merges are undone exactly as from an entity's page; a type or a hide someone has changed since stays as they left it.
+Agents do the same through the API, and `undo_graph_change` over MCP. To tidy types and noise, add a workflow that
+looks for wrong types and noise (no built-in workflow does, so nothing changes until you add one).

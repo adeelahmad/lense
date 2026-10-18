@@ -47932,19 +47932,42 @@
             "type": "string",
             "enum": [
               "merge",
-              "link"
+              "link",
+              "retype",
+              "hide"
             ],
             "title": "Kind"
           },
           "a": {
             "additionalProperties": true,
             "type": "object",
-            "title": "A"
+            "title": "A",
+            "description": "the entity changed, or the first of a pair"
           },
           "b": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "B"
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "B",
+            "description": "a merge's or link's other entity"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To",
+            "description": "a retype's new type"
           },
           "spaces": {
             "items": {
@@ -48081,7 +48104,6 @@
           "id",
           "kind",
           "a",
-          "b",
           "spaces",
           "status"
         ],
@@ -48100,6 +48122,19 @@
             ],
             "title": "Keep",
             "description": "for a merge: the entity to keep (default: the one proposed)"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To",
+            "description": "for a retype: the type to give (default: the one proposed)"
           }
         },
         "additionalProperties": false,

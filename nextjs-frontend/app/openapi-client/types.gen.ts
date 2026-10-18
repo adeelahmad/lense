@@ -8807,19 +8807,29 @@ export type GraphChange = {
   /**
    * Kind
    */
-  kind: "merge" | "link";
+  kind: "merge" | "link" | "retype" | "hide";
   /**
    * A
+   *
+   * the entity changed, or the first of a pair
    */
   a: {
     [key: string]: unknown;
   };
   /**
    * B
+   *
+   * a merge's or link's other entity
    */
-  b: {
+  b?: {
     [key: string]: unknown;
-  };
+  } | null;
+  /**
+   * To
+   *
+   * a retype's new type
+   */
+  to?: string | null;
   /**
    * Spaces
    */
@@ -8883,6 +8893,12 @@ export type GraphChangeAccept = {
    * for a merge: the entity to keep (default: the one proposed)
    */
   keep?: number | null;
+  /**
+   * To
+   *
+   * for a retype: the type to give (default: the one proposed)
+   */
+  to?: string | null;
 };
 
 /**

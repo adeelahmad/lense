@@ -526,7 +526,7 @@ def resolve(db, ref):
 
 # ---------- rolling back ----------
 MERGES = ("entity.merge", "merge.apply", "merge.accept")
-APPLIED = ("merge.apply", "link.apply", "merge.accept", "link.accept")
+APPLIED = tuple(f"{k}.{how}" for k in ("merge", "link", "retype", "hide") for how in ("apply", "accept"))
 KEPT = ("analysis",)  # what analysis found stays: it comes from the transcripts, and mentions point at it
 
 

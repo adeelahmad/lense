@@ -4,25 +4,37 @@ recording, usually from a routine, and propose or make changes to the entities i
 Their nodes, besides the primitives every workflow has (flow.py: input, pick, condition, switch, merge, set, template,
 filter, for each, repeat, group and custom nodes):
 
-- `candidates`: pairs of entities that may be one thing, found by rules (same letters, acronym, spelling, sounds alike,
-  one name inside the other). `kind` merge looks inside each namespace; link looks across namespaces whose graph is
-  shared (the global graph already joins names that are exactly the same). Pairs someone said are different are left
-  out, and so are pairs with a change already proposed.
-- `llm_judge`: asks the model, a batch of pairs at a time, whether each pair is the same thing, with lines where each
-  name was said; each pair gets a `verdict` {same, confidence, keep, why}.
-- `apply_changes`: makes the changes it is given (merges, links), or proposes them for someone to accept. Only pairs
-  whose confidence (the model's, else the rules') is at least `apply_above` are made, at most `max_apply` a run;
-  without `apply_above` everything is proposed. Every change is recorded and can be undone, one by one or a whole run.
+- `candidates`: what may need tidying, found by rules, by `kind`:
+  - merge: pairs of entities in a namespace that may be one thing (same letters, acronym, spelling, sounds alike, one
+    name inside the other); link: such pairs across namespaces whose graph is shared (the global graph already joins
+    names that are exactly the same). Pairs someone said are different are left out.
+  - retype: entities whose type the rules (name_types.py) now read differently, from their name and every line that
+    says them (a name analysis called a term in its first recording, and later lines show is a person). Types a person
+    or an agent set are left as they are.
+  - hide: entities that are noise: no letters, one letter, filler words ("Okay so"), a phrase rather than a name, or a
+    term said only once. Entities someone showed again are left out.
+  Candidates with a change already proposed, dismissed or undone are left out, so a run doesn't redo what someone
+  took back.
+- `llm_judge`: asks the model, a batch at a time with lines where each name was said, about each candidate: whether a
+  pair is the same thing, what type a name is, or whether it is noise. Each gets a `verdict` {agree (make the change),
+  confidence, why; for pairs same and keep; for a retype the type}.
+- `apply_changes`: makes the changes it is given (merges, links, new types, hides), or proposes them for someone to
+  accept. Only those whose confidence (the model's, else the rules') is at least `apply_above` are made, at most
+  `max_apply` a run; without `apply_above` everything is proposed. Every change is recorded and can be undone, one by
+  one or a whole run.
 
-Each change is a `graph_change` row: {kind, a, b, keep, space(s), reason, confidence, verdict, status (proposed,
-applied, dismissed, undone), merge (the entity_merge id behind an applied merge), routine, run, workflow}.
+Each change is a `graph_change` row: {kind, pair (what it is about, to tell it again), a (the entity, or a pair's
+first), b, keep, to (a retype's new type), spaces, reason, confidence, verdict, status (proposed, applied, dismissed,
+undone), merge (the entity_merge id behind an applied merge), routine, run, workflow}.
 """
 
 from __future__ import annotations
 
 from collections import Counter, defaultdict
 
-from . import entities, graph_history, llm, store
+import re
+
+from . import analyze, entities, entity_setup, graph_history, llm, name_types, store
 
 R = store.R
 GRAPH_NODES = ("input", "pick", "condition", "merge", "candidates", "llm_judge", "filter", "apply_changes")
@@ -33,7 +45,8 @@ CONFIG = {
     "filter": {"path", "op", "value", "match"},
     "apply_changes": {"apply_above", "max_apply"},
 }
-KINDS = ("merge", "link")
+PAIRS = ("merge", "link")  # kinds about two entities; the rest are about one
+KINDS = (*PAIRS, "retype", "hide")
 STATUSES = ("proposed", "applied", "dismissed", "undone")
 JUDGE_SCHEMA = {
     "type": "object",
@@ -62,6 +75,36 @@ JUDGE_SYSTEM = (
     "the lines make it clear: two people who share a first name or a surname are not the same person. Reply with JSON "
     "only."
 )
+# what the model is asked about one entity: its type, or whether it's noise
+ONE_SCHEMA = {
+    "retype": {"type": {"type": "string"}},
+    "hide": {"noise": {"type": "boolean"}},
+}
+ONE_SYSTEM = {
+    "retype": (
+        "You check the types of names in a knowledge graph built from the text of assets (transcripts, documents, "
+        "pages and more). For each numbered name, say what kind of thing it is, as one of the types listed, from the "
+        "lines it is said in; how sure you are from 0 to 1; and why in a few words. The rules' guess is given: keep "
+        "the name's type when the lines don't show it is wrong. Reply with JSON only."
+    ),
+    "hide": (
+        "You tidy a knowledge graph built from the text of assets (transcripts, documents, pages and more). For each "
+        "numbered name, say whether it is noise: words the extractor took for a name that name nothing (a filler word, "
+        "a fragment, a number, a sentence), so it should be hidden; how sure you are from 0 to 1; and why in a few "
+        "words. Real people, organisations, products, places, events, works and topics are not noise, even when they "
+        "are said once. Reply with JSON only."
+    ),
+}
+
+
+def _one_schema(kind):
+    item = {"item": {"type": "integer"}, **ONE_SCHEMA[kind], "confidence": {"type": "number"}, "why": {"type": "string"}}
+    need = ["item", *ONE_SCHEMA[kind], "confidence"]
+    return {
+        "type": "object",
+        "properties": {"tidying": {"type": "array", "items": {"type": "object", "properties": item, "required": need}}},
+        "required": ["tidying"],
+    }
 
 
 def _num(v):
@@ -74,18 +117,18 @@ def check_config(nid, t, cfg):
 
     if t == "candidates":
         if cfg.get("kind", "merge") not in KINDS:
-            raise ValueError(f"candidates node {nid}: kind is merge or link")
+            raise ValueError(f"candidates node {nid}: kind is {', '.join(KINDS[:-1])} or {KINDS[-1]}")
         mc = cfg.get("min_confidence")
         if mc is not None and (not _num(mc) or not 0 <= mc <= 1):
             raise ValueError(f"candidates node {nid}: min_confidence is between 0 and 1")
         lim = cfg.get("limit")
         if lim is not None and (not isinstance(lim, int) or not 1 <= lim <= 1000):
-            raise ValueError(f"candidates node {nid}: limit is 1 to 1000 pairs")
+            raise ValueError(f"candidates node {nid}: limit is 1 to 1000 candidates")
         workflows._check_types(nid, cfg)
     elif t == "llm_judge":
         b = cfg.get("batch")
         if b is not None and (not isinstance(b, int) or not 1 <= b <= 100):
-            raise ValueError(f"judge node {nid}: batch is 1 to 100 pairs")
+            raise ValueError(f"judge node {nid}: batch is 1 to 100 candidates")
         if cfg.get("instructions") is not None and not isinstance(cfg["instructions"], str):
             raise ValueError(f"judge node {nid}: instructions are text")
     elif t == "filter":
@@ -106,10 +149,11 @@ def _pair_key(kind, a, b):
 
 
 def _held(db):
-    """Pairs not to suggest again: said to be different, or with a change already proposed."""
+    """Candidates not to suggest again: pairs said to be different, and anything with a change proposed, dismissed or
+    undone (someone took it back: a run doesn't make it again)."""
     out = {_pair_key("merge", d["a"], d["b"]) for d in db.rows("SELECT a, b FROM entity_distinct")}
     out |= {_pair_key("link", d["a"], d["b"]) for d in db.rows("SELECT a, b FROM entity_distinct")}
-    out |= set(db.values("SELECT VALUE pair FROM graph_change WHERE status = 'proposed'"))
+    out |= set(db.values("SELECT VALUE pair FROM graph_change WHERE status != 'applied'"))
     return out
 
 
@@ -127,9 +171,12 @@ def _side(db, e, n, names):
 
 
 def candidates(db, spaces, c):
-    """Pairs that may be one thing: [{kind, pair, a, b, reason, confidence}], most likely first."""
+    """What may need tidying, most likely first: pairs that may be one thing [{kind, pair, a, b, reason, confidence}],
+    or entities [{kind, pair, a, to (retype), reason, confidence}]."""
     kind, floor, limit = c.get("kind") or "merge", c.get("min_confidence", 0.7), c.get("limit") or 100
     types = set(c.get("types") or [])
+    if kind in ("retype", "hide"):
+        return (wrong_types if kind == "retype" else noise)(db, spaces, floor, limit, types)
     if kind == "link":
         spaces = set(db.values("SELECT VALUE record::id(id) FROM space WHERE graph = 'shared' AND record::id(id) IN $s", s=sorted(spaces)))
     if not spaces:
@@ -173,6 +220,113 @@ def candidates(db, spaces, c):
     ]
 
 
+def _live(db, sid, types):
+    """A namespace's entities a run may tidy, with their mentions there: ([entity], Counter)."""
+    counts = Counter(db.values("SELECT VALUE entity FROM mentions WHERE space = $s", s=sid))
+    ents = [
+        e
+        for e in db.rows(f"SELECT {entities.FIELDS} FROM entity WHERE space = $s", s=sid)
+        if counts[e["id"]]
+        and not (e.get("hidden") or e.get("builtin") or e.get("defined"))
+        and e["type"] not in entities.QUIET
+        and (not types or e["type"] in types)
+    ]
+    return ents, counts
+
+
+def _type_label(db, sid, typ):
+    return entities.TYPES.get(typ) or entity_setup.labels(db, [sid]).get(sid, {}).get(typ) or typ.title()
+
+
+def better_type(name, typ, lines, people=frozenset()):
+    """(type, why, confidence) the rules read for an entity of type `typ` from its name and lines, or None when they
+    don't read another one. A term the rules now type is surer than a type they would change."""
+    words = name_types.WORD.findall(name) or [name]
+    own = name_types.kind(words, people=people)  # what the name says on its own: a title, an ending, a known name
+    counts, said = name_types.votes(name, lines, people)
+    top = name_types.best(counts)
+    term = typ == "TERM"
+    if own and own != typ and top in (None, own):
+        return own, "its name says so", 0.9 if term else 0.8
+    if top and top != typ and said >= 2 and counts[top] * 2 >= said:
+        share = counts[top] / said
+        return top, f"{counts[top]} of {said} lines say so", round(min(0.9, 0.5 + 0.4 * share) if term else min(0.8, 0.4 + 0.4 * share), 2)
+    return None
+
+
+def wrong_types(db, spaces, floor=0.7, limit=100, types=()):
+    """Entities whose type the rules read differently now: [{kind: retype, pair, a, to, reason, confidence}]."""
+    held, people_set, names, found = _held(db), entities.typed_by_people(db), store.space_names(db), []
+    for sid in sorted(spaces):
+        ents, counts = _live(db, sid, set(types))
+        ents = [e for e in ents if e["id"] not in people_set]
+        if not ents:
+            continue
+        codes, setup, people = entity_setup.type_codes(db, sid), entity_setup.effective(db, sid), analyze.people_of(db, sid)
+        for k in range(0, len(ents), entities.TYPED_CHUNK):
+            part = ents[k : k + entities.TYPED_CHUNK]
+            lines = entities._lines_of(db, [e["id"] for e in part])
+            for e in part:
+                got = better_type(e["name"], e["type"], lines.get(e["id"]) or [], people)
+                if not got or got[0] not in codes or not entity_setup.keeps(setup, got[0]):
+                    continue
+                to, why, conf = got
+                pk = f"retype:{e['id']}:{to}"
+                if conf >= floor and pk not in held:
+                    found.append((conf, counts[e["id"]], e, to, f"{_type_label(db, sid, to)}: {why}", pk))
+    found.sort(key=lambda x: (-x[0], -x[1]))
+    return [
+        {"kind": "retype", "pair": pk, "a": _side(db, e, n, names), "to": to, "reason": why, "confidence": conf}
+        for conf, n, e, to, why, pk in found[:limit]
+    ]
+
+
+FILLER = {w.casefold() for w in analyze.STOP | analyze.STOPCAP}
+PHRASE_WORDS, PHRASE_CHARS = 6, 60  # longer than this reads like a phrase, not a name
+
+
+def noise_reason(name, typ, mentions):
+    """(why, confidence) a name looks like noise, or None."""
+    words = analyze.WORD.findall(name)
+    term = typ == "TERM"
+    if not re.search(r"[^\W\d_]", name):
+        return "no letters in it", 0.95
+    if len(name.strip()) == 1:
+        return "a single letter", 0.95
+    if all(w.casefold() in FILLER for w in words) and not (name.isupper() and len(name) > 1):  # US, OK are names
+        return "filler words, not a name", 0.95 if term else 0.7
+    if len(words) > PHRASE_WORDS or len(name) > PHRASE_CHARS:
+        return "reads like a phrase, not a name", 0.8
+    if term and mentions == 1:
+        return "a term said only once", 0.5
+    return None
+
+
+def _shown_again(db):
+    """Entities someone showed after they were hidden."""
+    out = set()
+    for ev in db.rows("SELECT ops FROM graph_event WHERE op = 'entity.show'"):
+        out.update(int(o["k"]) for o in ev.get("ops") or [] if o.get("t") == "entity" and str(o.get("k")).isdigit())
+    return out
+
+
+def noise(db, spaces, floor=0.7, limit=100, types=()):
+    """Entities that look like noise, to hide: [{kind: hide, pair, a, reason, confidence}]."""
+    held, shown, names, found = _held(db), _shown_again(db), store.space_names(db), []
+    for sid in sorted(spaces):
+        ents, counts = _live(db, sid, set(types))
+        for e in ents:
+            got = noise_reason(e["name"], e["type"], counts[e["id"]])
+            pk = f"hide:{e['id']}"
+            if got and got[1] >= floor and pk not in held and e["id"] not in shown:
+                found.append((got[1], -counts[e["id"]], e, counts[e["id"]], got[0], pk))
+    found.sort(key=lambda x: (-x[0], -x[1]))
+    return [
+        {"kind": "hide", "pair": pk, "a": _side(db, e, n, names), "reason": why, "confidence": conf}
+        for conf, _o, e, n, why, pk in found[:limit]
+    ]
+
+
 # ---------- the model's verdict ----------
 def _describe(k, item):
     def side(s):
@@ -182,36 +336,87 @@ def _describe(k, item):
     return f"{k}. a: {side(item['a'])}\n   b: {side(item['b'])}\n   rules thought: {item['reason']} ({item['confidence']})"
 
 
-def judge(cfg, items, c, say=print):
-    """The items, each with the model's `verdict` (pairs it gave no answer for get none)."""
-    size, out = c.get("batch") or 25, []
-    for start in range(0, len(items), size):
-        batch = items[start : start + size]
-        ask = []
-        if c.get("instructions"):
-            ask.append(c["instructions"].strip())
-        ask.append("Pairs:\n" + "\n".join(_describe(k, it) for k, it in enumerate(batch, 1)))
-        try:
-            reply = llm.json_out(cfg, JUDGE_SYSTEM, "\n\n".join(ask), JUDGE_SCHEMA, c.get("model"))
-        except Exception as e:  # noqa: BLE001 - one bad batch leaves its pairs unjudged, not the run failed
-            say(f"pairs {start + 1}-{start + len(batch)}: the model failed ({type(e).__name__}: {str(e)[:200]})")
-            reply = None
-        got = {}
-        for d in (reply or {}).get("judgements") or []:
-            if isinstance(d, dict) and isinstance(d.get("pair"), int) and isinstance(d.get("same"), bool):
-                conf = d.get("confidence") if _num(d.get("confidence")) else 0
-                got[d["pair"]] = store.clean(
-                    {
-                        "same": d["same"],
-                        "confidence": round(min(1.0, max(0.0, float(conf))), 2),
-                        "keep": d.get("keep") if d.get("keep") in ("a", "b") else None,
-                        "why": str(d.get("why") or "")[:300] or None,
-                    }
-                )
-        for k, it in enumerate(batch, 1):
-            out.append({**it, **({"verdict": got[k]} if k in got else {})})
-        say(f"judged {len(got)} of {len(batch)} pairs")
-    return out
+def _pairs_judged(cfg, batch, c):
+    """{number in the batch: verdict} for pairs: one thing or two, and which name to keep."""
+    ask = [c["instructions"].strip()] if c.get("instructions") else []
+    ask.append("Pairs:\n" + "\n".join(_describe(k, it) for k, it in enumerate(batch, 1)))
+    reply = llm.json_out(cfg, JUDGE_SYSTEM, "\n\n".join(ask), JUDGE_SCHEMA, c.get("model"))
+    got = {}
+    for d in (reply or {}).get("judgements") or []:
+        if isinstance(d, dict) and isinstance(d.get("pair"), int) and isinstance(d.get("same"), bool):
+            got[d["pair"]] = store.clean(
+                {
+                    "same": d["same"],
+                    "agree": d["same"],
+                    "confidence": _sure(d.get("confidence")),
+                    "keep": d.get("keep") if d.get("keep") in ("a", "b") else None,
+                    "why": str(d.get("why") or "")[:300] or None,
+                }
+            )
+    return got
+
+
+def _sure(v):
+    return round(min(1.0, max(0.0, float(v))), 2) if _num(v) else 0
+
+
+def _describe_one(k, item):
+    s = item["a"]
+    said = "; ".join(f'"{x[:160]}"' for x in s["samples"]) or "no lines"
+    line = f'{k}. "{s["name"]}" ({s["type"]}, {s["mentions"]} mentions in {s["namespace"]}; found in: {said})'
+    if item["kind"] == "retype":
+        return f"{line}\n   rules think: {item['to']} ({item['reason']}; {item['confidence']})"
+    return f"{line}\n   rules think: noise ({item['reason']}; {item['confidence']})"
+
+
+def _ones_judged(db, cfg, kind, batch, c):
+    """{number in the batch: verdict} for entities: their type, or whether they are noise."""
+    ask = [c["instructions"].strip()] if c.get("instructions") else []
+    codes = set()
+    if kind == "retype":
+        for sid in {it["a"]["space"] for it in batch}:
+            codes |= entity_setup.type_codes(db, sid) - set(entities.QUIET)
+        ask.append("Types: " + ", ".join(sorted(codes)))
+    ask.append("Names:\n" + "\n".join(_describe_one(k, it) for k, it in enumerate(batch, 1)))
+    reply = llm.json_out(cfg, ONE_SYSTEM[kind], "\n\n".join(ask), _one_schema(kind), c.get("model"))
+    got = {}
+    for d in (reply or {}).get("tidying") or []:
+        if not (isinstance(d, dict) and isinstance(d.get("item"), int) and 1 <= d["item"] <= len(batch)):
+            continue
+        it, why = batch[d["item"] - 1], str(d.get("why") or "")[:300] or None
+        if kind == "retype":
+            typ = str(d.get("type") or "").strip().upper()
+            if typ not in codes:
+                continue
+            got[d["item"]] = store.clean(
+                {"agree": typ != it["a"]["type"], "type": typ, "confidence": _sure(d.get("confidence")), "why": why}
+            )
+        elif isinstance(d.get("noise"), bool):
+            got[d["item"]] = store.clean({"agree": d["noise"], "confidence": _sure(d.get("confidence")), "why": why})
+    return got
+
+
+def judge(cfg, items, c, say=print, db=None):
+    """The items, each with the model's `verdict` (those it gave no answer for get none). Each kind is asked on its own,
+    a batch at a time."""
+    size, verdicts = c.get("batch") or 25, {}
+    by_kind = defaultdict(list)
+    for n, it in enumerate(items):
+        if isinstance(it, dict) and it.get("kind") in KINDS and isinstance(it.get("a"), dict):
+            by_kind["pair" if it["kind"] in PAIRS else it["kind"]].append(n)
+    for kind, ns in by_kind.items():
+        what = "pairs" if kind == "pair" else "names"
+        for start in range(0, len(ns), size):
+            part = ns[start : start + size]
+            batch = [items[n] for n in part]
+            try:
+                got = _pairs_judged(cfg, batch, c) if kind == "pair" else _ones_judged(db, cfg, kind, batch, c)
+            except Exception as e:  # noqa: BLE001 - one bad batch leaves its candidates unjudged, not the run failed
+                say(f"{what} {start + 1}-{start + len(batch)}: the model failed ({type(e).__name__}: {str(e)[:200]})")
+                got = {}
+            verdicts.update({part[k - 1]: v for k, v in got.items() if 1 <= k <= len(part)})
+            say(f"judged {len(got)} of {len(batch)} {what}")
+    return [{**it, "verdict": verdicts[n]} if n in verdicts else it for n, it in enumerate(items)]
 
 
 # ---------- changes ----------
@@ -228,6 +433,8 @@ def _keep(item):
 
 def _make(db, ch, user):
     """Make one change; the fields to record on it (merge id), or None when it can't be made any more."""
+    if ch["kind"] not in PAIRS:
+        return _make_one(db, ch)
     a, b = ch["a"]["id"], ch["b"]["id"]
     if not (_alive(db, a) and _alive(db, b)):
         return None
@@ -238,6 +445,34 @@ def _make(db, ch, user):
     return {}
 
 
+def _make_one(db, ch):
+    """Retype or hide one entity, unless it's gone or has changed since the change was found."""
+    e = db.one(f"SELECT {entities.FIELDS} FROM $r", r=R("entity", int(ch["a"]["id"])))
+    if not e or e.get("hidden"):
+        return None
+    if ch["kind"] == "retype":
+        to = ch.get("to")
+        if e["type"] != ch["a"]["type"] or not to or to == e["type"]:
+            return None
+        try:
+            entities.retype(db, [e["id"]], to)
+        except ValueError:  # the type is gone from the namespace, or the entity is on a fixed list now
+            return None
+        return {"to": to}
+    entities.hide(db, e["id"], True, f"noise: {ch.get('reason') or 'tidied'}")
+    return {}
+
+
+def _target(it):
+    """A retype's type: the model's, when it gave one, else the rules'."""
+    v = it.get("verdict") or {}
+    return v.get("type") or it.get("to")
+
+
+def _touches(it):
+    return [it["a"]["id"], *([it["b"]["id"]] if it["kind"] in PAIRS else [])]
+
+
 def _record(db, item, status, origin, extra=None):
     cid = db.next_id("graph_change")  # a new id also tells the graph cache to rebuild
     row = store.clean(
@@ -245,8 +480,9 @@ def _record(db, item, status, origin, extra=None):
             "kind": item["kind"],
             "pair": item["pair"],
             "a": item["a"],
-            "b": item["b"],
-            "spaces": sorted({item["a"]["space"], item["b"]["space"]}),
+            "b": item.get("b"),
+            "to": _target(item) if item["kind"] == "retype" else None,
+            "spaces": sorted({item["a"]["space"], *([item["b"]["space"]] if item.get("b") else [])}),
             "reason": item.get("reason"),
             "confidence": item.get("confidence"),
             "verdict": item.get("verdict"),
@@ -267,18 +503,24 @@ def apply_changes(db, items, c, origin=None, propose_only=False, say=print):
     stats = {"applied": 0, "proposed": 0, "skipped": 0}
     user = f"routine:{origin['routine']}" if origin and origin.get("routine") else "workflow"
     for it in items if isinstance(items, list) else []:
-        if not (isinstance(it, dict) and it.get("kind") in KINDS and isinstance(it.get("a"), dict) and isinstance(it.get("b"), dict)):
+        if not (
+            isinstance(it, dict)
+            and it.get("kind") in KINDS
+            and isinstance(it.get("a"), dict)
+            and (it["kind"] not in PAIRS or isinstance(it.get("b"), dict))
+            and (it["kind"] != "retype" or _target(it))
+        ):
             stats["skipped"] += 1
             continue
         v = it.get("verdict") or {}
-        if v.get("same") is False:
+        if v.get("same") is False or v.get("agree") is False:
             stats["skipped"] += 1
             continue
         sure = v.get("confidence", it.get("confidence") or 0)
         if not propose_only and above is not None and sure >= above and stats["applied"] < cap:
             why = v.get("why") or it.get("reason")
-            with graph_history.change(db, f"{it['kind']}.apply", entities=[it["a"]["id"], it["b"]["id"]], why=why) as ch:
-                done = _make(db, {**it, "keep": _keep(it) if it["kind"] == "merge" else None}, user)
+            with graph_history.change(db, f"{it['kind']}.apply", entities=_touches(it), why=why) as ch:
+                done = _make(db, {**it, "keep": _keep(it) if it["kind"] == "merge" else None, "to": _target(it)}, user)
                 if done is not None:
                     ch.add(graph_change=_record(db, it, "applied", origin, {**done, "decided_at": store.now(), "decided_by": user}))
             if done is None:
@@ -349,18 +591,21 @@ def get_change(db, cid):
     return ch
 
 
-def accept(db, cid, user=None, keep=None):
-    """Make a proposed change."""
+def accept(db, cid, user=None, keep=None, to=None):
+    """Make a proposed change (`keep`: a merge's entity to keep; `to`: a retype's type, in place of the one proposed)."""
     ch = get_change(db, cid)
     if ch["status"] != "proposed":
         raise ValueError(f"this change is {ch['status']}, not proposed")
     if keep is not None:
-        if int(keep) not in (ch["a"]["id"], ch["b"]["id"]):
+        if ch["kind"] != "merge" or int(keep) not in (ch["a"]["id"], ch["b"]["id"]):
             raise ValueError("keep one of the two entities")
         ch["keep"] = int(keep)
-    with graph_history.change(
-        db, f"{ch['kind']}.accept", entities=[ch["a"]["id"], ch["b"]["id"]], why=ch.get("reason"), graph_change=ch["id"]
-    ):
+    if to is not None:
+        if ch["kind"] != "retype":
+            raise ValueError("only a change of type takes a type")
+        entities._check_type(db, ch["a"]["space"], to)
+        ch["to"] = to
+    with graph_history.change(db, f"{ch['kind']}.accept", entities=_touches(ch), why=ch.get("reason"), graph_change=ch["id"]):
         done = _make(db, ch, user)
     if done is None:
         db.q(
@@ -369,7 +614,9 @@ def accept(db, cid, user=None, keep=None):
             t=store.now(),
             u=user,
         )
-        raise ValueError("one of these entities is gone (merged or deleted since)")
+        if ch["kind"] in PAIRS:
+            raise ValueError("one of these entities is gone (merged or deleted since)")
+        raise ValueError("the entity is gone, hidden or changed since this was proposed")
     db.q(
         "UPDATE $r MERGE $d",
         r=R("graph_change", ch["id"]),
@@ -382,24 +629,34 @@ def dismiss(db, cid, user=None):
     ch = get_change(db, cid)
     if ch["status"] != "proposed":
         raise ValueError(f"this change is {ch['status']}, not proposed")
-    if _alive(db, ch["a"]["id"]) and _alive(db, ch["b"]["id"]):
+    if ch["kind"] in PAIRS and _alive(db, ch["a"]["id"]) and _alive(db, ch["b"]["id"]):
         with graph_history.change(db, f"{ch['kind']}.dismiss", graph_change=ch["id"]):
             entities.not_same(db, ch["a"]["id"], ch["b"]["id"])
     db.q("UPDATE $r SET status = 'dismissed', decided_at = $t, decided_by = $u", r=R("graph_change", ch["id"]), t=store.now(), u=user)
 
 
 def undo(db, cid, user=None):
-    """Take back an applied change (a merge is undone as the entity page would)."""
+    """Take back an applied change (a merge is undone as the entity page would). A type or a hide that someone has
+    changed since stays as they left it."""
     ch = get_change(db, cid)
     if ch["status"] != "applied":
         raise ValueError(f"this change is {ch['status']}, not applied")
-    with graph_history.change(db, f"{ch['kind']}.undo", graph_change=ch["id"]):
+    one = [] if ch["kind"] in PAIRS else [ch["a"]["id"]]
+    with graph_history.change(db, f"{ch['kind']}.undo", entities=one, graph_change=ch["id"]):
         if ch["kind"] == "merge":
             m = db.one("SELECT undone FROM $r", r=R("entity_merge", int(ch["merge"])))
             if m and not m.get("undone"):  # someone may have undone it from the entity page already
                 entities.undo_merge(db, ch["merge"])
-        else:
+        elif ch["kind"] == "link":
             entities.unlink(db, ch["a"]["id"], ch["b"]["id"])
+        else:
+            e = db.one(f"SELECT {entities.FIELDS} FROM $r", r=R("entity", int(ch["a"]["id"])))
+            if not e:
+                raise ValueError("the entity is gone (merged or deleted since)")
+            if ch["kind"] == "retype" and e["type"] == ch.get("to") and not e.get("builtin"):
+                db.q("UPDATE $r SET type = $t", r=R("entity", e["id"]), t=ch["a"]["type"])
+            elif ch["kind"] == "hide" and e.get("hidden") and str(e.get("hidden_reason") or "").startswith("noise:"):
+                entities.hide(db, e["id"], False)
     db.q("UPDATE $r SET status = 'undone', undone_at = $t, undone_by = $u", r=R("graph_change", ch["id"]), t=store.now(), u=user)
 
 
@@ -465,7 +722,7 @@ def run_node(r, f, node, value, vals):
         r.say(f"{name}: {len(out)} pairs")
         return {"out": out}
     if t == "llm_judge":
-        return {"out": judge(r.cfg, value if isinstance(value, list) else [], c, r.say)}
+        return {"out": judge(r.cfg, value if isinstance(value, list) else [], c, r.say, r.db)}
     if t == "apply_changes":
         if r.dry:
             r.say(f"{name}: would make or propose {len(value) if isinstance(value, list) else 0} changes")
