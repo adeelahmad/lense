@@ -4422,6 +4422,143 @@ def run_automation(ctx: Context, automation_id: int, activity: str | None, trigg
     return automation_routes.run_automation(automation_id, ctx.user, ctx.acl, ctx.db, ctx.cfg, body).model_dump()
 
 
+# ---------- circles of trust: sharing with family and friends on this Lens (docs/circles.md) ----------
+def _me(ctx: Context) -> dict[str, Any]:
+    u = ctx.user
+    return {"id": u.id, "email": u.email, "name": u.name, "admin": u.admin}
+
+
+@tool(
+    "list_circles",
+    "List your circles",
+    "Your circles of trust (Immediate family, Friends, ...): the people on this Lens you share with, each circle with "
+    "its members; the people you can add to one; and what was shared with you (received) or by you (sent), newest "
+    "first, each with who, what (as it read then), the note and its activity id. Only your own.",
+    Arg("shares", "string", "also list shares: received or sent", enum=("received", "sent")),
+    Arg("limit", "integer", "how many shares", default=20, minimum=1, maximum=200),
+    personal=True,
+)
+def list_circles(ctx: Context, shares: str | None, limit: int) -> dict[str, Any]:
+    from app.domain import circles
+
+    out: dict[str, Any] = {"circles": circles.circles(ctx.db, ctx.user.id), "people": circles.people(ctx.db, _me(ctx))}
+    if shares:
+        out["shares"] = circles.shares(ctx.db, _me(ctx), shares, limit)
+    return out
+
+
+@tool(
+    "save_circle",
+    "Make or change a circle",
+    "Make a circle of trust (name and members), or change one of yours (circle_id): rename it, set its members, add "
+    "or take people out. Members are people on this Lens, by account id or email, from list_circles' people. "
+    "delete: true deletes it (what was shared with it stays shared). Needs a token with the write scope.",
+    Arg("circle_id", "integer", "the circle to change; leave out to make one"),
+    Arg("name", "string", "its name, like Immediate family", max_length=80),
+    Arg("members", "string[]", "everyone in it, by account id or email (replaces who was)"),
+    Arg("add", "string[]", "people to add"),
+    Arg("remove", "string[]", "people to take out"),
+    Arg("delete", "boolean", "delete the circle", default=False),
+    writes=True,
+    personal=True,
+)
+def save_circle(
+    ctx: Context,
+    circle_id: int | None,
+    name: str | None,
+    members: list[str] | None,
+    add: list[str] | None,
+    remove: list[str] | None,
+    delete: bool,
+) -> dict[str, Any]:
+    from app.domain import circles
+
+    _writer(ctx, "change circles")
+    me = _me(ctx)
+    if circle_id is None:
+        if delete:
+            raise ToolError("name the circle to delete with circle_id")
+        if not name:
+            raise ToolError("a new circle needs a name")
+        cid = circles.create(ctx.db, me, name, list(members or []) + list(add or []))
+        auth.audit(ctx.db, ctx.user.as_audit(), "circle.create", f"circle:{cid}", {"via": "mcp"})
+        return {"circle": circles.get(ctx.db, cid, me["id"])}
+    if delete:
+        circles.delete(ctx.db, me, circle_id)
+        auth.audit(ctx.db, ctx.user.as_audit(), "circle.delete", f"circle:{circle_id}", {"via": "mcp"})
+        return {"deleted": circle_id}
+    out = circles.update(ctx.db, me, circle_id, name, members, add or (), remove or ())
+    auth.audit(ctx.db, ctx.user.as_audit(), "circle.update", f"circle:{circle_id}", {"via": "mcp"})
+    return {"circle": out}
+
+
+@tool(
+    "share_with_circle",
+    "Share with your circles",
+    "Tell people in your circles about something: an activity (its id, from timeline) or a resource (recording_id) you "
+    "can see, with a note. Each of them sees it in their own timeline, and you see it in yours. with_item also gives "
+    "those who can't open the resource permission on it (needs the publish permission there). Nothing in a vault can "
+    "be shared. Undo it with undo_share. Telling other people is the person's call: share only what they asked you to. "
+    "Needs a token with the write scope.",
+    Arg("activity", "string", "the activity to share, by id", max_length=120),
+    Arg("recording_id", "integer", "the resource to share"),
+    Arg("circles", "integer[]", "your circles to share with, by id"),
+    Arg("people", "string[]", "people in your circles, by account id or email"),
+    Arg("note", "string", "what you want them to know", max_length=2000),
+    Arg("with_item", "boolean", "give them permission on the resource too", default=False),
+    writes=True,
+    personal=True,
+)
+def share_with_circle(
+    ctx: Context,
+    activity: str | None,
+    recording_id: int | None,
+    circles: list[int] | None,
+    people: list[str] | None,
+    note: str | None,
+    with_item: bool,
+) -> dict[str, Any]:
+    from app.domain import circles as circlemod
+
+    _writer(ctx, "share with circles")
+    try:
+        out = circlemod.share(
+            ctx.db,
+            ctx.cfg,
+            _me(ctx),
+            activity=activity,
+            recording=recording_id,
+            circles_=circles or (),
+            people_=people or (),
+            note=note,
+            with_item=with_item,
+            via="mcp",
+            who=activity_routes.viewer(ctx.db, ctx.user, ctx.acl),
+        )
+    except PermissionError as e:
+        raise ToolError(str(e)) from None
+    auth.audit(ctx.db, ctx.user.as_audit(), "circle.share", f"circle_share:{out['id']}", {"to": len(out["people"]), "via": "mcp"})
+    return out
+
+
+@tool(
+    "undo_share",
+    "Take back a share",
+    "Take back something you shared with your circles (share_id, from share_with_circle or list_circles): it leaves "
+    "everyone's timeline, and the permissions it gave are taken back. Needs a token with the write scope.",
+    Arg("share_id", "integer", "the share", required=True),
+    writes=True,
+    personal=True,
+)
+def undo_share(ctx: Context, share_id: int) -> dict[str, Any]:
+    from app.domain import circles
+
+    _writer(ctx, "take shares back")
+    out = circles.undo(ctx.db, _me(ctx), share_id)
+    auth.audit(ctx.db, ctx.user.as_audit(), "circle.unshare", f"circle_share:{share_id}", {"via": "mcp"})
+    return out
+
+
 # ---------- schedules ----------
 @tool(
     "schedules",

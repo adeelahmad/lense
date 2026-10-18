@@ -1617,6 +1617,17 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS feed_item SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS feed_item_feed ON feed_item FIELDS feed",
     "DEFINE INDEX IF NOT EXISTS feed_item_key ON feed_item FIELDS key UNIQUE",
+    # circles of trust and what people share with them (app/domain/circles.py): circle:<n> (owner, name, members),
+    # circle_share:<n> (a snapshot of what was shared), circle_share_to:<n> (one per member it went to)
+    "DEFINE TABLE IF NOT EXISTS circle SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS circle_owner ON circle FIELDS owner",
+    "DEFINE TABLE IF NOT EXISTS circle_share SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS circle_share_by ON circle_share FIELDS by",
+    "DEFINE INDEX IF NOT EXISTS circle_share_at ON circle_share FIELDS at",
+    "DEFINE TABLE IF NOT EXISTS circle_share_to SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS circle_share_to_account ON circle_share_to FIELDS account",
+    "DEFINE INDEX IF NOT EXISTS circle_share_to_share ON circle_share_to FIELDS share",
+    "DEFINE INDEX IF NOT EXISTS circle_share_to_at ON circle_share_to FIELDS at",
     # a reply drafted to an email (app/domain/responder.py): email_reply:<recording id>
     "DEFINE TABLE IF NOT EXISTS email_reply SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS email_reply_space ON email_reply FIELDS space",

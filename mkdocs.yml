@@ -96,6 +96,7 @@ nav:
       - Automations: automations.md
       - Schedules: schedules.md
       - Timeline: timeline.md
+      - Circles of trust: circles.md
   - Knowledge:
       - Graph and Cypher: graph.md
       - Graph history: graph-history.md

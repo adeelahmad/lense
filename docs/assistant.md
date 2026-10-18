@@ -257,6 +257,9 @@ When the configured model supports function calling, chat becomes an agent.
   the person ([Timeline](timeline.md#review-marks)), and `mute_activities` mutes a source, person or kind for them,
   for good or until a time ([Muting](timeline.md#muting)). After it has read text from outside Lens, hiding, muting
   or marking reviewed waits for their yes; marking important, lifting a mute or bringing things back acts at once.
+- **The person's circles:** `circles` reads their [circles of trust](circles.md) and, when asked, what was shared
+  with them or by them. `share_with_circle` tells people in a circle about an activity or an asset with a note in the
+  person's words; it always waits for their yes, since telling other people is their pick.
 - **The person's approvals:** `approvals` lists what waits for their pick, or what one timeline activity caused
   (`activity`) ([Approvals](automations.md#approvals)):
   automations' actions about the namespaces the conversation reads, and its own proposals in this conversation.

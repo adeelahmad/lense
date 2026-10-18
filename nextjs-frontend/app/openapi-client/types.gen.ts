@@ -4230,6 +4230,145 @@ export type ChatUpdate = {
 };
 
 /**
+ * Circle
+ */
+export type Circle = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Members
+   */
+  members: Array<Person>;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * CircleCreate
+ */
+export type CircleCreate = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Members
+   *
+   * people by account id or email
+   */
+  members?: Array<number | string>;
+};
+
+/**
+ * CircleList
+ */
+export type CircleList = {
+  /**
+   * Circles
+   */
+  circles: Array<Circle>;
+  /**
+   * Suggested
+   *
+   * names of circles people often make, which this person hasn't made yet
+   */
+  suggested: Array<string>;
+  [key: string]: unknown;
+};
+
+/**
+ * CircleShare
+ */
+export type CircleShare = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * At
+   */
+  at: string;
+  /**
+   * Activity
+   *
+   * the share's own activity in your timeline
+   */
+  activity: string;
+  /**
+   * Object
+   */
+  object: {
+    [key: string]: unknown;
+  };
+  /**
+   * Note
+   */
+  note?: string | null;
+  /**
+   * With Item
+   */
+  with_item?: boolean;
+  /**
+   * who shared it (shares with you)
+   */
+  by?: Person | null;
+  /**
+   * Circles
+   *
+   * the circles it went to (your shares)
+   */
+  circles?: Array<string> | null;
+  /**
+   * People
+   *
+   * who it went to (your shares)
+   */
+  people?: Array<Person> | null;
+  [key: string]: unknown;
+};
+
+/**
+ * CircleUpdate
+ */
+export type CircleUpdate = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Members
+   *
+   * everyone in it, replacing who was
+   */
+  members?: Array<number | string> | null;
+  /**
+   * Add
+   *
+   * people to add
+   */
+  add?: Array<number | string>;
+  /**
+   * Remove
+   *
+   * people to take out
+   */
+  remove?: Array<number | string>;
+};
+
+/**
  * ClassifyRequest
  *
  * Give a `recording` or a `text`, and `labels` or a `vocabulary`.
@@ -17548,6 +17687,25 @@ export type PermissionAdd = {
 };
 
 /**
+ * Person
+ */
+export type Person = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Email
+   */
+  email?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * PhotoHit
  *
  * A photo like what was asked for (embeddings.photos).
@@ -24831,6 +24989,48 @@ export type ShareCreate = {
 };
 
 /**
+ * ShareIn
+ */
+export type ShareIn = {
+  /**
+   * Activity
+   *
+   * an activity's id, as the timeline gives it
+   */
+  activity?: string | null;
+  /**
+   * Recording
+   *
+   * a resource's id
+   */
+  recording?: number | null;
+  /**
+   * Circles
+   *
+   * your circles to share with
+   */
+  circles?: Array<number>;
+  /**
+   * People
+   *
+   * people in your circles, by id or email
+   */
+  people?: Array<number | string>;
+  /**
+   * Note
+   *
+   * what you want them to know
+   */
+  note?: string | null;
+  /**
+   * With Item
+   *
+   * also give members who can't open the resource permission on it (needs the publish permission there)
+   */
+  with_item?: boolean;
+};
+
+/**
  * ShareLink
  */
 export type ShareLink = {
@@ -24908,6 +25108,64 @@ export type ShareSite = {
    * Last At
    */
   last_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ShareUndone
+ */
+export type ShareUndone = {
+  /**
+   * Undone
+   */
+  undone: number;
+  /**
+   * Taken Back
+   *
+   * permissions on the resource taken back
+   */
+  taken_back: number;
+  [key: string]: unknown;
+};
+
+/**
+ * Shared
+ */
+export type Shared = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * At
+   */
+  at: string;
+  /**
+   * Object
+   *
+   * what was shared, as it read then: type, id, name, summary, url, the note as content
+   */
+  object: {
+    [key: string]: unknown;
+  };
+  /**
+   * Circles
+   */
+  circles: Array<string>;
+  /**
+   * People
+   */
+  people: Array<Person>;
+  /**
+   * With Item
+   */
+  with_item: boolean;
+  /**
+   * Granted
+   *
+   * how many members were given permission on the resource
+   */
+  granted: number;
   [key: string]: unknown;
 };
 
@@ -51791,6 +52049,246 @@ export type NodeBeatResponses = {
 };
 
 export type NodeBeatResponse = NodeBeatResponses[keyof NodeBeatResponses];
+
+export type ListCirclesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/circles";
+};
+
+export type ListCirclesResponses = {
+  /**
+   * Successful Response
+   */
+  200: CircleList;
+};
+
+export type ListCirclesResponse = ListCirclesResponses[keyof ListCirclesResponses];
+
+export type CreateCircleData = {
+  body: CircleCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/circles";
+};
+
+export type CreateCircleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateCircleError = CreateCircleErrors[keyof CreateCircleErrors];
+
+export type CreateCircleResponses = {
+  /**
+   * Successful Response
+   */
+  201: Circle;
+};
+
+export type CreateCircleResponse = CreateCircleResponses[keyof CreateCircleResponses];
+
+export type ListCirclePeopleData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/circles/people";
+};
+
+export type ListCirclePeopleResponses = {
+  /**
+   * Response Circles-List Circle People
+   *
+   * Successful Response
+   */
+  200: Array<Person>;
+};
+
+export type ListCirclePeopleResponse = ListCirclePeopleResponses[keyof ListCirclePeopleResponses];
+
+export type ListCircleSharesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Direction
+     */
+    direction?: "received" | "sent";
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/circles/shares";
+};
+
+export type ListCircleSharesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListCircleSharesError = ListCircleSharesErrors[keyof ListCircleSharesErrors];
+
+export type ListCircleSharesResponses = {
+  /**
+   * Response Circles-List Circle Shares
+   *
+   * Successful Response
+   */
+  200: Array<CircleShare>;
+};
+
+export type ListCircleSharesResponse = ListCircleSharesResponses[keyof ListCircleSharesResponses];
+
+export type ShareWithCirclesData = {
+  body: ShareIn;
+  path?: never;
+  query?: never;
+  url: "/api/v1/circles/shares";
+};
+
+export type ShareWithCirclesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ShareWithCirclesError = ShareWithCirclesErrors[keyof ShareWithCirclesErrors];
+
+export type ShareWithCirclesResponses = {
+  /**
+   * Successful Response
+   */
+  201: Shared;
+};
+
+export type ShareWithCirclesResponse = ShareWithCirclesResponses[keyof ShareWithCirclesResponses];
+
+export type UndoCircleShareData = {
+  body?: never;
+  path: {
+    /**
+     * Sid
+     */
+    sid: number;
+  };
+  query?: never;
+  url: "/api/v1/circles/shares/{sid}";
+};
+
+export type UndoCircleShareErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UndoCircleShareError = UndoCircleShareErrors[keyof UndoCircleShareErrors];
+
+export type UndoCircleShareResponses = {
+  /**
+   * Successful Response
+   */
+  200: ShareUndone;
+};
+
+export type UndoCircleShareResponse = UndoCircleShareResponses[keyof UndoCircleShareResponses];
+
+export type DeleteCircleData = {
+  body?: never;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/circles/{cid}";
+};
+
+export type DeleteCircleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteCircleError = DeleteCircleErrors[keyof DeleteCircleErrors];
+
+export type DeleteCircleResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteCircleResponse = DeleteCircleResponses[keyof DeleteCircleResponses];
+
+export type GetCircleData = {
+  body?: never;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/circles/{cid}";
+};
+
+export type GetCircleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetCircleError = GetCircleErrors[keyof GetCircleErrors];
+
+export type GetCircleResponses = {
+  /**
+   * Successful Response
+   */
+  200: Circle;
+};
+
+export type GetCircleResponse = GetCircleResponses[keyof GetCircleResponses];
+
+export type UpdateCircleData = {
+  body: CircleUpdate;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/circles/{cid}";
+};
+
+export type UpdateCircleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateCircleError = UpdateCircleErrors[keyof UpdateCircleErrors];
+
+export type UpdateCircleResponses = {
+  /**
+   * Successful Response
+   */
+  200: Circle;
+};
+
+export type UpdateCircleResponse = UpdateCircleResponses[keyof UpdateCircleResponses];
 
 export type ListRepliesData = {
   body?: never;

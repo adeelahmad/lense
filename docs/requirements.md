@@ -276,6 +276,15 @@ request, to another check that proves the same thing; loosening a requirement or
 | In the web app, automations are listed with what sets each off in words, and built in When, If and Then with a test on a recent activity, problems next to their fields | [automations-ui.test.tsx](https://github.com/adeelahmad/lense/blob/main/nextjs-frontend/__tests__/automations-ui.test.tsx) `the list reads each automation, and Delete is undone from its toast`, `the builder adds a trigger with a condition and an action, then saves it switched off`, `the test panel runs the draft on a recent activity and says what it would do`, `API problems go next to what they are about`; [test_automations.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_automations.py) `test_lists_read_the_triggers_in_words_and_say_when_it_runs_next` |
 | An automation's page shows its runs a page at a time with each one's log, what's coming up, its variables to edit and its costs | [automation-detail.test.tsx](https://github.com/adeelahmad/lense/blob/main/nextjs-frontend/__tests__/automation-detail.test.tsx) `Runs pages back with before, and a run opens to what it did and its log`, `a run held over a budget can run once or be skipped`, `Coming up lists its times, and says why when there are none`, `Variables set from the keyboard, and Clear is undone from its toast` |
 
+## Share with the people close to you
+
+| Requirement | Checks |
+| --- | --- |
+| Circles of people on the same Lens are each person's own, and hold only people they may add | [test_circles.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_circles.py) `test_circles_are_your_own` |
+| Sharing an activity or a resource with a circle and a note shows it in each member's own timeline and the sharer's, with the item or without, undone with its permissions, never from a vault | [test_circles.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_circles.py) `test_sharing_with_a_circle` |
+| Automations follow what was shared with the person; removing someone takes their circles and what was shared with them | [test_circles.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_circles.py) `test_automations_follow_shares` |
+| Agents make circles and share over MCP; the assistant shares only after the person's yes | [test_circles.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_circles.py) `test_agents_share_too` |
+
 ## See what it costs
 
 | Requirement | Checks |
