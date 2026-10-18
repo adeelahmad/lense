@@ -18,6 +18,9 @@ then.
   ([Titles](#titles)).
 - **Stopping:** Stop asks the server to end the answer after the piece or tool step it's on (whichever server process
   is writing it); what came before is saved, marked stopped. A model call already under way finishes first.
+- **Leaving mid-answer:** an answer is written on a thread of its own, not by the connection reading it, so closing the
+  tab, losing the connection or moving to another page doesn't stop it: it's finished and saved, and opening the
+  conversation again shows it. Only Stop ends an answer early.
 - **Reopening:** a conversation's answers keep the tools the assistant used (and with what), any notice (the model
   couldn't use tools), the error when there was no answer, their latest source check and what produced them.
 - **Versions:** a conversation is a tree, and nothing in it is deleted. Regenerating an answer writes a new answer to

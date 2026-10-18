@@ -8,8 +8,11 @@ The assistant only ever sees, and cites, what the asker can read.
 
 from __future__ import annotations
 
+import contextvars
 import json
 import logging
+import queue
+import threading
 import urllib.error
 import urllib.parse
 from collections.abc import Iterator
@@ -431,6 +434,39 @@ def _ev(name: str, data: Any) -> str:
     return f"event: {name}\ndata: {json.dumps(sign_urls(data, full=True), default=str)}\n\n"
 
 
+_END = object()
+
+
+def _detached(events: Iterator[str], name: str) -> Iterator[str]:
+    """`events` run to the end on a thread of their own, handed over as they come. A client that leaves mid-answer (a
+    closed tab, a dropped connection, a page that moved on) stops the stream, which no longer stops the work: the answer
+    is still saved, so the question isn't left unanswered when the conversation is opened again. The work's own cleanup
+    runs on its thread too, never on whichever thread happens to collect an abandoned generator."""
+    out: queue.Queue[Any] = queue.Queue()
+    left = threading.Event()  # the client went away: nobody reads what comes next
+
+    def work() -> None:
+        try:
+            for ev in events:
+                if not left.is_set():
+                    out.put(ev)
+        except Exception:  # noqa: BLE001 - the stream ends; `events` saves its own answer when it breaks off
+            log.exception("%s failed", name)
+        finally:
+            out.put(_END)
+
+    threading.Thread(target=contextvars.copy_context().run, args=(work,), daemon=True, name=name).start()
+    ended = False
+    try:
+        while (ev := out.get()) is not _END:
+            yield ev
+        ended = True
+    finally:
+        if not ended:
+            left.set()
+            log.info("%s: the client left before the end; it's finished and saved all the same", name)
+
+
 def _research_reply(
     cid: int,
     c: dict[str, Any],
@@ -809,8 +845,8 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
             if titled := chat.title_soon(db, cfg, cid, q, answered["text"]):
                 yield _ev("title", {"title": titled})
 
-    # A sync generator: Starlette iterates it in the threadpool, so the domain calls inside don't block the loop.
-    return StreamingResponse(gen(), media_type="text/event-stream", headers=SSE_HEADERS)
+    # Answered on a thread of its own (the domain calls inside don't block the loop) and saved even if the client leaves
+    return StreamingResponse(_detached(gen(), f"chat-answer-{cid}"), media_type="text/event-stream", headers=SSE_HEADERS)
 
 
 @router.post("/chats/{cid}/stop")
