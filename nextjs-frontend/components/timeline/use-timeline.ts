@@ -130,9 +130,14 @@ export function useMarks(server: Record<string, ActivityMark | undefined>) {
 
 export type { Activity };
 
+/** A day from now, as the `until` of a mute that is a snooze. */
+export function aDay(now = Date.now()): string {
+  return new Date(now + 86_400_000).toISOString();
+}
+
 /** The person's mutes (docs/timeline.md, Muting): the sources, people and kinds the timeline leaves out for them.
- * `mute` mutes an actor (with its name, for the chips) or a kind, says so with an Undo, and `unmute` lifts one; both
- * reload the timeline, which leaves muted activities out on the server. */
+ * `mute` mutes an actor (with its name, for the chips) or a kind, for good or `until` a time, says so with an Undo,
+ * and `unmute` lifts one; both reload the timeline, which leaves muted activities out on the server. */
 export function useMutes() {
   const client = useApiClient();
   const qc = useQueryClient();
@@ -143,7 +148,7 @@ export function useMutes() {
     staleTime: 60_000,
   });
   const { mutate } = useMutation({
-    mutationFn: (body: { actor?: string; kind?: string; name?: string; on: boolean }) =>
+    mutationFn: (body: { actor?: string; kind?: string; name?: string; until?: string; on: boolean }) =>
       data(Activities.muteActivities({ client, body })) as Promise<MutesOut>,
     onSuccess: (got) => {
       qc.setQueryData(["timeline-mutes"], got);
@@ -153,14 +158,14 @@ export function useMutes() {
     onError: (e) => toast({ tone: "red", title: "Couldn’t save the mute", body: (e as Error).message }),
   });
   const mute = useCallback(
-    (target: { actor: string; name: string } | { kind: string; name: string }) => {
+    (target: { actor: string; name: string } | { kind: string; name: string }, until?: string) => {
       mutate(
-        { ...target, on: true },
+        { ...target, until, on: true },
         {
           onSuccess: () =>
             toast({
               tone: "green",
-              title: `Muted ${target.name}`,
+              title: until ? `Muted ${target.name} for a day` : `Muted ${target.name}`,
               body: "Its activities stay, for everyone else and for your automations; hidden=true shows them to you.",
               action: { label: "Undo", onClick: () => mutate({ ...target, on: false }) },
             }),

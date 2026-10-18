@@ -194,8 +194,10 @@ still trigger automations and still show to everyone else, and come back the mom
 The timeline leaves them out as it leaves out what you hid, so `hidden=true` shows them and `hidden=false` (the
 page) does not; a For you page scores only what is left.
 
-- On the page, **Mute Work Gmail** on an opened item mutes its actor, and the **Muted** row above the list lifts one
-  with its ×. Muting a kind, or until a time, is through the API, MCP and the assistant for now.
+- On the page, **Mute Work Gmail** on an opened item mutes its actor with one click; the small menu beside it has
+  **Mute Work Gmail for a day** (a snooze: the mute runs out by itself), **Mute Email received items** (the kind) and
+  the kind for a day. The **Muted** row above the list shows each, with when a snooze ends, and lifts one with its ×.
+  Any other time is through the API, MCP and the assistant.
 - `POST /api/v1/activities/mute` with `{"actor": "lens:source/12", "name": "Work Gmail"}` or `{"kind":
   "sensor.reading"}` (the kinds under it count too), and `"until"` as an ISO 8601 time to snooze it, mutes for
   yourself; `"on": false` lifts it. The answer, and `GET /api/v1/activities/mutes`, is your mutes now: `{actor, kind,
@@ -245,11 +247,10 @@ per source page; they go when the person is removed. Nothing of this costs a mod
 - Server-sent updates instead of the page polling for new items.
 - For you counts opens too, once the page reports them, and could cache each person's affinity for a minute rather
   than summing it on every read.
-- Muting a kind, or for a day, from the page (a menu on Mute), and a muted actor's own line in the Filters.
+- A muted actor's own line in the Filters, and a snooze of your own length from the page.
 - A file changed in its source and read again is `asset.added` once more; linking the new activity to the
   asset's earlier one as a `file.changed` Update, rather than a second Create, is to come.
 - Saved filter views.
-- A daily digest of unreviewed items, as an automation starter.
 - Marks on activities whose rows are gone (an event log entry past `events.keep_days`, a deleted asset) stay until
   the person is removed; a tidy could drop them. Reactions and comments on such activities likewise.
 - Who gave each reaction, on hover; editing and resolving comments from the timeline (the API has both).

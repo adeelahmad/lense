@@ -7,14 +7,15 @@ import {
   ChevronRight,
   Circle,
   CircleCheck,
+  Clock,
   EyeOff,
   FileText,
-  VolumeX,
   Mail,
   MessagesSquare,
   NotebookPen,
   RadioTower,
   Star,
+  VolumeX,
   Workflow,
   type LucideIcon,
 } from "lucide-react";
@@ -38,7 +39,8 @@ import {
 import { SocialSummary } from "@/components/timeline/social";
 import { sumReactions } from "@/components/timeline/social-model";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, IconButton } from "@/components/ui/button";
+import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/ui/menu";
 import { DateTime } from "@/components/ui/states";
 import { cn } from "@/lib/utils";
 
@@ -126,6 +128,7 @@ export function ActivityDetail({
   social,
   onHide,
   onMute,
+  kindLabel,
 }: {
   a: Activity;
   /** What this activity caused (automation runs, approvals), with its own heading (timeline/caused.tsx). */
@@ -133,8 +136,10 @@ export function ActivityDetail({
   /** Its reactions and comments (timeline/social.tsx). */
   social?: ReactNode;
   onHide?: () => void;
-  /** Mute its actor: everything from this source or person leaves your timeline (docs/timeline.md, Muting). */
-  onMute?: () => void;
+  /** Mute its actor (or, from the menu, its kind, for good or a day): docs/timeline.md, Muting. */
+  onMute?: (opts?: MuteOpts) => void;
+  /** The item's kind label, for "Mute Email received items". */
+  kindLabel?: string;
 }) {
   const fields = objectFields(a);
   const href = objectHref(a);
@@ -172,23 +177,51 @@ export function ActivityDetail({
             Hide
           </Button>
         )}
-        {onMute && <MuteButton name={a.actor.name} onMute={onMute} />}
+        {onMute && <MuteButton name={a.actor.name} kind={kindLabel} onMute={onMute} />}
       </div>
     </div>
   );
 }
 
-function MuteButton({ name, onMute }: { name: string; onMute: () => void }) {
+/** How to mute from an item: its actor (the default) or its kind, for good or for a day. */
+export type MuteOpts = { kind?: boolean; day?: boolean };
+
+/** Mute the item's actor with one click, and the other ways (for a day, its kind) behind a small menu beside it. */
+function MuteButton({ name, kind, onMute }: { name: string; kind?: string; onMute: (opts?: MuteOpts) => void }) {
   return (
-    <Button
-      size="xs"
-      variant="ghost"
-      icon={<VolumeX />}
-      onClick={onMute}
-      title={`Leave everything from ${name} out of your timeline; nothing is deleted, and Undo or the Muted list brings it back`}
-    >
-      Mute {name}
-    </Button>
+    <span className="inline-flex items-center">
+      <Button
+        size="xs"
+        variant="ghost"
+        icon={<VolumeX />}
+        onClick={() => onMute()}
+        title={`Leave everything from ${name} out of your timeline; nothing is deleted, and Undo or the Muted list brings it back`}
+      >
+        Mute {name}
+      </Button>
+      <Menu>
+        <MenuTrigger asChild>
+          <IconButton label={`More ways to mute ${name}`} size={24}>
+            <ChevronDown />
+          </IconButton>
+        </MenuTrigger>
+        <MenuContent align="start">
+          <MenuItem icon={<Clock />} onSelect={() => onMute({ day: true })}>
+            Mute {name} for a day
+          </MenuItem>
+          {kind && (
+            <>
+              <MenuItem icon={<VolumeX />} onSelect={() => onMute({ kind: true })}>
+                Mute {kind} items
+              </MenuItem>
+              <MenuItem icon={<Clock />} onSelect={() => onMute({ kind: true, day: true })}>
+                Mute {kind} items for a day
+              </MenuItem>
+            </>
+          )}
+        </MenuContent>
+      </Menu>
+    </span>
   );
 }
 
@@ -202,8 +235,8 @@ type RowProps = {
   markOf: (id: string) => Mark;
   onMark: (ids: string[], flags: Partial<Mark>) => void;
   onHide?: (ids: string[]) => void;
-  /** Mute an item's actor (docs/timeline.md, Muting). */
-  onMute?: (a: Activity) => void;
+  /** Mute an item's actor, or its kind, for good or a day (docs/timeline.md, Muting). */
+  onMute?: (a: Activity, opts?: MuteOpts) => void;
   open: boolean;
   onToggle: () => void;
   focused?: boolean;
@@ -359,7 +392,8 @@ export const TimelineRow = forwardRef<HTMLLIElement, RowProps>(function Timeline
                 mark={markOf(a.id)}
                 onMark={(flags) => onMark([a.id], flags)}
                 onHide={onHide ? () => onHide([a.id]) : undefined}
-                onMute={onMute ? () => onMute(a) : undefined}
+                onMute={onMute ? (opts) => onMute(a, opts) : undefined}
+                kindLabel={labels[a.kind]}
                 caused={caused?.(a)}
                 social={social?.(a)}
               />
@@ -371,7 +405,8 @@ export const TimelineRow = forwardRef<HTMLLIElement, RowProps>(function Timeline
             caused={caused?.(first)}
             social={social?.(first)}
             onHide={onHide ? () => onHide(ids) : undefined}
-            onMute={onMute ? () => onMute(first) : undefined}
+            onMute={onMute ? (opts) => onMute(first, opts) : undefined}
+            kindLabel={labels[first.kind]}
           />
         ))}
     </li>
@@ -384,6 +419,7 @@ function SubItem({
   onMark,
   onHide,
   onMute,
+  kindLabel,
   caused,
   social,
 }: {
@@ -391,7 +427,8 @@ function SubItem({
   mark: Mark;
   onMark: (flags: Partial<Mark>) => void;
   onHide?: () => void;
-  onMute?: () => void;
+  onMute?: (opts?: MuteOpts) => void;
+  kindLabel?: string;
   caused?: ReactNode;
   social?: ReactNode;
 }) {
@@ -422,7 +459,7 @@ function SubItem({
             Hide
           </Button>
         )}
-        {onMute && <MuteButton name={a.actor.name} onMute={onMute} />}
+        {onMute && <MuteButton name={a.actor.name} kind={kindLabel} onMute={onMute} />}
       </div>
     </li>
   );

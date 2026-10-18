@@ -481,3 +481,33 @@ test("an opened item shows what it caused, and a waiting approval is approved th
   );
   expect(await screen.findByText("Done")).toBeInTheDocument();
 });
+
+test("the menu beside Mute snoozes a source for a day, or mutes the item's kind", async () => {
+  wrap(<TimelinePage />);
+  const rows = within(await screen.findByRole("list", { name: "Timeline" })).getAllByTestId("timeline-row");
+  // the kind, named as the page names it, for good: the upload's line goes
+  fireEvent.click(within(rows[1]).getByRole("button", { name: "Show details" }));
+  fireEvent.keyDown(within(rows[1]).getByRole("button", { name: "More ways to mute Adeel" }), { key: "Enter" });
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Mute Asset added items" }));
+  await waitFor(() =>
+    expect(m(Activities.muteActivities)).toHaveBeenCalledWith(
+      expect.objectContaining({ body: { kind: "asset.added", name: "Asset added", until: undefined, on: true } }),
+    ),
+  );
+  await waitFor(() => expect(screen.getAllByTestId("timeline-row")).toHaveLength(1));
+  // a source for a day: until is tomorrow, and the notice says so
+  fireEvent.click(within(rows[0]).getByRole("button", { name: "Show the 3" }));
+  const more = within(rows[0]).getAllByRole("button", { name: "More ways to mute Work Gmail" });
+  fireEvent.keyDown(more[0], { key: "Enter" });
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Mute Work Gmail for a day" }));
+  await waitFor(() =>
+    expect(m(Activities.muteActivities)).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({ actor: "lens:source/1", name: "Work Gmail", on: true }),
+      }),
+    ),
+  );
+  const until = m(Activities.muteActivities).mock.lastCall![0].body.until as string;
+  expect(Date.parse(until) - Date.now()).toBeGreaterThan(23 * 3_600_000);
+  expect(await screen.findByText("Muted Work Gmail for a day")).toBeInTheDocument();
+});
