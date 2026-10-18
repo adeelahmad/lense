@@ -99,6 +99,29 @@ test("browses a marketplace, previews a plugin and installs it", async () => {
   await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "Installed" })));
 });
 
+test("an installed plugin with another version listed offers the update", async () => {
+  m(Extensions.listMarketplacePlugins).mockReturnValue(
+    ok([
+      {
+        name: "document-skills",
+        installable: true,
+        installed: 9,
+        version: "1.3.0",
+        installed_version: "1.2.0",
+        update: true,
+      },
+    ]),
+  );
+  wrap(<MarketplacePage />);
+  expect(await screen.findByRole("link", { name: "Installed 1.2.0" })).toHaveAttribute("href", "/extensions/9");
+  fireEvent.click(screen.getByRole("button", { name: "Update to 1.3.0" }));
+  await waitFor(() =>
+    expect(Extensions.previewMarketplacePlugin).toHaveBeenCalledWith(
+      expect.objectContaining({ path: { mid: 1, name: "document-skills" } }),
+    ),
+  );
+});
+
 test("an admin adds a suggested marketplace; others don't see the form", async () => {
   const { unmount } = wrap(<MarketplacePage />);
   fireEvent.click(await screen.findByRole("button", { name: "Add Anthropic plugins" }));

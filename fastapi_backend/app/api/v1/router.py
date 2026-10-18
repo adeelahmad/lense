@@ -53,9 +53,11 @@ from app.api.v1.routes import (
     passkeys,
     pipelines,
     podcasts,
+    projects,
     public,
     rdf,
     recordings,
+    replies,
     requests,
     research,
     routines,
@@ -143,6 +145,7 @@ for module in (
     extensions,
     marketplaces,
     chats,
+    projects,
     research,
     browser,
     collections,
@@ -163,5 +166,6 @@ for module in (
     specs,
     scaling,
     mesh,
+    replies,
 ):
     api_router.include_router(module.router)

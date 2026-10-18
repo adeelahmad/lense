@@ -257,3 +257,72 @@ def test_a_skills_files_in_a_conversation(app, db, cfg, folder, new_client, web,
     assert "file" in use["function"]["parameters"]["properties"]
     tool_msgs = [m["content"] for b in llm.seen if b.get("tools") for m in b["messages"] if m["role"] == "tool"]
     assert '"files": ["FORMS.md"]' in tool_msgs[0] and "field by field" in tool_msgs[-1]
+
+
+def test_found_updated_and_installed_by_agents(app, db, cfg, folder, new_client, web, llm, monkeypatch):
+    """Plugins are found across marketplaces and installed over MCP, the REST API or in chat (after the person's
+    yes), and an installed plugin says when its marketplace lists another version."""
+    from tests.api.test_mcp import rpc
+
+    s = Assist(app, db, cfg, folder, new_client)
+    c, h = s.cl["editor"]
+    ca, ha = s.cl["admin"]
+
+    def mcp(tool, **args):
+        res = rpc(c, h, "tools/call", {"name": tool, "arguments": args})["result"]
+        return json.loads(res["content"][0]["text"]) if res["isError"] else res["structuredContent"]
+
+    assert "no marketplace is added yet" in mcp("find_plugins")["note"]
+    mid = ca.post("/api/v1/marketplaces", headers=ha, json={"source": "anthropics/skills", "title": "Skills"}).json()["id"]
+
+    # found by any of its words, with the marketplace it's in
+    got = c.get("/api/v1/marketplaces/plugins", headers=h, params={"q": "ACME tools"}).json()
+    assert [(p["name"], p["marketplace"], p["marketplace_name"], p["update"]) for p in got] == [("acme-tools", mid, "Skills", False)]
+    assert len(c.get("/api/v1/marketplaces/plugins", headers=h).json()) == 4
+    found = mcp("find_plugins", query="every")
+    assert ([p["name"] for p in found["plugins"]], found["matched"]) == (["all-skills"], 1)
+    assert "note" not in found and found["page"].endswith("/extensions/marketplace")
+
+    # previewed, then installed, over MCP
+    pre = mcp("install_plugin", marketplace=mid, plugin="acme-tools", preview=True)
+    assert {(i["kind"], i["name"]) for i in pre["adds"]} == {("skill", "meeting_notes"), ("skill", "review"), ("tool", "critic")}
+    assert {x["kind"] for x in pre["leaves_out"]} == {"hooks", "mcp"} and c.get("/api/v1/extensions", headers=h).json() == []
+    out = mcp("install_plugin", marketplace=mid, plugin="acme-tools")
+    assert out["version"] == 1 and out["page"].endswith(f"/extensions/{out['id']}")
+    assert "not found" in mcp("install_plugin", marketplace=mid, plugin="nope")["error"]
+    mine = c.get(f"/api/v1/marketplaces/{mid}/plugins", headers=h).json()
+    acme = next(p for p in mine if p["name"] == "acme-tools")
+    assert (acme["installed"], acme["installed_version"], acme["update"]) == (out["id"], "1.2.0", False)
+    assert mcp("find_plugins", updates=True)["plugins"] == []
+
+    # the marketplace now lists 1.3.0: an update shows, for the one who installed it
+    served = marketplace._fetch
+    index = json.loads(SKILLS_REPO[".claude-plugin/marketplace.json"])
+    index["plugins"][2]["version"] = "1.3.0"
+
+    def fetch(cfg, url, out, limit):
+        if url.endswith("/marketplace.json"):
+            return out.write(json.dumps(index).encode())
+        return served(cfg, url, out, limit)
+
+    monkeypatch.setattr(marketplace, "_fetch", fetch)
+    assert ca.post(f"/api/v1/marketplaces/{mid}/refresh", headers=ha).status_code == 200
+    ups = c.get("/api/v1/marketplaces/plugins", headers=h, params={"updates": True}).json()
+    assert [(p["name"], p["version"], p["installed_version"], p["update"]) for p in ups] == [("acme-tools", "1.3.0", "1.2.0", True)]
+    assert ca.get("/api/v1/marketplaces/plugins", headers=ha, params={"updates": True}).json() == []  # not the admin's
+
+    # in chat: found, and updated once the person says yes
+    llm.tool_script = [
+        {"content": "", "tool_calls": [call(1, "find_plugins", {"updates": True})]},
+        {"content": "", "tool_calls": [call(2, "install_plugin", {"marketplace": mid, "plugin": "acme-tools"})]},
+        {"content": "acme-tools has 1.3.0; approve it to update."},
+    ]
+    cid = c.post("/api/v1/chats", headers=h, json={}).json()["id"]
+    ev = sse(c.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "any plugin updates?"}).text)
+    assert ev["step"][0]["summary"] == "Found 1 plugin"
+    appr = ev["approval"][0]
+    assert appr["summary"].startswith("Update the plugin acme-tools from https://github.com/acme/tools: ")
+    assert c.get(f"/api/v1/extensions/{out['id']}", headers=h).json()["version"] == 1  # nothing until the yes
+    done = c.post(f"/api/v1/approvals/{appr['id']}", headers=h, json={"decision": "approve"}).json()
+    assert (done["extension"], done["version"]) == (out["id"], 2)
+    assert c.get("/api/v1/marketplaces/plugins", headers=h, params={"updates": True}).json() == []

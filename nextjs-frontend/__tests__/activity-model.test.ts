@@ -4,6 +4,10 @@ import {
   approx,
   applyJobEvent,
   batchPhase,
+  byQueue,
+  dropPlace,
+  movedOrder,
+  stepPlace,
   dayTime,
   jobPhase,
   outputText,
@@ -445,5 +449,36 @@ describe("step labels", () => {
       "transcribe",
     ]);
     expect(specs.map((s) => s.label)).toEqual(["Meeting notes", "Brief", "Transcribe"]);
+  });
+});
+
+describe("the queue's order", () => {
+  it("puts the highest priority first, then the oldest", () => {
+    const rows = [
+      { id: 3, priority: 0, created_at: "2026-10-18T10:00:00Z" },
+      { id: 1, priority: 0, created_at: "2026-10-18T09:00:00Z" },
+      { id: 2, priority: 5, created_at: "2026-10-18T11:00:00Z" },
+      { id: 4, priority: null, created_at: "2026-10-18T09:00:00Z" },
+    ];
+    expect(rows.sort(byQueue).map((r) => r.id)).toEqual([2, 1, 4, 3]);
+  });
+  it("drops after a run when dragged down, before it when dragged up", () => {
+    expect(dropPlace([1, 2, 3], 1, 3)).toEqual({ after: 3 });
+    expect(dropPlace([1, 2, 3], 3, 1)).toEqual({ before: 1 });
+    expect(dropPlace([1, 2, 3], 2, 2)).toBeNull();
+    expect(dropPlace([1, 2, 3], 9, 2)).toBeNull();
+  });
+  it("steps past a neighbour with the keyboard, and stops at the ends", () => {
+    expect(stepPlace([1, 2, 3], 2, -1)).toEqual({ before: 1 });
+    expect(stepPlace([1, 2, 3], 2, 1)).toEqual({ after: 3 });
+    expect(stepPlace([1, 2, 3], 1, -1)).toBeNull();
+    expect(stepPlace([1, 2, 3], 3, 1)).toBeNull();
+  });
+  it("shows the new order at once", () => {
+    expect(movedOrder([1, 2, 3, 4], 4, { to: "top" })).toEqual([4, 1, 2, 3]);
+    expect(movedOrder([1, 2, 3, 4], 1, { to: "bottom" })).toEqual([2, 3, 4, 1]);
+    expect(movedOrder([1, 2, 3, 4], 1, { after: 3 })).toEqual([2, 3, 1, 4]);
+    expect(movedOrder([1, 2, 3, 4], 4, { before: 2 })).toEqual([1, 4, 2, 3]);
+    expect(movedOrder([1, 2, 3], 9, { to: "top" })).toEqual([1, 2, 3]);
   });
 });
