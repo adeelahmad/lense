@@ -111,6 +111,34 @@ def test_one_look_reads_many(db, cfg, folder, monkeypatch):
     assert sorted(events.get_many(db, cfg, [*ids, lid], pods)) == sorted(ids[:2])
 
 
+def test_a_tidy_drops_marks_and_reactions_left_on_activities_that_are_gone(db, cfg, folder, monkeypatch):
+    from app.domain import event_reactions
+
+    monkeypatch.setattr(events, "_KINDS", dict(events._KINDS))
+    monkeypatch.setitem(event_marks._tidied, "after", "")
+    events.kind("test_thing.happened", label="Thing happened", source="log", as_type="Announce", object_type="Note")
+    pods1, pods2, call = (f"create-recording-{i}" for i in seed(db, cfg, folder))
+    lid = events.emit(db, "test_thing.happened", actor=events.LENS, obj={"type": "Note", "name": "x"}, space=None, summary="Lens noted x")
+    event_marks.mark(db, 1, [pods1, pods2, call, lid], {"reviewed": True})
+    for i in (pods1, lid):
+        event_reactions.react(db, 1, i, "👍")
+    db.q("UPDATE event_mark SET at = '2026-01-01T00:00:00+00:00'")
+    db.q("UPDATE event_reaction SET at = '2026-01-01T00:00:00+00:00'")
+    # the asset deleted and the log entry past events.keep_days; a mark made today on what was never there waits a day
+    db.q("DELETE $r", r=store.R("recording", int(pods1.rsplit("-", 1)[1])))
+    db.q("DELETE $r", r=store.R("event_log", int(lid.rsplit("-", 1)[1])))
+    event_marks.mark(db, 1, ["create-recording-99999"], {"important": True})
+    # two at a time: the first look stops at the second id and the next carries on from there
+    monkeypatch.setattr(event_marks, "TIDY_BATCH", 2)
+    assert event_marks.tidy(db, cfg, now=store.now()) == 1  # create-recording-<pods1>, then create-recording-<pods2>
+    assert event_marks._tidied["after"] == sorted([pods1, pods2, call, lid])[1]
+    while event_marks._tidied["after"]:
+        event_marks.tidy(db, cfg, now=store.now())
+    event_marks.tidy(db, cfg, now=store.now())  # past the end: from the start again, nothing more to drop
+    assert sorted(db.values("SELECT VALUE activity FROM event_mark")) == sorted([pods2, call, "create-recording-99999"])
+    assert db.values("SELECT VALUE activity FROM event_reaction") == []
+
+
 def test_agents_mark_and_read_what_they_have_not_reviewed(client, db, cfg, folder):
     from tests.api.test_mcp import tool, tool_error
 

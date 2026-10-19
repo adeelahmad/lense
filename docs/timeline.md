@@ -267,6 +267,11 @@ counts are two grouped queries. Mutes are one `event_mute` row per person and ta
 the name shown, `until` and when it was set, read once per page and applied with the mark filters in the same query
 per source page; they go when the person is removed. Nothing of this costs a model call.
 
+Marks and reactions left on an activity that is gone (an event log entry past `events.keep_days`, a deleted asset) are
+dropped by a tidy that runs with the other hourly ones: each time it looks up to 500 activities marked or reacted to
+over a day ago, in id order from where it stopped last, and deletes the rows of those no source has any more. Comments
+on them stay, since they are what people wrote, and an asset's page still shows its own.
+
 ## Refine later
 
 - Ask about an item in the full Chat as well as beside the page, and keep which item a question was about as a link
@@ -279,7 +284,6 @@ per source page; they go when the person is removed. Nothing of this costs a mod
 - A file changed in its source is read again as a new asset beside the earlier one (`file.changed` links them);
   reading the change into the same asset is to come. A file in a namespace's own folders changed in place is read
   again into the same asset with no activity yet.
-- Marks on activities whose rows are gone (an event log entry past `events.keep_days`, a deleted asset) stay until
-  the person is removed; a tidy could drop them. Reactions and comments on such activities likewise.
+- Comments on activities that are gone stay; a person could see and clear their own from somewhere.
 - The agent's reply in a thread is plain text with links; the answer's excerpts could open at their moment, as in
   chat. Tagging a namespace's own assistant by its name, with its memory.
