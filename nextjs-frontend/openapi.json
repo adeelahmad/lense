@@ -22535,6 +22535,61 @@
         }
       }
     },
+    "/api/v1/namespaces/{name}/faces/unnamed": {
+      "get": {
+        "tags": [
+          "video"
+        ],
+        "summary": "Get Unnamed Faces",
+        "description": "The faces nobody has named yet, grouped across the namespace (recognize mode), the largest group first: each\nwith a few signed crops, the assets it's in and a name to offer. Name them with POST /faces/{fid}/name.",
+        "operationId": "get_unnamed_faces",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnnamedFaces"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/namespaces/{name}/faces/mode": {
       "put": {
         "tags": [
@@ -22706,6 +22761,59 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/faces/{fid}/name": {
+      "post": {
+        "tags": [
+          "video"
+        ],
+        "summary": "Name Face",
+        "description": "Name a face: a name another face of the namespace has joins it to that person (a merge: undo it with POST\n/faces/merges/{merge}/undo); any other name is its own (undo: POST /faces/{fid} with no name).",
+        "operationId": "name_face",
+        "parameters": [
+          {
+            "name": "fid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Fid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FaceName"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FaceNamed"
                 }
               }
             }
@@ -52836,6 +52944,31 @@
         "type": "object",
         "title": "ExternalStart"
       },
+      "FaceAsset": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "FaceAsset"
+      },
       "FaceDismiss": {
         "properties": {
           "kind": {
@@ -52884,6 +53017,64 @@
         ],
         "title": "FaceMerged"
       },
+      "FaceName": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "who it is; a name another face of the namespace has joins it to that person"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "FaceName"
+      },
+      "FaceNamed": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "into": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Into",
+            "description": "the face of the same name it joined, if any"
+          },
+          "merge": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merge",
+            "description": "that merge, to undo with POST /faces/merges/{merge}/undo"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "FaceNamed"
+      },
       "FaceRename": {
         "properties": {
           "name": {
@@ -52913,6 +53104,26 @@
         "additionalProperties": false,
         "type": "object",
         "title": "FaceSpeaker"
+      },
+      "FaceThumb": {
+        "properties": {
+          "recording": {
+            "type": "integer",
+            "title": "Recording"
+          },
+          "cover_url": {
+            "type": "string",
+            "title": "Cover Url",
+            "description": "a signed link to the crop"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "recording",
+          "cover_url"
+        ],
+        "title": "FaceThumb"
       },
       "FacesMode": {
         "properties": {
@@ -88957,6 +89168,113 @@
           "draining"
         ],
         "title": "UnitCounts"
+      },
+      "UnnamedFace": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "what it's called until it's named, e.g. Face 3"
+          },
+          "guess": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guess",
+            "description": "a name to offer: the voice it's linked to, else one suggested for it"
+          },
+          "speaker": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speaker",
+            "description": "the voice it's linked to"
+          },
+          "appearances": {
+            "type": "integer",
+            "title": "Appearances"
+          },
+          "screen_ms": {
+            "type": "integer",
+            "title": "Screen Ms",
+            "description": "time on screen in videos"
+          },
+          "pages": {
+            "type": "integer",
+            "title": "Pages",
+            "description": "pages of documents and images it's on"
+          },
+          "thumbnails": {
+            "items": {
+              "$ref": "#/components/schemas/FaceThumb"
+            },
+            "type": "array",
+            "title": "Thumbnails"
+          },
+          "recordings": {
+            "items": {
+              "$ref": "#/components/schemas/FaceAsset"
+            },
+            "type": "array",
+            "title": "Recordings",
+            "description": "the assets it's in, where it's seen longest first"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "appearances",
+          "screen_ms",
+          "pages",
+          "thumbnails",
+          "recordings"
+        ],
+        "title": "UnnamedFace"
+      },
+      "UnnamedFaces": {
+        "properties": {
+          "mode": {
+            "type": "string",
+            "title": "Mode",
+            "description": "off, detect or recognize; faces are grouped across the namespace only in recognize"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/UnnamedFace"
+            },
+            "type": "array",
+            "title": "Groups",
+            "description": "the largest group first"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "mode",
+          "total",
+          "groups"
+        ],
+        "title": "UnnamedFaces"
       },
       "UpdateStatus": {
         "properties": {

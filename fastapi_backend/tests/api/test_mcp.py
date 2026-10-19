@@ -74,6 +74,7 @@ def test_clients_are_sent_to_sign_in(client, app, env):
     # every tool only reads, except proposing an event, suggesting a topic and asking for a graph change (which need
     # the write scope), and the rest below
     assert [t["name"] for t in tools if not t["annotations"]["readOnlyHint"]] == [
+        "name_face",
         "propose_event",
         "suggest_topic",
         "propose_graph_change",

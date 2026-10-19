@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 
 type NsFace = {
   id: number;
+  name?: string | null;
   display?: string;
   speaker?: number | null;
   speaker_name?: string | null;
@@ -44,6 +45,7 @@ export function PeopleTab({ noFaces, onPage }: { noFaces?: boolean; onPage?: (pa
   const nsFaces = useNamespaceFaces(ns, model.facesMode === "recognize");
   const color = useFaceColors();
   const byId = new Map(((nsFaces.data?.faces ?? []) as NsFace[]).map((f) => [f.id, f]));
+  const unnamed = [...byId.values()].filter((f) => !f.name).length;
 
   if (model.facesMode === "off")
     return (
@@ -99,6 +101,14 @@ export function PeopleTab({ noFaces, onPage }: { noFaces?: boolean; onPage?: (pa
           />
         ))}
       </ul>
+      {model.facesMode === "recognize" && unnamed > 0 && ns && (
+        <Link
+          href={`/settings/speakers?ns=${encodeURIComponent(ns)}&tab=faces`}
+          className="mt-2 inline-block text-[13px] font-semibold text-fg-accent hover:underline"
+        >
+          Name the {unnamed === 1 ? "unnamed face" : `${unnamed} unnamed faces`} in {ns}, the most seen first
+        </Link>
+      )}
     </>
   );
 }

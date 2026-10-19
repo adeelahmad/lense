@@ -8686,6 +8686,21 @@ export type ExternalStart = {
 };
 
 /**
+ * FaceAsset
+ */
+export type FaceAsset = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * FaceDismiss
  */
 export type FaceDismiss = {
@@ -8725,6 +8740,45 @@ export type FaceMerged = {
 };
 
 /**
+ * FaceName
+ */
+export type FaceName = {
+  /**
+   * Name
+   *
+   * who it is; a name another face of the namespace has joins it to that person
+   */
+  name: string;
+};
+
+/**
+ * FaceNamed
+ */
+export type FaceNamed = {
+  /**
+   * Ok
+   */
+  ok?: boolean;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Into
+   *
+   * the face of the same name it joined, if any
+   */
+  into?: number | null;
+  /**
+   * Merge
+   *
+   * that merge, to undo with POST /faces/merges/{merge}/undo
+   */
+  merge?: number | null;
+  [key: string]: unknown;
+};
+
+/**
  * FaceRename
  */
 export type FaceRename = {
@@ -8742,6 +8796,23 @@ export type FaceSpeaker = {
    * Speaker
    */
   speaker?: number | null;
+};
+
+/**
+ * FaceThumb
+ */
+export type FaceThumb = {
+  /**
+   * Recording
+   */
+  recording: number;
+  /**
+   * Cover Url
+   *
+   * a signed link to the crop
+   */
+  cover_url: string;
+  [key: string]: unknown;
 };
 
 /**
@@ -29682,6 +29753,84 @@ export type UnitCounts = {
 };
 
 /**
+ * UnnamedFace
+ */
+export type UnnamedFace = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Label
+   *
+   * what it's called until it's named, e.g. Face 3
+   */
+  label: string;
+  /**
+   * Guess
+   *
+   * a name to offer: the voice it's linked to, else one suggested for it
+   */
+  guess?: string | null;
+  /**
+   * Speaker
+   *
+   * the voice it's linked to
+   */
+  speaker?: number | null;
+  /**
+   * Appearances
+   */
+  appearances: number;
+  /**
+   * Screen Ms
+   *
+   * time on screen in videos
+   */
+  screen_ms: number;
+  /**
+   * Pages
+   *
+   * pages of documents and images it's on
+   */
+  pages: number;
+  /**
+   * Thumbnails
+   */
+  thumbnails: Array<FaceThumb>;
+  /**
+   * Recordings
+   *
+   * the assets it's in, where it's seen longest first
+   */
+  recordings: Array<FaceAsset>;
+  [key: string]: unknown;
+};
+
+/**
+ * UnnamedFaces
+ */
+export type UnnamedFaces = {
+  /**
+   * Mode
+   *
+   * off, detect or recognize; faces are grouped across the namespace only in recognize
+   */
+  mode: string;
+  /**
+   * Total
+   */
+  total: number;
+  /**
+   * Groups
+   *
+   * the largest group first
+   */
+  groups: Array<UnnamedFace>;
+  [key: string]: unknown;
+};
+
+/**
  * UpdateStatus
  */
 export type UpdateStatus = {
@@ -45345,6 +45494,41 @@ export type GetNamespaceFacesResponses = {
 
 export type GetNamespaceFacesResponse = GetNamespaceFacesResponses[keyof GetNamespaceFacesResponses];
 
+export type GetUnnamedFacesData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: {
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/namespaces/{name}/faces/unnamed";
+};
+
+export type GetUnnamedFacesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetUnnamedFacesError = GetUnnamedFacesErrors[keyof GetUnnamedFacesErrors];
+
+export type GetUnnamedFacesResponses = {
+  /**
+   * Successful Response
+   */
+  200: UnnamedFaces;
+};
+
+export type GetUnnamedFacesResponse = GetUnnamedFacesResponses[keyof GetUnnamedFacesResponses];
+
 export type SetNamespaceFacesModeData = {
   body: FacesMode;
   path: {
@@ -45464,6 +45648,36 @@ export type RenameFaceResponses = {
 };
 
 export type RenameFaceResponse = RenameFaceResponses[keyof RenameFaceResponses];
+
+export type NameFaceData = {
+  body: FaceName;
+  path: {
+    /**
+     * Fid
+     */
+    fid: number;
+  };
+  query?: never;
+  url: "/api/v1/faces/{fid}/name";
+};
+
+export type NameFaceErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type NameFaceError = NameFaceErrors[keyof NameFaceErrors];
+
+export type NameFaceResponses = {
+  /**
+   * Successful Response
+   */
+  200: FaceNamed;
+};
+
+export type NameFaceResponse = NameFaceResponses[keyof NameFaceResponses];
 
 export type MergeFaceData = {
   body: FaceMerge;

@@ -1550,10 +1550,12 @@ GET    /api/v1/resources/{rid}/frames/{name}
 PATCH  /api/v1/resources/{rid}/ocr/{span}
 DELETE /api/v1/resources/{rid}/faces/{track}
 GET    /api/v1/namespaces/{name}/faces
+GET    /api/v1/namespaces/{name}/faces/unnamed
 DELETE /api/v1/namespaces/{name}/faces
 PUT    /api/v1/namespaces/{name}/faces/mode
 POST   /api/v1/faces/merges/{mid}/undo
 POST   /api/v1/faces/{fid}
+POST   /api/v1/faces/{fid}/name
 DELETE /api/v1/faces/{fid}
 POST   /api/v1/faces/{fid}/merge
 POST   /api/v1/faces/{fid}/speaker
@@ -1566,6 +1568,14 @@ and whether the faces found are pixelated in the pictures visitors see (`pixelat
 say them for a resource. `GET /resources/{rid}/frames/{name}` (frames, keyframes, face crops, a document's or an
 image's pages and thumbnails) serves a request without a role in the namespace the faces found on it pixelated, where
 the namespace says so; a role, or a link the API signed for a member (`full=1`), gets the picture as it is.
+
+`GET /namespaces/{name}/faces/unnamed?limit=` lists the faces nobody has named yet (recognize mode; none otherwise),
+the largest group first: in the most assets, then the longest on screen (a page counts five seconds). Each has a few
+signed crops (`thumbnails`, from different assets first), the assets it's in (`recordings`, where it's seen longest
+first), how often it's seen, and `guess`, a name to offer: the voice it's linked to, else a named face or voice
+suggested for it. `POST /faces/{fid}/name {name}` (editors) names one: a name another face of the namespace has (any
+case) joins it to that face, a merge whose id comes back as `merge` to undo with `POST /faces/merges/{mid}/undo`; any
+other name becomes its own, undone with `POST /faces/{fid} {"name": ""}` ([Naming faces](video.md#naming-faces)).
 
 ### Objects
 

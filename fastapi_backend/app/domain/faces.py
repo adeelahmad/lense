@@ -369,8 +369,95 @@ def list_faces(db, sid):
     return sorted(out, key=lambda x: (-x["screen_ms"], x["id"]))
 
 
+THUMBS = 4  # crops shown for each face waiting for a name
+
+
+def unnamed(db, sid, thumbs=THUMBS):
+    """The faces of a namespace nobody has named yet, the largest group first (in the most assets, then the longest on
+    screen, a page counting PAGE_SECONDS): each with a few crops (from different assets first), the assets it's in and
+    `guess`, a name to offer: the voice it's linked to, else the named face or voice suggested for it."""
+    rows = [
+        r
+        for r in db.rows("SELECT record::id(id) AS id, label, name, speaker FROM face WHERE space = $s", s=sid)
+        if not (r.get("name") or "").strip()
+    ]
+    if not rows:
+        return []
+    tracks = defaultdict(list)
+    for t in db.rows(
+        "SELECT face, recording, screen_ms, paged, cover FROM face_track WHERE space = $s AND face IN $f", s=sid, f=[r["id"] for r in rows]
+    ):
+        tracks[t["face"]].append(t)
+    rids = {t["recording"] for ts in tracks.values() for t in ts}
+    titles = {
+        r["id"]: r.get("title")
+        for r in db.rows("SELECT record::id(id) AS id, title FROM recording WHERE id IN $r", r=[R("recording", x) for x in rids])
+    }
+    named = {r["id"]: r["name"] for r in db.rows("SELECT record::id(id) AS id, name FROM face WHERE space = $s AND name != NONE", s=sid)}
+    voices = {
+        r["id"]: r["name"] for r in db.rows("SELECT record::id(id) AS id, name FROM speaker WHERE space = $s AND name != NONE", s=sid)
+    }
+    offered = defaultdict(list)  # face -> [(score, name)], named faces and voices only
+    for g in db.rows("SELECT kind, face, candidate, speaker, score FROM face_suggestion WHERE space = $s", s=sid):
+        name = named.get(g.get("candidate")) if g["kind"] == "face" else voices.get(g.get("speaker"))
+        if name:
+            offered[g["face"]].append((g.get("score") or 0, name))
+    out = []
+    for r in rows:
+        ts = tracks.get(r["id"])
+        if not ts:  # every track of it was removed as not a face
+            continue
+        ms = defaultdict(int)
+        for t in ts:
+            ms[t["recording"]] += (t.get("screen_ms") or 0) * (PAGE_SECONDS * 1000 if t.get("paged") else 1)
+        order = sorted(ms, key=lambda x: (-ms[x], x))
+        rank = {x: i for i, x in enumerate(order)}
+        ts = sorted(ts, key=lambda t: (rank[t["recording"]], -(t.get("screen_ms") or 0)))
+        seen, first, rest = set(), [], []
+        for t in ts:
+            if t.get("cover"):
+                (rest if t["recording"] in seen else first).append({"recording": t["recording"], "file": t["cover"]})
+                seen.add(t["recording"])
+        out.append(
+            {
+                "id": r["id"],
+                "label": r["label"],
+                "guess": voices.get(r.get("speaker")) or max(offered.get(r["id"]) or [(0, None)])[1],
+                "speaker": r.get("speaker"),
+                "appearances": len(ts),
+                "screen_ms": sum(0 if t.get("paged") else t.get("screen_ms") or 0 for t in ts),
+                "pages": sum(t.get("screen_ms") or 0 for t in ts if t.get("paged")),
+                "weight": sum(ms.values()),
+                "thumbnails": (first + rest)[:thumbs],
+                "recordings": [{"id": x, "title": titles.get(x)} for x in order],
+            }
+        )
+    out.sort(key=lambda x: (-len(x["recordings"]), -x["weight"], x["id"]))
+    for x in out:
+        del x["weight"]
+    return out
+
+
 def rename(db, fid, name):
     db.q("UPDATE $r SET name = $n", r=R("face", fid), n=(name or "").strip()[:80] or None)
+
+
+def name_face(db, fid, name, user=None):
+    """Name a face. A name another face of the namespace already has joins it to that person (a merge, which undo
+    takes back); any other name is the face's own (rename). -> {"name", "into": the face joined, "merge": its id}"""
+    name = (name or "").strip()[:80]
+    f = db.one("SELECT space FROM $r", r=R("face", fid))
+    if not f or not name:
+        raise ValueError("say the name" if f else "no such face")
+    same = sorted(
+        r["id"]
+        for r in db.rows("SELECT record::id(id) AS id, name FROM face WHERE space = $s AND name != NONE", s=f["space"])
+        if r["id"] != fid and r["name"].strip().casefold() == name.casefold()
+    )
+    if same:
+        return {"name": name, "into": same[0], "merge": merge(db, fid, same[0], user)}
+    rename(db, fid, name)
+    return {"name": name, "into": None, "merge": None}
 
 
 def link_speaker(db, fid, speaker):

@@ -16,7 +16,8 @@ soundtrack, and three more steps look at the picture. Each step skips itself for
   - Where a namespace allows it, faces are grouped per recording and matched against that namespace's people, the way
     voices are: auto-match, review, or new.
   - When a face is on screen while one speaker talks, the app suggests they're the same person.
-  - Faces can be renamed, merged (with undo), linked to a person in People, marked "not a face" or deleted.
+  - Faces can be renamed, merged (with undo), linked to a person in People, marked "not a face" or deleted, and the
+    ones nobody has named yet are [named in a row](#naming-faces).
   - Engines: OpenCV's YuNet + SFace (`pip install -e ".[faces]"`, then point `video.yunet_model` and
     `video.sface_model` at the ONNX files from the OpenCV Zoo), InsightFace, whose pretrained models are licensed for
     non-commercial research only, or `anytopdf`: [anytopdf](configuration.md#anytopdf)'s plugins find faces with
@@ -65,6 +66,23 @@ recording's media, even when its transcript came with it:
   WebM, Ogg, MP3, FLAC or WAV) gets no copy.
 
 Recordings transcribed before the setting was on get their copy when their transcribe step runs again.
+
+## Naming faces
+
+In recognize mode, the faces nobody has named yet wait in **Settings → People → Unnamed faces** (the tab shows only
+where faces are recognised; a video's People tab links to it while any are unnamed). The largest group comes first:
+the face in the most assets, then the longest on screen. Each shows a few crops, how often it's seen and the assets
+it's in.
+
+- The first face's name field has focus, filled with the name Lens offers when it has one (the voice the face is
+  linked to, or a named face or voice suggested for it) and selected, so typing replaces it.
+- Enter names it and moves on to the next. The notice that follows has Undo.
+- A name another face of the namespace already has (any case) joins that person: it's the same merge as "Same
+  person", and Undo takes it back. Any other name becomes the face's own, everywhere in the namespace.
+- Naming needs the curate permission (editors); members who can't see the reason on the button.
+
+Agents do the same with the MCP tools `list_unnamed_faces` and `name_face`, or `GET
+/api/v1/namespaces/<ns>/faces/unnamed` and `POST /api/v1/faces/<id>/name` ([API](api.md#video)).
 
 ## The video recording page
 
