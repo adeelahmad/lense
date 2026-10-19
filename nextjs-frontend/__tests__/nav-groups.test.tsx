@@ -58,6 +58,18 @@ test("Feeds is in the nav only once there is a feed, so a phone's nav stays as s
   expect(screen.getByRole("link", { name: "Feeds 1" })).toHaveAttribute("href", "/feeds");
 });
 
+test("Playlists is in the nav only once there is one, under Explore after Feeds", () => {
+  const { unmount } = nav(false);
+  expect(screen.queryByRole("link", { name: /^Playlists/ })).not.toBeInTheDocument();
+  unmount();
+  nav(false, { playlists: 2 });
+  expect(screen.getByRole("link", { name: "Playlists 2" })).toHaveAttribute("href", "/playlists");
+  const items = navFor(false);
+  const i = items.findIndex((it) => it.href === "/playlists");
+  expect(items[i]).toMatchObject({ group: "Explore" });
+  expect(items[i - 1].href).toBe("/feeds");
+});
+
 test("Automations is under Automate for everyone, right after Approvals", () => {
   for (const admin of [true, false]) {
     const items = navFor(admin);

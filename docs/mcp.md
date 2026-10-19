@@ -47,8 +47,9 @@ has the same tools, but sees only that namespace, whatever else the person who s
 that take a namespace use this one when none is named, `list_namespaces` and `list_files` show only it, and the tools
 about the server itself (`file_storage`, `monitoring`, `services`, `mcp_servers`, `sandbox_gateway`, `install_settings`,
 `mesh` and the ones that change them) aren't there, even for admins. Nor are the person's own conversations (`list_chats`,
-`read_chat`, `rename_chat`, `export_chat`) and projects (`list_projects`, `read_project`, `create_project`,
-`update_project`, `schedule_project`), which belong to no namespace. An admin counts as an owner of the namespace there.
+`read_chat`, `rename_chat`, `export_chat`), projects (`list_projects`, `read_project`, `create_project`,
+`update_project`, `schedule_project`) and playlists (`list_playlists`, `add_to_playlist`), which belong to no namespace.
+An admin counts as an owner of the namespace there.
 
 It is off until an owner of the namespace turns it on: **Admin → Namespaces →** the namespace **→ Connect apps**, which
 also copies its address, or `PATCH /api/v1/namespaces/<namespace>/integrations` with `{"mcp": true}`, or an agent's
@@ -97,6 +98,8 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 | `find_notes` | [notes](notes.md) by words in their title, summary or text, or by where they're filed (PARA), with the words around the match and links |
 | `read_note` | a note's Markdown with its links and backlinks, by id or as the page of a thing (`recording:12`) |
 | `write_note` | write a note or a thing's page, marked as written by an assistant. Needs a write-scope token and editor access |
+| `list_playlists` | the person's [playlists](api.md#playlists), the latest used first, then the ones others shared, each with how many clips they can read in it and its link; with `playlist_id`, its clips in order, each with its resource, times, title, note and a link to that moment |
+| `add_to_playlist` | keep a moment of a resource (or a highlight) as a clip with a title and a note, at the end of a playlist: by id, by name (made when there's none of that name) or the one used last (a new one called Clips when there's none). Needs a write-scope token |
 | `list_chats` | the person's conversations with Lens's [assistant](assistant.md#chat), newest first, by words in their title, each with its link |
 | `read_chat` | one of them: what it draws on, and the version showing (or the one ending at a `message`), each message with its versions, the tools an answer used, its citations with links and its record; `tree` adds every message's parent and role |
 | `rename_chat` | name one of them, or have Lens [title](assistant.md#titles) it from how it starts (no `title`). Needs a write-scope token |

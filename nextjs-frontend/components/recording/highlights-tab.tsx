@@ -1,10 +1,11 @@
 "use client";
 
-import { Highlighter, Trash2 } from "lucide-react";
+import { Highlighter, ListPlus, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import type { Highlight } from "@/app/openapi-client/types.gen";
 import { usePlayerApi } from "@/components/player/media";
+import { useKeepClip } from "@/components/playlists/hooks";
 import { COLOURS, LABEL_MAX, colourOf, highlightTitle } from "@/components/recording/comments-model";
 import { useRec } from "@/components/recording/context";
 import { useHighlightActions, useHighlights } from "@/components/recording/hooks";
@@ -64,6 +65,7 @@ function HighlightRow({ h, focused }: { h: Highlight; focused: boolean }) {
   const { id, ns, paged, where } = useRec();
   const api = usePlayerApi();
   const { update, remove } = useHighlightActions(id);
+  const { keep, pending } = useKeepClip();
   const [label, setLabel] = useState(h.label ?? "");
   const row = useRef<HTMLLIElement>(null);
   useEffect(() => setLabel(h.label ?? ""), [h.label]);
@@ -121,6 +123,16 @@ function HighlightRow({ h, focused }: { h: Highlight; focused: boolean }) {
         <span className="min-w-0 flex-1 truncate text-[12px] text-fg-muted">
           {writer(h)} · <time title={absolute(h.created_at)}>{relative(h.created_at)}</time>
         </span>
+        <Button
+          size="xs"
+          variant="ghost"
+          icon={<ListPlus />}
+          aria-label="Add to playlist"
+          title="Keep it as a clip in your latest playlist"
+          disabled={pending}
+          onClick={() => keep({ highlight: h.id })}
+          className="px-2"
+        />
         <Button
           size="xs"
           variant="ghost"

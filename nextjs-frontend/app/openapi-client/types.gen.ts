@@ -4758,6 +4758,171 @@ export type ClientRegistration = {
 };
 
 /**
+ * Clip
+ */
+export type Clip = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Playlist
+   */
+  playlist: number;
+  /**
+   * Position
+   *
+   * its place in the playlist, from 0
+   */
+  position: number;
+  /**
+   * Recording
+   */
+  recording: number;
+  /**
+   * T0
+   *
+   * where it starts, in ms from the start
+   */
+  t0: number;
+  /**
+   * T1
+   *
+   * where it ends, in ms
+   */
+  t1: number;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Note
+   */
+  note?: string | null;
+  /**
+   * Quote
+   *
+   * the words picked in the text
+   */
+  quote?: string | null;
+  /**
+   * Highlight
+   *
+   * the highlight it was clipped from
+   */
+  highlight?: number | null;
+  /**
+   * Recording Title
+   */
+  recording_title?: string | null;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Media
+   *
+   * the resource's kind: audio, video, document, image or transcript
+   */
+  media: string;
+  /**
+   * Audio
+   *
+   * a signed link to the resource's audio or video, or null when it has none
+   */
+  audio?: string | null;
+  /**
+   * Link
+   *
+   * the resource's page in the web app at the clip's start
+   */
+  link: string;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ClipCreate
+ */
+export type ClipCreate = {
+  /**
+   * Recording
+   *
+   * the resource the clip is of (or give highlight)
+   */
+  recording?: number | null;
+  /**
+   * Highlight
+   *
+   * clip a highlight: its resource, passage and label, unless given here
+   */
+  highlight?: number | null;
+  /**
+   * T0
+   *
+   * where the clip starts, in ms from the start (required without highlight)
+   */
+  t0?: number | null;
+  /**
+   * T1
+   *
+   * where it ends, in ms (default: 30 seconds on, or the end of the resource)
+   */
+  t1?: number | null;
+  /**
+   * Title
+   *
+   * what it is, in a few words
+   */
+  title?: string | null;
+  /**
+   * Note
+   */
+  note?: string | null;
+  /**
+   * Quote
+   *
+   * the words picked in the text
+   */
+  quote?: string | null;
+  /**
+   * Position
+   *
+   * where it goes, from 0 (default: the end)
+   */
+  position?: number | null;
+};
+
+/**
+ * ClipUpdate
+ */
+export type ClipUpdate = {
+  /**
+   * Title
+   *
+   * empty clears it
+   */
+  title?: string | null;
+  /**
+   * Note
+   *
+   * empty clears it
+   */
+  note?: string | null;
+  /**
+   * T0
+   */
+  t0?: number | null;
+  /**
+   * T1
+   */
+  t1?: number | null;
+};
+
+/**
  * CloudModelProvider
  */
 export type CloudModelProvider = {
@@ -18668,6 +18833,190 @@ export type Player = {
    */
   nsfw?: NsfwState | null;
   [key: string]: unknown;
+};
+
+/**
+ * Playlist
+ */
+export type Playlist = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Shared
+   */
+  shared?: boolean;
+  /**
+   * Mine
+   *
+   * you made it: only you change it
+   */
+  mine: boolean;
+  /**
+   * Created By
+   *
+   * who made it: their email
+   */
+  created_by?: string | null;
+  /**
+   * Created By Name
+   */
+  created_by_name?: string | null;
+  /**
+   * Count
+   *
+   * its clips of resources you can read
+   */
+  count: number;
+  /**
+   * Duration Ms
+   *
+   * how long those clips play, back to back
+   */
+  duration_ms: number;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * PlaylistCreate
+ */
+export type PlaylistCreate = {
+  /**
+   * Name
+   *
+   * unique among your playlists
+   */
+  name: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Shared
+   *
+   * everyone signed in reads it, each seeing only the clips of resources they can read
+   */
+  shared?: boolean;
+};
+
+/**
+ * PlaylistDetail
+ */
+export type PlaylistDetail = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Shared
+   */
+  shared?: boolean;
+  /**
+   * Mine
+   *
+   * you made it: only you change it
+   */
+  mine: boolean;
+  /**
+   * Created By
+   *
+   * who made it: their email
+   */
+  created_by?: string | null;
+  /**
+   * Created By Name
+   */
+  created_by_name?: string | null;
+  /**
+   * Count
+   *
+   * its clips of resources you can read
+   */
+  count: number;
+  /**
+   * Duration Ms
+   *
+   * how long those clips play, back to back
+   */
+  duration_ms: number;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Items
+   *
+   * its clips of resources you can read, in order, each with what a player needs
+   */
+  items: Array<Clip>;
+  /**
+   * Hidden
+   *
+   * clips of resources you can't read, left out
+   */
+  hidden?: number;
+  [key: string]: unknown;
+};
+
+/**
+ * PlaylistOrder
+ */
+export type PlaylistOrder = {
+  /**
+   * Items
+   *
+   * clip ids in their new order; clips not named follow, as they were
+   */
+  items: Array<number>;
+};
+
+/**
+ * PlaylistUpdate
+ */
+export type PlaylistUpdate = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Description
+   *
+   * empty clears it
+   */
+  description?: string | null;
+  /**
+   * Shared
+   */
+  shared?: boolean | null;
 };
 
 /**
@@ -49373,6 +49722,267 @@ export type RotateCollectionFeedResponses = {
 };
 
 export type RotateCollectionFeedResponse = RotateCollectionFeedResponses[keyof RotateCollectionFeedResponses];
+
+export type ListPlaylistsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/playlists";
+};
+
+export type ListPlaylistsResponses = {
+  /**
+   * Response Playlists-List Playlists
+   *
+   * Successful Response
+   */
+  200: Array<Playlist>;
+};
+
+export type ListPlaylistsResponse = ListPlaylistsResponses[keyof ListPlaylistsResponses];
+
+export type CreatePlaylistData = {
+  body: PlaylistCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/playlists";
+};
+
+export type CreatePlaylistErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreatePlaylistError = CreatePlaylistErrors[keyof CreatePlaylistErrors];
+
+export type CreatePlaylistResponses = {
+  /**
+   * Successful Response
+   */
+  200: Playlist;
+};
+
+export type CreatePlaylistResponse = CreatePlaylistResponses[keyof CreatePlaylistResponses];
+
+export type DeletePlaylistData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/playlists/{pid}";
+};
+
+export type DeletePlaylistErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeletePlaylistError = DeletePlaylistErrors[keyof DeletePlaylistErrors];
+
+export type DeletePlaylistResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeletePlaylistResponse = DeletePlaylistResponses[keyof DeletePlaylistResponses];
+
+export type GetPlaylistData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/playlists/{pid}";
+};
+
+export type GetPlaylistErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetPlaylistError = GetPlaylistErrors[keyof GetPlaylistErrors];
+
+export type GetPlaylistResponses = {
+  /**
+   * Successful Response
+   */
+  200: PlaylistDetail;
+};
+
+export type GetPlaylistResponse = GetPlaylistResponses[keyof GetPlaylistResponses];
+
+export type UpdatePlaylistData = {
+  body: PlaylistUpdate;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/playlists/{pid}";
+};
+
+export type UpdatePlaylistErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdatePlaylistError = UpdatePlaylistErrors[keyof UpdatePlaylistErrors];
+
+export type UpdatePlaylistResponses = {
+  /**
+   * Successful Response
+   */
+  200: Playlist;
+};
+
+export type UpdatePlaylistResponse = UpdatePlaylistResponses[keyof UpdatePlaylistResponses];
+
+export type AddClipData = {
+  body: ClipCreate;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/playlists/{pid}/items";
+};
+
+export type AddClipErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type AddClipError = AddClipErrors[keyof AddClipErrors];
+
+export type AddClipResponses = {
+  /**
+   * Successful Response
+   */
+  200: Clip;
+};
+
+export type AddClipResponse = AddClipResponses[keyof AddClipResponses];
+
+export type RemoveClipData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+    /**
+     * Iid
+     */
+    iid: number;
+  };
+  query?: never;
+  url: "/api/v1/playlists/{pid}/items/{iid}";
+};
+
+export type RemoveClipErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RemoveClipError = RemoveClipErrors[keyof RemoveClipErrors];
+
+export type RemoveClipResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RemoveClipResponse = RemoveClipResponses[keyof RemoveClipResponses];
+
+export type UpdateClipData = {
+  body: ClipUpdate;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+    /**
+     * Iid
+     */
+    iid: number;
+  };
+  query?: never;
+  url: "/api/v1/playlists/{pid}/items/{iid}";
+};
+
+export type UpdateClipErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateClipError = UpdateClipErrors[keyof UpdateClipErrors];
+
+export type UpdateClipResponses = {
+  /**
+   * Successful Response
+   */
+  200: Clip;
+};
+
+export type UpdateClipResponse = UpdateClipResponses[keyof UpdateClipResponses];
+
+export type ReorderPlaylistData = {
+  body: PlaylistOrder;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/playlists/{pid}/order";
+};
+
+export type ReorderPlaylistErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ReorderPlaylistError = ReorderPlaylistErrors[keyof ReorderPlaylistErrors];
+
+export type ReorderPlaylistResponses = {
+  /**
+   * Successful Response
+   */
+  200: PlaylistDetail;
+};
+
+export type ReorderPlaylistResponse = ReorderPlaylistResponses[keyof ReorderPlaylistResponses];
 
 export type EstimateBatchData = {
   body: BatchPlan;

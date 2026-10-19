@@ -1800,6 +1800,12 @@ SCHEMA = [
     # passages of resources marked in colour by their editors (app/domain/highlights.py)
     "DEFINE TABLE IF NOT EXISTS highlight SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS highlight_rec ON highlight FIELDS recording",
+    # people's playlists, and the clips in them: moments of resources in order (app/domain/playlists.py)
+    "DEFINE TABLE IF NOT EXISTS playlist SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS playlist_owner ON playlist FIELDS account",
+    "DEFINE TABLE IF NOT EXISTS playlist_item SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS playlist_item_list ON playlist_item FIELDS playlist",
+    "DEFINE INDEX IF NOT EXISTS playlist_item_rec ON playlist_item FIELDS recording",
     # custom metadata fields defined on namespaces and collections (app/domain/fields.py); key: "<space>:<collection>:<target>:<name>"
     "DEFINE TABLE IF NOT EXISTS field SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS field_space ON field FIELDS space",

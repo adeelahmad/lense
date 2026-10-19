@@ -19,6 +19,7 @@ import { useApprovalCount } from "@/components/approvals/use-approvals";
 import { BudgetMeter } from "@/components/costs/budget-meter";
 import { WelcomeTour } from "@/components/home/welcome-tour";
 import { PageChat } from "@/components/page-chat/page-chat";
+import { usePlaylists } from "@/components/playlists/hooks";
 import { useReplyCount } from "@/components/replies/use-replies";
 import { SimilarOnSelect } from "@/components/similar/selection-popover";
 import { Button, IconButton } from "@/components/ui/button";
@@ -123,12 +124,14 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
     queryFn: () => data(Feeds.listFeeds({ client })),
     staleTime: 60_000,
   });
+  const playlists = usePlaylists();
   const replies = useReplyCount();
   const counts = {
     recordings,
     reviews: reviews.data,
     approvals: approvals.data?.waiting || undefined,
     feeds: feeds.data?.length || undefined,
+    playlists: playlists.data?.length || undefined,
     replies: replies.data || undefined,
   };
   const canImport = can("editor", namespace);

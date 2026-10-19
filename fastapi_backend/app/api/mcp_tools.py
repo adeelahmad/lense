@@ -36,6 +36,7 @@ from app.api.v1.routes import graph as graph_routes
 from app.api.v1.routes import jobs as job_routes
 from app.api.v1.routes import namespaces as namespace_routes
 from app.api.v1.routes import notebook as note_routes
+from app.api.v1.routes import playlists as playlist_routes
 from app.api.v1.routes import projects as project_routes
 from app.api.v1.routes import recordings as recording_routes
 from app.api.v1.routes import research as research_routes
@@ -74,6 +75,7 @@ from app.domain import (
     moondream,
     notebook,
     nsfw,
+    playlists,
     rdf,
     render,
     research,
@@ -114,6 +116,7 @@ from app.schemas.chats import ChatScope, ChatSummary
 from app.schemas.entities import EntityHide, EntityList, EntityRename, EntityRetype, EntityUpdate
 from app.schemas.jobs import JobMove, JobsPick
 from app.schemas.notebook import NotePage
+from app.schemas.playlists import ClipCreate
 from app.schemas.projects import (
     ProjectCreate,
     ProjectScheduleCreate,
@@ -1920,6 +1923,123 @@ def write_note(
     sid = ctx.acl.namespace(namespace, "editor")
     pid = notebook.create(ctx.db, sid, ctx.user.id, title, body, summary, None, place, parent_id, about, author="assistant")
     return {"note_id": pid, "url": _note_url(ctx, pid)}
+
+
+# ---------- playlists: clips of moments, played back to back (docs/api.md#playlists) ----------
+def _playlist_url(ctx: Context, pid: int) -> str:
+    return f"{ctx.web}/playlists/{pid}"
+
+
+@tool(
+    "list_playlists",
+    "List playlists",
+    "Your playlists, the latest used first (the first is where add_to_playlist puts a clip by default), then the ones "
+    "others shared: each one's id, name, how many clips you can read in it and how long they play, and its link. With "
+    "playlist_id, one playlist and its clips in order: each clip's resource, times (ms), title, note and a link to that "
+    "moment. Only clips of resources you can read.",
+    Arg("playlist_id", "integer", "one playlist, with its clips"),
+    personal=True,
+)
+def list_playlists(ctx: Context, playlist_id: int | None) -> dict[str, Any]:
+    def head(p: Any) -> dict[str, Any]:
+        return store.clean(
+            {
+                "playlist_id": p.id,
+                "name": p.name,
+                "description": p.description,
+                "shared": p.shared or None,
+                "mine": p.mine,
+                "made_by": None if p.mine else p.created_by_name or p.created_by,
+                "clips": p.count,
+                "duration_ms": p.duration_ms,
+                "url": _playlist_url(ctx, p.id),
+            }
+        )
+
+    if playlist_id is None:
+        return {"playlists": [head(p) for p in playlist_routes.list_playlists(ctx.user, ctx.acl, ctx.db)]}
+    d = playlist_routes.get_playlist(playlist_id, ctx.user, ctx.acl, ctx.db, ctx.cfg)
+    return {
+        **head(d),
+        "items": [
+            store.clean(
+                {
+                    "clip_id": c.id,
+                    "recording_id": c.recording,
+                    "recording_title": c.recording_title,
+                    "namespace": c.namespace,
+                    "t0": c.t0,
+                    "t1": c.t1,
+                    "title": c.title,
+                    "note": c.note,
+                    "url": ctx.link(c.recording, c.t0),
+                }
+            )
+            for c in d.items
+        ],
+    }
+
+
+@tool(
+    "add_to_playlist",
+    "Add a clip to a playlist",
+    "Keep a moment of a resource the person can read as a clip (from t0 to t1 in ms, with a title and a note) at the "
+    "end of one of their playlists: playlist_id, or a playlist by its name (made when they have none of that name), "
+    "or by default the one they used last (a new one called Clips when they have none). Give recording_id with t0, "
+    "or a highlight_id to clip that highlight. Needs a token with the write scope.",
+    Arg("recording_id", "integer", "the resource (from search or list_recordings)"),
+    Arg("t0", "integer", "where the clip starts, in ms from the start", minimum=0),
+    Arg("t1", "integer", "where it ends, in ms (default: 30 seconds on)", minimum=0),
+    Arg("title", "string", "what it is, in a few words", max_length=200),
+    Arg("note", "string", "a note on it", max_length=2000),
+    Arg("highlight_id", "integer", "clip this highlight instead: its resource, passage and label"),
+    Arg("playlist_id", "integer", "the playlist (from list_playlists)"),
+    Arg("playlist", "string", "or the playlist's name", max_length=120),
+    writes=True,
+    personal=True,
+)
+def add_to_playlist(
+    ctx: Context,
+    recording_id: int | None,
+    t0: int | None,
+    t1: int | None,
+    title: str | None,
+    note: str | None,
+    highlight_id: int | None,
+    playlist_id: int | None,
+    playlist: str | None,
+) -> dict[str, Any]:
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to add clips")
+    if recording_id is None and highlight_id is None:
+        raise ToolError("give recording_id with t0, or highlight_id")
+    if recording_id is not None and highlight_id is None and t0 is None:
+        raise ToolError("give t0, where the clip starts")
+    if recording_id is not None:
+        ctx.acl.recording(recording_id)  # one the person can read, before any playlist is made
+    if playlist_id is None:
+        mine = [p for p in playlists.visible(ctx.db, ctx.user.id) if p["account"] == ctx.user.id]
+        if playlist:
+            same = next((p for p in mine if p["name"].lower() == " ".join(playlist.split()).lower()), None)
+            playlist_id = same["id"] if same else playlists.create(ctx.db, ctx.user.id, playlist)
+        else:
+            playlist_id = playlists.default_for(ctx.db, ctx.user.id)
+    body = ClipCreate(recording=recording_id, highlight=highlight_id, t0=t0, t1=t1, title=title, note=note)
+    c = playlist_routes.add_clip(playlist_id, body, ctx.user, ctx.acl, ctx.db, ctx.cfg)
+    name = playlists.get(ctx.db, playlist_id)["name"]
+    return store.clean(
+        {
+            "clip_id": c.id,
+            "playlist_id": playlist_id,
+            "playlist": name,
+            "position": c.position,
+            "recording_id": c.recording,
+            "t0": c.t0,
+            "t1": c.t1,
+            "title": c.title,
+            "url": _playlist_url(ctx, playlist_id),
+        }
+    )
 
 
 # ---------- the person's conversations with Lens's assistant (docs/assistant.md, "Copy and export") ----------

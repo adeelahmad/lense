@@ -1,10 +1,12 @@
 "use client";
 
-import { Highlighter, Link2, MessageSquare, MessagesSquare, Share2, StickyNote } from "lucide-react";
+import { Highlighter, Link2, ListPlus, MessageSquare, MessagesSquare, Share2, StickyNote } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useEffect, useState, type RefObject } from "react";
 
 import { newHighlightBody } from "@/components/recording/comments-model";
+import { useKeepClip } from "@/components/playlists/hooks";
+import { titleFromQuote } from "@/components/playlists/model";
 import { useRec } from "@/components/recording/context";
 import { useHighlightActions } from "@/components/recording/hooks";
 import { draftFromSelection } from "@/components/recording/notes-model";
@@ -24,11 +26,12 @@ export function timeAtOffset(seg: { t0: number; t1: number; text: string }, offs
 }
 
 /** Selecting text offers Copy link at that moment, a IIIF link (recordings), Ask in chat (with the quote), Add note
- * and Comment (about that moment, quoting it) and, for editors, Highlight (in yellow; the Highlights tab recolours
- * and labels it). The text's lines carry `data-seg` with their segment's index in `model.segments`. */
+ * and Comment (about that moment, quoting it), Add to playlist (a clip of that moment, in your latest playlist) and,
+ * for editors, Highlight (in yellow; the Highlights tab recolours and labels it). The text's lines carry `data-seg` with their segment's index in `model.segments`. */
 export function SelectionToolbar({ box }: { box: RefObject<HTMLDivElement | null> }) {
   const { id, ns, model, canEdit, paged, where, askInChat, addNote, addComment } = useRec();
   const { create: highlight } = useHighlightActions(id);
+  const { keep } = useKeepClip();
   const toast = useToast();
   const [sel, setSel] = useState<{
     x: number;
@@ -185,6 +188,24 @@ export function SelectionToolbar({ box }: { box: RefObject<HTMLDivElement | null
           className="flex h-[30px] items-center gap-1.5 rounded-[7px] px-2.5 hover:bg-white/15"
         >
           <MessageSquare className="size-3.5" /> Comment
+        </button>
+        <button
+          type="button"
+          title="Keep this moment as a clip in your latest playlist"
+          onClick={() => {
+            keep({
+              recording: id,
+              t0: sel.t,
+              t1: sel.end > sel.t ? sel.end : undefined,
+              title: titleFromQuote(sel.quote),
+              quote: sel.quote.slice(0, 1000),
+            });
+            window.getSelection()?.removeAllRanges();
+            setSel(null);
+          }}
+          className="flex h-[30px] items-center gap-1.5 rounded-[7px] px-2.5 hover:bg-white/15"
+        >
+          <ListPlus className="size-3.5" /> Add to playlist
         </button>
         <button
           type="button"

@@ -159,17 +159,18 @@ def update_account(db, uid, name=None, admin=None, disabled=None, password=None)
 def remove_account(db, uid, lose_vaults=False):
     """Remove someone for good: every way they sign in (sessions, passkeys, sign-in links, connected accounts, API
     tokens, apps they gave access to, their collections' podcast feed addresses), every role and permission they had,
-    and what only they could see (their chats, their own notes, highlights, saved views and collections, circles, what
-    was shared with them and what agents asked, unfinished uploads). What they shared stays (notes and views for
-    everyone, comments, shares with circles), under their name: the account is kept as a marker without an email, so their
+    and what only they could see (their chats, their own notes, highlights, saved views, collections and playlists,
+    circles, what was shared with them and what agents asked, unfinished uploads). What they shared stays (notes, views
+    and playlists for everyone, comments, shares with circles), under their name: the account is kept as a marker without an email, so their
     address can be invited again. Refused (ValueError) when their passkeys are the only way into a vault, unless
     `lose_vaults`."""
-    from . import passkeys
+    from . import passkeys, playlists
 
     u = get_account(db, uid)
     if not u or u.get("removed_at"):
         raise KeyError(uid)
     passkeys.remove_all(db, uid, lose_vaults)
+    playlists.remove_account(db, uid)
     for g in db.values("SELECT VALUE record::id(id) FROM oauth_grant WHERE account = $a", a=uid):
         db.run(["DELETE oauth_token WHERE gid = $g", "DELETE $r"], g=g, r=R("oauth_grant", g))
     chats = db.values("SELECT VALUE record::id(id) FROM chat WHERE account = $a", a=uid)
