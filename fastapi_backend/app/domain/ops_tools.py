@@ -78,7 +78,7 @@ SECTIONS = (
 ALWAYS_ASK = {"telemetry", "analytics", "sensors", "shares", "files", "web", "secrets", "scaling"}
 # who gets in always waits for the admin's approval: a person, or a machine joining the mesh; and so does taking a
 # machine off it, which stops what runs there
-ASK_TOOLS = {"invite_person", "change_person", "add_mesh_node", "remove_mesh_node"}
+ASK_TOOLS = {"invite_person", "change_person", "add_mesh_node", "remove_mesh_node", "let_go_scaling_stray"}
 # within a scaling group's approved terms (its min, max and budget), or a change to the mesh that's undone as easily
 # (renaming a node, the namespaces it serves, bringing a removed one back, withdrawing a token), so made at once
 # unless the answer read outside text
@@ -146,6 +146,14 @@ SCALING_TOOLS = [
         "Let one unit of a scaling group go now, by its id from scaling: a worker finishes or hands back its job first.",
         {"unit_id": {"type": "integer"}, "why": _S},
         ["unit_id"],
+        True,
+    ),
+    (
+        "let_go_scaling_stray",
+        "Ask the person to let a stray go: a unit a provider runs with Lens's tag that Lens has no unit for (a provider's "
+        "strays in scaling), terminated at the provider once they approve in the web app.",
+        {"provider_id": {"type": "integer"}, "stray_id": _S},
+        ["provider_id", "stray_id"],
         True,
     ),
 ]
@@ -427,8 +435,9 @@ def apply(db, cfg, base, tool, args, user, editable, admin, via="agent"):
         if not admin:
             raise PermissionError("only admins manage scaling")
         out = scaling.apply_tool(db, cfg, tool, args, user, via)
-        what = out.get("group") or out.get("unit") or {}
-        table = "scale_group" if "group" in out else "scale_node"
+        table, what = next(
+            ((t, out[k]) for k, t in (("group", "scale_group"), ("unit", "scale_node"), ("provider", "scale_provider")) if k in out)
+        )
         auth.audit(db, user, f"scaling.{tool}", f"{table}:{what.get('id')}", {"via": via, "assistant": True})
         return out
     if tool in MESH:
@@ -715,6 +724,17 @@ class OpsTools:
             raise ValueError("there's no scaling unit with that id: scaling lists them") from None
         args = store.clean({"unit_id": n["id"], "why": why})
         return self._change("terminate_scaling_unit", args, f"Let the unit {n['name']} go")
+
+    def t_let_go_scaling_stray(self, provider_id, stray_id):
+        try:
+            p = scaling._provider(self.db, int(provider_id))
+        except (KeyError, TypeError, ValueError):
+            raise ValueError("there's no scaling provider with that id: scaling lists them") from None
+        s = next((x for x in p.get("strays") or [] if x.get("id") == str(stray_id)), None)
+        if s is None:
+            raise ValueError(f"{p['name']} has no stray with that id: scaling lists each provider's strays")
+        args = {"provider_id": p["id"], "stray_id": s["id"]}
+        return self._change("let_go_scaling_stray", args, f"Let {s.get('name') or s['id']} go at {p['name']}")
 
     def t_mesh(self):
         v = mesh.agent_view(self.db, self.cfg)

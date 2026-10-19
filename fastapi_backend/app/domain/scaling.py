@@ -64,6 +64,8 @@ MAX_FAILURES = 3  # launches that failed in a row before the group pauses itself
 WORKER_ALIVE_SECONDS = 120  # a worker whose heartbeat is older isn't counted (they register every 30 seconds)
 WORKER_LOST_SECONDS = 600  # a unit's worker silent this long is lost: terminated and replaced
 MODEL_WINDOW_SECONDS = 300  # model metrics look at the last five minutes
+STRAY_MINUTES = 10  # how often each provider is asked for the units it runs that carry Lens's tag
+STRAY_GRACE_MINUTES = 60  # a unit Lens let go this recently may still show at its provider while it goes
 NAME_RX = re.compile(r"^[^\x00-\x1f]{1,80}$")
 TAG_RX = re.compile(r"^[a-z][a-z0-9-]{0,15}$")
 METRICS = {
@@ -74,7 +76,10 @@ METRICS = {
     "model_calls_per_minute": "model calls per minute over the last five minutes",
     "model_seconds": "how long a model call took on average over the last five minutes, in seconds",
 }
-PROVIDER_FIELDS = "record::id(id) AS id, name, driver, settings, sealed, price, note, created_at, updated_at, updated_by, checked_at, check"
+PROVIDER_FIELDS = (
+    "record::id(id) AS id, name, driver, settings, sealed, price, note, created_at, updated_at, updated_by, checked_at, check,"
+    " listed_at, list_error, strays"
+)
 GROUP_FIELDS = (
     "record::id(id) AS id, name, kind, provider, template, min, max, desired, cooldown_seconds, warmup_seconds, terminate, rules, "
     "rule_state, at_cap, enabled, approval, paused, paused_why, capped, created_at, updated_at, updated_by, last_out_at, last_in_at, "
@@ -182,6 +187,9 @@ def provider_view(p):
         "note": p.get("note"),
         "checked_at": p.get("checked_at"),
         "check": p.get("check"),
+        "listed_at": p.get("listed_at"),
+        "list_error": p.get("list_error"),
+        "strays": p.get("strays") or [],
         "created_at": p.get("created_at"),
         "updated_at": p.get("updated_at"),
         "updated_by": p.get("updated_by"),
@@ -800,6 +808,36 @@ def protect(db, cfg, nid, on=True, by=None):
     return node_view(_node(db, nid))
 
 
+def let_go_stray(db, cfg, pid, sid, by=None, via="web"):
+    """Let a stray (a unit its provider runs with Lens's tag that no unit of Lens's stands for) go: terminated at the
+    provider. Lens didn't start it as far as it knows, so that is the person's own pick, signed in to the web app (an
+    approval there of the assistant's ask is one); agents never let one go on their own."""
+    if via != "web":
+        raise Unapproved("letting go a unit Lens didn't keep track of is the person's own pick, signed in to Lens")
+    p = opened(db, cfg, pid)
+    strays = p.get("strays") or []
+    s = next((x for x in strays if x.get("id") == str(sid)), None)
+    if s is None:
+        raise KeyError(f"{p.get('name')} has no stray {sid}")
+    mine = db.values(
+        "SELECT VALUE id FROM scale_node WHERE provider = $p AND state IN $s AND (external_id = $id OR name = $n)",
+        p=p["id"],
+        s=list(ALIVE),
+        id=s["id"],
+        n=s.get("name") or s["id"],
+    )
+    if mine:  # Lens knows it now: it goes as a unit does
+        raise ValueError(f"{s.get('name') or s['id']} is a unit of Lens's now: let it go as one")
+    drv = drivers.get(p["driver"])
+    refs = [_ref("scale_provider", p["id"])]
+    with activity.call(f"scaling.{drv.id}.terminate", cfg, refs=refs):
+        drv.terminate(p, {"external_id": s["id"], "name": s.get("name")})
+    left = [x for x in strays if x.get("id") != s["id"]]
+    db.q("UPDATE $r SET strays = $s", r=R("scale_provider", p["id"]), s=left)
+    activity.record("run", "scaling.stray.terminate", refs, cfg, db, actor=by, detail={"unit": s.get("name") or s["id"], "id": s["id"]})
+    return provider_view(_provider(db, p["id"]))
+
+
 def terminate_node(db, cfg, nid, by=None, why=None):
     """Let a unit go now: a running worker drains first (its job is handed back), anything else is terminated."""
     n = _node(db, nid)
@@ -1060,11 +1098,58 @@ class Scaler:
                 self.db.q("UPDATE $r SET error = $e", r=R("scale_group", g["id"]), e=err)
                 self.log(f"scaling: group {g['id']}: {err}")
         try:
+            self._strays(cfg, now)
+        except Exception as e:  # noqa: BLE001 - looked for again next tick
+            self.log(f"scaling: couldn't look for units Lens lost: {type(e).__name__}: {e}")
+        try:
             self._serve(cfg)
         except Exception as e:  # noqa: BLE001 - judged again next tick
             self.log(f"scaling: couldn't point model calls at a model unit: {type(e).__name__}: {e}")
         self.db.q("UPDATE $r MERGE {ticked_at: $t, running: true} WHERE owner = $me", r=ROW, t=_iso(now), me=self.name)
         return did
+
+    def _strays(self, cfg, now):
+        """Units a provider runs that carry Lens's tag but no unit of Lens's stands for (a launch whose answer was lost,
+        a terminate that half failed): they may cost money, so each shows on its provider (`strays`) and goes in the
+        activity ledger once, when first seen. Every STRAY_MINUTES each provider is asked (the driver's listing); Lens
+        lets none of them go itself."""
+        db, tag = self.db, conf(cfg)["tag"]
+        since = _iso(now - dt.timedelta(minutes=STRAY_GRACE_MINUTES))
+        for row in db.rows(f"SELECT {PROVIDER_FIELDS} FROM scale_provider ORDER BY id"):
+            listed = _age(row.get("listed_at"), now)
+            if listed is not None and listed < STRAY_MINUTES * 60:
+                continue
+            pid, refs = row["id"], [_ref("scale_provider", row["id"])]
+            try:
+                p = opened(db, cfg, pid)
+                drv = drivers.get(p["driver"])
+                with activity.call(f"scaling.{drv.id}.listing", cfg, refs=refs):
+                    found = drv.listing(p, tag) or []
+            except Exception as e:  # noqa: BLE001 - shown on the provider; asked again in STRAY_MINUTES
+                err = f"{type(e).__name__}: {e}"[:300] if not isinstance(e, drivers.DriverError) else str(e)[:300]
+                db.q("UPDATE $r SET listed_at = $t, list_error = $e", r=R("scale_provider", pid), t=_iso(now), e=err)
+                continue
+            # a unit that runs is known by its id or its name; one let go lately by its id only, since a launch that
+            # failed (its id never came back) may have left a unit running under its name
+            known = set()
+            for n in db.rows(
+                "SELECT name, external_id, state FROM scale_node WHERE provider = $p AND (state IN $s OR ended_at > $since)",
+                p=pid,
+                s=list(ALIVE),
+                since=since,
+            ):
+                known |= {n.get("external_id"), n.get("name") if n.get("state") in ALIVE else None}
+            was = {s["id"]: s for s in row.get("strays") or []}
+            strays = []
+            for u in found:
+                uid, name = str(u.get("id"))[:200], (str(u["name"])[:120] if u.get("name") else None)
+                if uid in known or (name and name in known):
+                    continue
+                strays.append(was.get(uid) or store.clean({"id": uid, "name": name, "seen_at": _iso(now)}))
+                if uid not in was:
+                    activity.record("run", "scaling.stray", refs, cfg, db, ok=False, detail={"unit": name or uid, "id": uid})
+                    self.log(f"scaling: {row.get('name')} runs {name or uid}, carrying Lens's tag, but Lens has no unit for it")
+            db.q("UPDATE $r SET listed_at = $t, list_error = NONE, strays = $s", r=R("scale_provider", pid), t=_iso(now), s=strays)
 
     def _serve(self, cfg):
         """While a model group that serves model calls (its template's `use_as_provider`) has a running unit, Lens's
@@ -1370,7 +1455,14 @@ def overview(db, cfg, now=None):
 
 # ---------- the assistant and MCP ----------
 # the assistant's and MCP's tools that change scaling (ops_tools.SCALING_TOOLS, mcp_tools); `scaling` only reads
-TOOLS = ("propose_scaling_group", "change_scaling_group", "set_scaling_desired", "pause_scaling_group", "terminate_scaling_unit")
+TOOLS = (
+    "propose_scaling_group",
+    "change_scaling_group",
+    "set_scaling_desired",
+    "pause_scaling_group",
+    "terminate_scaling_unit",
+    "let_go_scaling_stray",
+)
 
 
 def apply_tool(db, cfg, tool, args, user, via="agent"):
@@ -1388,6 +1480,8 @@ def apply_tool(db, cfg, tool, args, user, via="agent"):
         return {"group": pause_group(db, cfg, int(args["group_id"]), bool(args.get("paused", True)), args.get("why"), by)}
     if tool == "terminate_scaling_unit":
         return {"unit": terminate_node(db, cfg, int(args["unit_id"]), by, args.get("why"))}
+    if tool == "let_go_scaling_stray":
+        return {"provider": let_go_stray(db, cfg, int(args["provider_id"]), str(args["stray_id"]), by, via)}
     raise ValueError(f"no tool {tool}")
 
 

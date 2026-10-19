@@ -12096,6 +12096,18 @@ export type LayaStatus = {
 };
 
 /**
+ * LetGo
+ */
+export type LetGo = {
+  /**
+   * Id
+   *
+   * the stray's id at the provider, from the provider's strays
+   */
+  id: string;
+};
+
+/**
  * LinkImportResult
  */
 export type LinkImportResult = {
@@ -19113,6 +19125,24 @@ export type Provider = {
   check?: {
     [key: string]: unknown;
   } | null;
+  /**
+   * Listed At
+   *
+   * when Lens last asked the provider for the units it runs with Lens's tag
+   */
+  listed_at?: string | null;
+  /**
+   * List Error
+   *
+   * why that last asking failed
+   */
+  list_error?: string | null;
+  /**
+   * Strays
+   *
+   * units the provider runs with Lens's tag that no unit of Lens's stands for
+   */
+  strays?: Array<Stray>;
   /**
    * Created At
    */
@@ -26621,6 +26651,29 @@ export type StopResult = {
    * an answer was being written, and stops after its current piece or step
    */
   stopping: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * Stray
+ */
+export type Stray = {
+  /**
+   * Id
+   *
+   * the provider's id for it
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Seen At
+   *
+   * when Lens first saw it
+   */
+  seen_at?: string | null;
   [key: string]: unknown;
 };
 
@@ -51743,6 +51796,36 @@ export type CheckProviderResponses = {
 };
 
 export type CheckProviderResponse = CheckProviderResponses[keyof CheckProviderResponses];
+
+export type LetGoStrayData = {
+  body: LetGo;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/scaling/providers/{pid}/strays/let-go";
+};
+
+export type LetGoStrayErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type LetGoStrayError = LetGoStrayErrors[keyof LetGoStrayErrors];
+
+export type LetGoStrayResponses = {
+  /**
+   * Successful Response
+   */
+  200: Provider;
+};
+
+export type LetGoStrayResponse = LetGoStrayResponses[keyof LetGoStrayResponses];
 
 export type ListGroupsData = {
   body?: never;

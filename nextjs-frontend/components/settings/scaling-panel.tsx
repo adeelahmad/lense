@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 
 import { Scaling } from "@/app/openapi-client";
-import type { DriverField, DriverSpec, Group, Provider } from "@/app/openapi-client/types.gen";
+import type { DriverField, DriverSpec, Group, Provider, Stray } from "@/app/openapi-client/types.gen";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -290,6 +290,14 @@ export function checkText(p: Provider): string {
   return c.ok ? "Check passed" : `Check failed: ${sentence(String(c.error ?? "no reason given"))}`;
 }
 
+/** Units the provider runs with Lens's tag that no unit of Lens's stands for, or why Lens couldn't ask, in words. */
+export function strayText(p: Provider): string | null {
+  const strays = p.strays ?? [];
+  if (strays.length)
+    return `Runs ${strays.length === 1 ? "a unit" : `${strays.length} units`} with Lens’s tag that Lens didn’t keep track of. They may cost money: let go what you don’t need.`;
+  return p.list_error ? `Couldn’t list its units: ${sentence(p.list_error)}` : null;
+}
+
 /** What a driver needs fetched, and its licence, when it needs anything. */
 function fetchNote(d: DriverSpec): string | null {
   if (!d.extra) return null;
@@ -311,6 +319,8 @@ export function ScalingProviders() {
   const [groupOn, setGroupOn] = useState<Provider | null>(null);
   const [hidden, setHidden] = useState<number[]>([]);
   const pending = useRef(new Map<number, ReturnType<typeof setTimeout>>());
+  const [goneStrays, setGoneStrays] = useState<string[]>([]);
+  const letting = useRef(new Map<string, () => void>());
   const providers = useQuery({
     queryKey: ["scaling-providers"],
     queryFn: () => data(Scaling.listProviders({ client })),
@@ -360,6 +370,47 @@ export function ScalingProviders() {
       waiting.clear();
     };
   }, []);
+  // Letting a stray go terminates it at the provider, which can't be undone there, so it too waits a few seconds for
+  // Undo; leaving the page lets go at once whatever is waiting.
+  useEffect(() => {
+    const waiting = letting.current;
+    return () => {
+      for (const go of waiting.values()) go();
+      waiting.clear();
+    };
+  }, []);
+  const letGo = (p: Provider, s: Stray) => {
+    const key = `${p.id}:${s.id}`;
+    const name = s.name ?? s.id;
+    setGoneStrays((g) => [...g, key]);
+    const go = () =>
+      void data(Scaling.letGoStray({ client, path: { pid: p.id }, body: { id: s.id } }))
+        .then(refresh)
+        .catch((e: Error) => {
+          setGoneStrays((g) => g.filter((x) => x !== key));
+          toast({ title: `Couldn’t let ${name} go`, body: e.message, tone: "red" });
+        });
+    const t = setTimeout(() => {
+      letting.current.delete(key);
+      go();
+    }, UNDO_MS);
+    letting.current.set(key, () => {
+      clearTimeout(t);
+      go();
+    });
+    toast({
+      title: `Letting ${name} go at ${p.name}`,
+      duration: UNDO_MS,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          clearTimeout(t);
+          letting.current.delete(key);
+          setGoneStrays((g) => g.filter((x) => x !== key));
+        },
+      },
+    });
+  };
   const remove = (p: Provider) => {
     setHidden((h) => [...h, p.id]);
     const t = setTimeout(() => {
@@ -412,6 +463,33 @@ export function ScalingProviders() {
                   >
                     {checkText(p)}
                   </div>
+                  {strayText(p) && (
+                    <div className={cn("text-[12.5px]", p.strays?.length ? "text-red-dark" : "text-fg-secondary")}>
+                      {strayText(p)}
+                    </div>
+                  )}
+                  {(p.strays ?? []).length > 0 && (
+                    <ul
+                      aria-label={`Units ${p.name} runs that Lens lost track of`}
+                      className="mt-1 flex flex-col gap-1"
+                    >
+                      {(p.strays ?? [])
+                        .filter((s) => !goneStrays.includes(`${p.id}:${s.id}`))
+                        .map((s) => (
+                          <li key={s.id} className="flex items-center gap-2 text-[12.5px]">
+                            <span className="min-w-0 truncate text-fg">{s.name ?? s.id}</span>
+                            <Button
+                              size="xs"
+                              variant="danger-ghost"
+                              onClick={() => letGo(p, s)}
+                              aria-label={`Let ${s.name ?? s.id} go`}
+                            >
+                              Let go
+                            </Button>
+                          </li>
+                        ))}
+                    </ul>
+                  )}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button size="xs" onClick={() => setGroupOn(p)} aria-label={`New group on ${p.name}`}>
