@@ -16,11 +16,19 @@ import {
   Templates,
   Video,
 } from "@/app/openapi-client";
-import type { CommentCreate, FileUpdate, HighlightCreate, NoteCreate, Recording } from "@/app/openapi-client/types.gen";
+import type {
+  CommentCreate,
+  FaceBlurCreate,
+  FileUpdate,
+  HighlightCreate,
+  NoteCreate,
+  Recording,
+} from "@/app/openapi-client/types.gen";
 import type { EvidencePart } from "@/components/evidence/parts-dialog";
 import type { FileRole } from "@/components/recording/files-model";
 import { isActive, normalizeJob, visualNotes, type JobInfo } from "@/components/recording/jobs";
 import { normalizePlayer } from "@/components/recording/model";
+import { blurring } from "@/components/recording/video/face-blur-model";
 import { useToast } from "@/components/ui/toast";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
 import { useArchive } from "@/lib/hooks/session";
@@ -40,6 +48,7 @@ export const rk = {
   files: (id: number) => ["recording", id, "files"] as const,
   spec: (id: number) => ["recording", id, "spec"] as const,
   translation: (id: number) => ["recording", id, "files", "translation"] as const,
+  faceBlur: (id: number) => ["recording", id, "files", "face-blur"] as const,
   fileLines: (id: number, fid: number) => ["recording", id, "files", fid, "lines"] as const,
   job: (jid: number) => ["job", jid] as const,
 };
@@ -481,6 +490,46 @@ export function useSetLanguage(id: number) {
         tone: "red",
       }),
   });
+}
+
+/** A video's copy with the faces blurred for sharing, and the job making one: asked again every few seconds while it
+ * runs, so its progress shows (docs/video.md, Blurring faces for sharing). */
+export function useFaceBlur(id: number, enabled = true) {
+  const client = useApiClient();
+  return useQuery({
+    queryKey: rk.faceBlur(id),
+    enabled,
+    queryFn: () => data(Video.getFaceBlur({ client, path: { rid: id } })),
+    refetchInterval: (query) => (blurring(query.state.data) ? 3000 : false),
+  });
+}
+
+/** Make the copy with these faces blurred, in the background; and have visitors play it, or not. */
+export function useFaceBlurActions(id: number) {
+  const client = useApiClient();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const refresh = () => {
+    void qc.invalidateQueries({ queryKey: rk.faceBlur(id) });
+    void qc.invalidateQueries({ queryKey: rk.jobs(id) });
+  };
+  const fail = (title: string) => (e: unknown) =>
+    toast({ title, body: e instanceof ApiError ? e.message : "Please try again.", tone: "red" });
+  return {
+    blur: useMutation({
+      mutationFn: (body: FaceBlurCreate) => data(Video.blurFaces({ client, path: { rid: id }, body })),
+      onSuccess: refresh,
+      onError: fail("Couldn’t start blurring the faces"),
+    }),
+    visitors: useMutation({
+      mutationFn: (on: boolean) => data(Video.setFaceBlurVisitors({ client, path: { rid: id }, body: { on } })),
+      onSuccess: (out, on) => {
+        qc.setQueryData(rk.faceBlur(id), out);
+        toast({ title: on ? "Visitors see the copy with faces blurred" : "Visitors see the original", tone: "green" });
+      },
+      onError: fail("Couldn’t change what visitors see"),
+    }),
+  };
 }
 
 /** The asset's spec from its transcript (docs/notes.md, Specs from transcripts), checked again while it's being written. */

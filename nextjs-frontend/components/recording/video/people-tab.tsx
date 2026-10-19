@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Ellipsis, ScanFace, UserRoundX } from "lucide-react";
+import { Download, Ellipsis, ScanFace, UserRoundX } from "lucide-react";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
@@ -9,16 +9,17 @@ import { Video } from "@/app/openapi-client";
 import { usePlayerApi } from "@/components/player/media";
 import { useBlur } from "@/components/nsfw/nsfw";
 import { useRec } from "@/components/recording/context";
-import { rk, useNamespaceFaces } from "@/components/recording/hooks";
+import { rk, useFaceBlur, useFaceBlurActions, useNamespaceFaces } from "@/components/recording/hooks";
 import { facePages, pageRef } from "@/components/recording/document/model";
 import type { FaceTrack } from "@/components/recording/model";
+import { blurRequest, blurStatus, copyLine } from "@/components/recording/video/face-blur-model";
 import { screenTime } from "@/components/recording/video/model";
 import { useFaceColors } from "@/components/recording/video/face-colors";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import { Input, Switch } from "@/components/ui/field";
+import { Checkbox, Input, Switch } from "@/components/ui/field";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
-import { EmptyState, Skeleton } from "@/components/ui/states";
+import { EmptyState, Progress, Skeleton } from "@/components/ui/states";
 import { useToast } from "@/components/ui/toast";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
 import { tc } from "@/lib/format";
@@ -79,6 +80,7 @@ export function PeopleTab({ noFaces, onPage }: { noFaces?: boolean; onPage?: (pa
   return (
     <>
       {pixelate}
+      {!onPage && <BlurFacesPanel />}
       {model.facesMode === "detect" && (
         <Notice title="Faces are counted, not identified">
           This namespace is set to detect only: {onPage ? "boxes and pages" : "boxes and screen time"}, no names, no
@@ -467,5 +469,155 @@ function PixelateSwitch({ id, ns, on }: { id: number; ns: string | null; on: boo
         />
       </div>
     </div>
+  );
+}
+
+/**
+ * Blur faces for sharing (docs/video.md): one click, every face ticked, Enter to start; the job's progress, then the
+ * copy to download and, for owners, whether visitors play it instead of the original. The original stays as it is.
+ */
+function BlurFacesPanel() {
+  const { id, ns, model, canEdit } = useRec();
+  const { can } = useArchive();
+  const state = useFaceBlur(id);
+  const act = useFaceBlurActions(id);
+  const [picking, setPicking] = useState(false);
+  const status = blurStatus(state.data);
+  const copy = state.data?.blurred ?? null;
+  const owner = can("owner", ns);
+  const busy = status != null && status.tone !== "red";
+  return (
+    <div className="mb-3 flex flex-col gap-2 rounded-md border border-border bg-surface px-3 py-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
+        <div className="min-w-0 flex-1 basis-[240px]">
+          <div className="text-[13.5px] font-semibold text-fg">Blur faces for sharing</div>
+          <p className="text-[12.5px] leading-snug text-fg-muted">
+            A copy of this video with faces blurred, kept with its files. The original stays as it is.
+          </p>
+        </div>
+        <Button
+          size="sm"
+          variant={copy ? "ghost" : "primary"}
+          disabled={!canEdit || busy}
+          disabledReason={!canEdit ? needRole("editor", ns) : busy ? "A copy is being made" : undefined}
+          onClick={() => setPicking(true)}
+        >
+          {copy ? "Blur again" : "Blur faces for sharing"}
+        </Button>
+      </div>
+      {status && (
+        <div role="status" className="flex flex-col gap-1.5">
+          <span
+            className={cn("text-[12.5px] leading-snug", status.tone === "red" ? "text-red-dark" : "text-fg-secondary")}
+          >
+            {status.text}
+          </span>
+          {status.tone !== "red" && <Progress value={status.progress} tone={status.tone} label="Blurring faces" />}
+        </div>
+      )}
+      {copy && (
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 border-t border-border pt-2">
+          <div className="min-w-0 flex-1 basis-[200px]">
+            <div className="truncate text-[13px] font-semibold text-fg">{copy.name}</div>
+            <div className="text-[12px] text-fg-muted">{copyLine(copy)}</div>
+          </div>
+          <a
+            href={copy.download}
+            download={copy.name}
+            className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-blue hover:underline"
+          >
+            <Download className="size-4" /> Download
+          </a>
+          <div className="flex items-center gap-2.5">
+            {!owner && <span className="text-[12px] text-fg-muted">{needRole("owner", ns)}</span>}
+            <Switch
+              label="Visitors see this copy"
+              checked={Boolean(copy.visitors)}
+              disabled={!owner || act.visitors.isPending}
+              onCheckedChange={(v) => act.visitors.mutate(v)}
+            />
+          </div>
+        </div>
+      )}
+      {picking && (
+        <BlurDialog
+          faces={model.faces}
+          recognize={model.facesMode === "recognize"}
+          pending={act.blur.isPending}
+          onClose={() => setPicking(false)}
+          onBlur={(picked) =>
+            act.blur.mutate(
+              blurRequest(
+                picked,
+                model.faces.map((f) => f.id),
+              ),
+              { onSuccess: () => setPicking(false) },
+            )
+          }
+        />
+      )}
+    </div>
+  );
+}
+
+/** Which faces to blur: all of them ticked and the button focused, so Enter starts it at once. */
+function BlurDialog({
+  faces,
+  recognize,
+  pending,
+  onClose,
+  onBlur,
+}: {
+  faces: FaceTrack[];
+  recognize: boolean;
+  pending: boolean;
+  onClose: () => void;
+  onBlur: (picked: Set<string>) => void;
+}) {
+  const [picked, setPicked] = useState(() => new Set(faces.map((f) => f.id)));
+  const toggle = (fid: string, on: boolean) =>
+    setPicked((p) => {
+      const next = new Set(p);
+      if (on) next.add(fid);
+      else next.delete(fid);
+      return next;
+    });
+  return (
+    <Dialog
+      open
+      onOpenChange={(o) => !o && onClose()}
+      title="Blur faces for sharing"
+      description="Lens makes a copy of the video with these faces blurred wherever they were found, a little before and after too. It runs in the background; the copy is kept with the video’s files."
+      actions={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            data-autofocus // focused on opening, so Enter starts it
+            disabled={picked.size === 0 || pending}
+            disabledReason={picked.size === 0 ? "Tick at least one face" : undefined}
+            onClick={() => onBlur(picked)}
+          >
+            {pending
+              ? "Starting…"
+              : `Blur ${picked.size === faces.length ? "all " : ""}${picked.size} ${picked.size === 1 ? "face" : "faces"}`}
+          </Button>
+        </>
+      }
+    >
+      <ul className="m-0 flex list-none flex-col gap-2 p-0" aria-label="Faces to blur">
+        {faces.map((f, i) => (
+          <li key={f.id}>
+            <Checkbox
+              checked={picked.has(f.id)}
+              onCheckedChange={(v) => toggle(f.id, v)}
+              label={`${recognize ? f.name : `Face ${i + 1}`} · ${screenTime(f.screenMs)} on screen`}
+            />
+          </li>
+        ))}
+      </ul>
+    </Dialog>
   );
 }

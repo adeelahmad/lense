@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import Field
 
@@ -95,3 +95,45 @@ class FaceSpeaker(RequestModel):
 class FaceDismiss(RequestModel):
     kind: str = "face"
     id: int = 0
+
+
+class FaceBlurCreate(RequestModel):
+    who: Literal["all", "unnamed", "chosen"] = Field(
+        "all", description="whose faces to blur: every face found, the ones nobody has named, or the tracks in `tracks`"
+    )
+    tracks: list[str] = Field(
+        default_factory=list, max_length=500, description="with who=chosen: the face tracks to blur (the player's faces[].id)"
+    )
+
+
+class FaceBlurVisitors(RequestModel):
+    on: bool = Field(description="visitors play the copy with the faces blurred instead of the original")
+
+
+class FaceBlurCopy(ResponseModel):
+    """The copy with the faces blurred, kept as one of the asset's files (an attachment)."""
+
+    file: int = Field(description="its id among the asset's files")
+    name: str
+    size: int | None = None
+    download: str = Field(description="a signed link to save it")
+    faces: int = Field(description="how many faces (tracks) are blurred")
+    who: str = Field(description="all, unnamed or chosen")
+    tracks: list[str] = Field(default_factory=list, description="the face tracks blurred")
+    made_at: str | None = None
+    visitors: bool = Field(False, description="visitors (public pages, embeds, share links, IIIF, feeds) play it instead of the original")
+
+
+class FaceBlurJob(ResponseModel):
+    """The latest job to make the copy."""
+
+    id: int
+    status: str = Field(description="queued, running, held, succeeded, failed or cancelled")
+    error: str | None = None
+    progress: int | None = Field(None, description="how far ffmpeg is, in percent, while it runs")
+    waits: str | None = Field(None, description="why it waits to start (quiet processing hours, or heavy steps at once)")
+
+
+class FaceBlur(ResponseModel):
+    blurred: FaceBlurCopy | None = Field(None, description="the copy with the faces blurred, once one is made")
+    job: FaceBlurJob | None = Field(None, description="the latest job to make one")

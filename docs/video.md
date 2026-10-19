@@ -49,6 +49,41 @@ videos, documents and images.
 A published video recording becomes a IIIF Video on a Canvas with its width, height and duration. It gets a thumbnail,
 a "Text on screen" annotation layer targeting `#xywh=…&t=…`, and its shots as a Range.
 
+## Blurring faces for sharing
+
+A person who may process a video can ask for a **copy with faces blurred**, to share it without showing who is in it.
+Nothing changes for a video until someone asks; the original stays as it is.
+
+- **Asking:** the People tab's **Blur faces for sharing** button opens a list of the faces found, all ticked; Enter (or
+  the button) starts it. Agents ask with `POST /api/v1/recordings/<id>/blur-faces` (`who`: `all`, the default,
+  `unnamed` for the faces nobody has named, or `chosen` with `tracks`, the face tracks' ids) or the MCP tool
+  `blur_faces`. Asking while a copy is being made gives the same job. It needs faces found first (the faces step, with
+  detection or recognition on).
+- **How it's made:** ffmpeg, which Lens already uses, draws a strong blur over each face track's boxes over time, as a
+  background job step (`blur_faces`). The faces step saw each face only on the frames it sampled, so between two
+  samples that saw a face the blur covers both of its boxes, it starts a sample before the first and ends a sample
+  after the last, and a margin goes round each box: the copy errs on blurring too much, never too little. Many boxes
+  are merged into fewer, larger ones (at most 300 at a time). The copy is H.264 video with AAC sound in MP4, and what
+  the file says about itself (its title, where a phone recorded it) is left out. Faces the detector missed aren't
+  blurred: check the copy before sharing it.
+- **Heavy work:** `blur_faces` is one of the heavy steps (`workers.heavy_steps`), so Settings › Workers › Quiet
+  processing keeps it to its hours and to so many at a time. The People tab shows the job: waiting (and why), how far
+  ffmpeg got, or why it failed.
+- **The copy:** it's kept with the video's files (the Files tab), an attachment labelled "Faces blurred", encrypted
+  like the rest when the namespace is, and deleted with the video. Asking again replaces it. `GET /api/v1/recordings/<id>/blur-faces` (members of its namespace) and the MCP tool
+  `get_face_blur` say what there is and how the job is doing, with a link to save the copy.
+- **Visitors:** an owner can have visitors play the copy instead of the original: the People tab's **Visitors see
+  this copy** switch, `PUT /api/v1/recordings/<id>/blur-faces/visitors` with `{"on": true}`, or the MCP tool
+  `set_face_blur_for_visitors`. Then a request without a role in the namespace (public pages, embeds, share links,
+  IIIF and podcast feeds) gets the copy from `/audio` and `/media`; members still get the original. If the copy goes
+  missing while this is on, visitors get nothing rather than the faces; deleting it in the Files tab turns the choice
+  off with it. Pictures (frames, keyframes, pages) are pixelated for visitors by the namespace's own setting above.
+- Asking for a copy is audited as `recording.blur_faces`, and the visitors' choice as `recording.blur_faces.visitors`.
+
+Refine later: a document's or an image's pages; following a face frame by frame between samples instead of covering
+both boxes; IIIF manifests and podcast feeds giving the copy's own type and size; the in-app assistant asking for a
+copy; a copy made on a mesh worker node reaching the primary.
+
 ## Playable copies
 
 Phones and cameras write files many browsers can't play: HEVC video in a .mov, AVI, MPEG transport streams, AMR voice

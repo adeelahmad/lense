@@ -1008,6 +1008,13 @@ outputs:
     invariants: []
     downstream_must_not_assume:
       - {id: dmna-iiif-notes-kept-private, statement: "that a viewer that fetched the layer keeps it among the people with a role", provenance: {kind: documented, source: 'docs/iiif.md "Unshared notes are their writer''s alone"'}}
+    channel: "Faces-blurred copy for visitors (domain/face_blur.py, routes/recordings.py serve_audio, api/iiif.py, routes/feeds.py)"
+    taint: same-as-input
+    x-taint-note: "once an owner turns it on, a copy of the video with the faces found blurred, served instead of the original to every request without a role in the namespace (public pages, embeds, share links, IIIF, podcast feeds); 404 to them when the copy is missing; members still get the original"
+    taint_provenance: {kind: documented, source: 'docs/video.md "visitors get nothing rather than the faces"'}
+    invariants: []
+    downstream_must_not_assume:
+      - {id: dmna-blur-catches-every-face, statement: "that faces the detector missed are blurred", provenance: {kind: documented, source: 'docs/video.md "visitors get nothing rather than the faces"'}}
   - component: authz
     channel: "Recording description (IIIF, public pages)"
     taint: same-as-input
