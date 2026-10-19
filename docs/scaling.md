@@ -199,8 +199,8 @@ botocore's own model of SageMaker's runtime API. moto has no Bedrock provisioned
 answers for Bedrock, holding each request and answer to AWS's model of Bedrock's API and each name Lens sends to the
 model's patterns; Lens's Converse calls are held to it the same way.
 Proxmox's fake is held the same way to Proxmox's own schema of its API, converted from its API viewer (forms
-read by the types the schema gives). SSH hosts have no API document: their stand-in runs the driver's commands in a real
-shell.
+read by the types the schema gives). SSH hosts have no API document: each test host is a real SSH server (Paramiko's, a
+test-only dependency) that checks the client's key and runs the driver's commands in a real shell.
 
 While a model group's unit runs, it is Lens's LLM provider (the template's `use_as_provider`, on by default): the
 scaler points Settings › LLM provider at the unit's address, model and key, keeping the provider that was there
