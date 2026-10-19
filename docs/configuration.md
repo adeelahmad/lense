@@ -204,7 +204,12 @@ the servers it finds, so an agent setting Lens up uses the same addresses. Any o
 by typing its address. An Amazon SageMaker endpoint serving a model with vLLM works too: its address is
 `https://runtime.sagemaker.<region>.amazonaws.com/endpoints/<name>` and its key an AWS access key,
 `<access key id>:<secret access key>`, which Lens signs each call with and never sends ([Auto scaling](scaling.md#model-hosts)
-makes such endpoints). Picking a provider changes nothing until you save; from then on, what Lens asks its model
+makes such endpoints). So do Amazon Bedrock's models: the address is
+`https://bedrock-runtime.<region>.amazonaws.com`, the model a Bedrock model id, inference profile
+(`us.amazon.nova-lite-v1:0`) or provisioned throughput ARN, and the key an AWS access key the same way. Lens sends its
+requests to Bedrock's Converse API, with the system prompt, images, tools and tool results it carries, asks for JSON
+in the system prompt, and gets each answer whole (not streamed yet). Embeddings and speech need a server of their own
+then: they never borrow the AWS key. The keys need `bedrock:InvokeModel` on the model. Picking a provider changes nothing until you save; from then on, what Lens asks its model
 (summaries, chat, descriptions, with the text they need) goes to that provider.
 
 ## Chat models
