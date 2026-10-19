@@ -27,13 +27,17 @@ export function groupApprovals(items: Approval[]): ApprovalGroup[] {
   const groups = new Map<string, ApprovalGroup>();
   for (const a of items) {
     const auto = a.origin?.automation ?? null;
-    const key = auto != null ? `automation-${auto}` : `chat-${a.chat ?? "none"}`;
+    // an event proposed from a date said in an asset (POST /dates/propose) belongs to no conversation
+    const said = auto == null && a.chat == null && a.tool === "add_event";
+    const key = auto != null ? `automation-${auto}` : said ? "said" : `chat-${a.chat ?? "none"}`;
     let g = groups.get(key);
     if (!g) {
       g =
         auto != null
           ? { key, title: a.automation || `Automation ${auto}`, automation: auto, items: [] }
-          : { key, title: "The assistant, in a conversation", chat: a.chat ?? undefined, items: [] };
+          : said
+            ? { key, title: "Events proposed from dates said", items: [] }
+            : { key, title: "The assistant, in a conversation", chat: a.chat ?? undefined, items: [] };
       groups.set(key, g);
     }
     g.items.push(a);

@@ -13,6 +13,7 @@ jest.mock("@/components/recording/hooks", () => ({
   }),
 }));
 jest.mock("@/components/topics/recording-topics", () => ({ RecordingTopics: () => null }));
+jest.mock("@/components/recording/said-dates", () => ({ SaidDates: () => null }));
 jest.mock("@/components/entities/entity-drawer", () => ({
   EntityDrawer: ({ id, ns, onClose }: { id: number; ns: string; onClose: () => void }) => (
     <div role="dialog" aria-label={`Entity ${id} in ${ns}`}>

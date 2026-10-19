@@ -418,6 +418,15 @@ entry_points:
         control_kinds: [data, x-prompt-injection, size]
         caller_must_enforce: "drafting needs the right to process the email; the email reaches the model marked untrusted and the system prompt says not to follow it; only the email's own namespace is searched for excerpts; a web address in the draft that neither the email nor the excerpts hold is broken up, and a citation to an excerpt the model wasn't given is taken out; nothing is sent: a draft waits for the person, who sees its recipient (the address Reply-To names) before anything goes"
         provenance: {kind: documented, source: 'docs/email-replies.md "Lens never sends a reply on its own"'}
+  - id: "event proposals from dates said"
+    component: assistant
+    parameters:
+      - name: "a recording, a line and which of its dates; the fields to use instead of the prefill (title, start, end, where, description, attendees, invite, connection, calendar); the line's text and an email's addresses that fill the rest"
+        attacker_controllable: true
+        x-condition: "admins with a write token or session; the line's text and addresses: whoever wrote the asset (an email's sender, a speaker)"
+        control_kinds: [data, x-prompt-injection, size]
+        caller_must_enforce: "none; admins only, for an asset they can read, and only with a Google Calendar connection an admin let add events; the proposal is an approval of add_event with all of the event shown (the line, the time read from it, who is invited and that they aren't emailed unless invite is true), and nothing is added or sent until the person approves it signed in to Lens: an API key, an app, MCP and the assistant can only decline it; declining does nothing; the connection is checked again when approved; no model is called; at most 20 addresses are prefilled and 50 given; each proposal and each addition is in the audit log (calendar.propose, calendar.add)"
+        provenance: {kind: documented, source: "docs/processing.md \"Propose an event\""}
   - id: "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, news feeds, MQTT bridge, OIDC issuer, web search, LanguageTool server)"
     component: outbound
     parameters:

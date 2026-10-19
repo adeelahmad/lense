@@ -21,6 +21,7 @@ import { usePlayerApi } from "@/components/player/media";
 import { useRec } from "@/components/recording/context";
 import { useRecordingEntities } from "@/components/recording/hooks";
 import { fold, type EntityRef } from "@/components/recording/model";
+import { SaidDates } from "@/components/recording/said-dates";
 import { RecordingTopics } from "@/components/topics/recording-topics";
 import { Label } from "@/components/ui/panel";
 import { EmptyState, Skeleton } from "@/components/ui/states";
@@ -65,7 +66,7 @@ export function groupEntities(
 }
 
 /**
- * Entities tab: the topics it is about, the keyword cloud, then entities by type with mentions in this recording. Choosing one marks its
+ * Entities tab: the topics it is about, the dates said (with Propose event), the keyword cloud, then entities by type with mentions in this recording. Choosing one marks its
  * mentions ● on the waveform and jumps to the first; the chevron opens it in the graph, and for editors the pencil
  * opens it to rename, retype, hide or merge without leaving the recording.
  */
@@ -96,7 +97,12 @@ export function EntitiesTab() {
   const max = Math.max(1, ...top.map((k) => k.weight));
   const min = Math.min(...top.map((k) => k.weight), max);
 
-  const topics = <RecordingTopics id={id} ns={ns} canEdit={canEditNamespace} />;
+  const topics = (
+    <>
+      <RecordingTopics id={id} ns={ns} canEdit={canEditNamespace} />
+      <SaidDates id={id} />
+    </>
+  );
   if (!model.entities.length && !model.keywords.length)
     return (
       <>

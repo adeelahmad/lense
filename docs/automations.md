@@ -857,7 +857,8 @@ isn't the viewer's to see.
 ## Approvals
 
 Built: everything that waits for your pick is an approval in one table (`app/domain/approvals.py`): the assistant's
-proposals in a conversation, as before, and an automation's actions that ask first. When an action node's intent asks
+proposals in a conversation, as before, an automation's actions that ask first, and events proposed from dates said
+in an asset ([Propose an event](processing.md#propose-an-event)), which only you, signed in, approve. When an action node's intent asks
 (its effect is `out`, or `lens` on anything but the event's own object), the engine hands it to
 `approvals.ask(db, cfg, intent, event=None)`, which keeps:
 

@@ -368,6 +368,34 @@ its line, linked to that moment.
 - The rules read English. Nothing is sent anywhere and no model is called. Turning it on reads dates as assets are
   analysed; Reprocess (Analyze) reads them for assets already there.
 
+#### Propose an event
+
+Built (`app/domain/event_proposals.py`). A date said can become an event in a Google Calendar connection an admin let
+add events ([Mail, calendars and files](assistant.md#mail-calendars-and-files)), proposed with one click: **Propose
+event** next to it under Dates said in an asset's Entities tab, `POST /api/v1/dates/propose` (`recording_id` and the
+line's `segment`, as `GET /api/v1/dates` gives them), or the MCP tool `propose_event`. It waits in
+[Approvals](automations.md#approvals) as an `add_event`, with all of the event shown, and nothing is added or sent until
+you approve it there, signed in to Lens; declining it does nothing. An API key, an app, MCP and the assistant can
+propose and decline, never approve. Proposing the same date again while it waits gives the same approval.
+
+- **Prefilled from the line:** the day said, at a time of day said in the same line ("at 3", "3pm", "9:45 a.m.",
+  "15:30", "noon"; else all day), and lasting an hour. A time without am or pm from 1 to 6 is in the afternoon ("at 3"
+  is 15:00), from 7 to 11 in the morning, and it is in the calendar's own time zone. A weekend or a week is all of its
+  days; a month or a year is too long to be one event, so it needs a `start`. The title is the line itself, shortened;
+  who is invited are the addresses in the line and, for an email, its sender and recipients (not the calendar's own
+  account or yours), and they aren't emailed an invitation unless `invite` is true. The description says where it was
+  said, with a link to that moment.
+- **Change any of it:** `title`, `start`, `end`, `where`, `description`, `attendees` (`[]` for nobody), `invite`,
+  `connection` and `calendar` replace what was guessed.
+- **Who and when:** admins only (adding an event goes through an admin's connection), for an asset they can read, and
+  only when a calendar connection may add events: `GET /api/v1/dates` says so in `proposable`, and the button shows only
+  then. Nothing is proposed on its own: each proposal is asked for. No model is called; each proposal is in the audit
+  log (`calendar.propose`), and each event added (`calendar.add`).
+- Refine later: a setting to propose dates on their own as assets are analysed (off by default); editing the event on
+  its approval card before approving (today: propose again with the fields changed, after declining); a time range or
+  a length said in the line ("from 3 to 5", "for half an hour"); speakers' own addresses as guests; calendars other than
+  Google Calendar (CalDAV); the assistant proposing from `find_dates` without a conversation (it uses `add_event`).
+
 ### Entity setup
 
 Each namespace has an entity setup (Entities → Setup, `GET`/`PUT /api/v1/namespaces/{name}/entity-setup`): the types

@@ -6496,6 +6496,12 @@ export type DateList = {
    * whether analysis reads dates (Settings → Analysis → Read dates); off, nothing new is read
    */
   reading: boolean;
+  /**
+   * Proposable
+   *
+   * whether you can propose a date as an event (POST /dates/propose): an admin, with a calendar connection that may add events
+   */
+  proposable?: boolean;
   [key: string]: unknown;
 };
 
@@ -7906,6 +7912,123 @@ export type EventInfo = {
    * Label
    */
   label: string;
+  [key: string]: unknown;
+};
+
+/**
+ * EventProposal
+ *
+ * A date said, to propose as an event: each field left out is prefilled from the line.
+ */
+export type EventProposal = {
+  /**
+   * Recording Id
+   */
+  recording_id: number;
+  /**
+   * Segment
+   *
+   * the line's id, as GET /dates gives it
+   */
+  segment: number;
+  /**
+   * Index
+   *
+   * which of the line's dates, the earliest first, when it gives more than one
+   */
+  index?: number;
+  /**
+   * Title
+   *
+   * else the line itself, shortened
+   */
+  title?: string | null;
+  /**
+   * Start
+   *
+   * ISO 8601: a date alone is all day; a time without an offset is in the calendar's time zone. Else the day said, at the time said in the line
+   */
+  start?: string | null;
+  /**
+   * End
+   *
+   * else an hour after start, or a day for a day
+   */
+  end?: string | null;
+  /**
+   * Where
+   */
+  where?: string | null;
+  /**
+   * Description
+   *
+   * else where it was said, with a link to that moment
+   */
+  description?: string | null;
+  /**
+   * Attendees
+   *
+   * addresses; else those in the line and, for an email, its sender and recipients ([] for nobody)
+   */
+  attendees?: Array<string> | null;
+  /**
+   * Invite
+   *
+   * email them an invitation when it's added
+   */
+  invite?: boolean;
+  /**
+   * Connection
+   *
+   * the calendar connection, by id or name (else the only one)
+   */
+  connection?: string | null;
+  /**
+   * Calendar
+   *
+   * one of its calendars, by id or name (else its first)
+   */
+  calendar?: string | null;
+};
+
+/**
+ * EventProposed
+ */
+export type EventProposed = {
+  /**
+   * Approval
+   *
+   * the approval waiting for your yes: nothing is added until you approve it
+   */
+  approval: number;
+  /**
+   * Status
+   *
+   * waiting
+   */
+  status: string;
+  /**
+   * Summary
+   */
+  summary?: string | null;
+  /**
+   * Preview
+   *
+   * the event as the approval shows it
+   */
+  preview?: string | null;
+  /**
+   * Again
+   *
+   * this date was proposed before and still waits: the same approval
+   */
+  again?: boolean;
+  /**
+   * Url
+   *
+   * where you approve it in the web app
+   */
+  url?: string | null;
   [key: string]: unknown;
 };
 
@@ -43184,6 +43307,31 @@ export type ListDatesResponses = {
 };
 
 export type ListDatesResponse = ListDatesResponses[keyof ListDatesResponses];
+
+export type ProposeEventData = {
+  body: EventProposal;
+  path?: never;
+  query?: never;
+  url: "/api/v1/dates/propose";
+};
+
+export type ProposeEventErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ProposeEventError = ProposeEventErrors[keyof ProposeEventErrors];
+
+export type ProposeEventResponses = {
+  /**
+   * Successful Response
+   */
+  200: EventProposed;
+};
+
+export type ProposeEventResponse = ProposeEventResponses[keyof ProposeEventResponses];
 
 export type ListTopicsData = {
   body?: never;
