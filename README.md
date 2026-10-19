@@ -321,8 +321,9 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   Open signed in), encryption at rest with a key per namespace, roles per namespace (viewer, editor, owner, or custom
   roles made of permissions), who sees each asset, set for many at once from the Library, access that ends on a date
   you pick (a role in a namespace or on a collection, or permission on one asset), a downloads switch per asset (off,
-  it still plays and reads, but only its owners save its files), email invitations, removing someone for good, and an
-  audit log. Prompt injection meets
+  it still plays and reads, but only its owners save its files), a video's copy with faces blurred for sharing (made
+  when you ask, and played to visitors instead of the original if you pick that), email invitations, removing someone
+  for good, and an audit log. Prompt injection meets
   several layers: what the assistant reads (recordings, documents, web pages, tool results) reaches the model marked as
   data, not instructions, and text that reads like instructions to an AI is flagged (by free patterns, or an optional
   classifier model that runs on your machine and is fetched only when you pick it). Once an answer has read such text,
@@ -336,7 +337,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   field in Settings can refer to an item there, and Lens reads it without anyone, agents included, seeing it.
   ([Encryption](docs/encryption.md), [secrets](docs/secrets.md), [access](docs/access.md),
   [prompt injection](docs/assistant.md#third-party-content-and-prompt-injection), [HTTPS](docs/https.md),
-  [remote access](docs/remote-access.md); [checks](docs/requirements.md#stay-private-and-safe))
+  [remote access](docs/remote-access.md), [blurring faces](docs/video.md#blurring-faces-for-sharing);
+  [checks](docs/requirements.md#stay-private-and-safe))
 - **Use open standards.** RDF and Dublin Core for every record, OAuth for apps and OpenID Connect sign-in, MCP, MQTT,
   IIIF for publishing (with your team's shared notes and comments as W3C Web Annotations, for people with a role on the
   asset only), OpenTelemetry and Prometheus for monitoring, an optional Fedora mirror, and a CSV catalogue of the assets

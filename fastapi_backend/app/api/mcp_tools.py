@@ -3099,6 +3099,83 @@ def enhance_image(ctx: Context, recording_id: int) -> dict[str, Any]:
     return {"recording_id": recording_id, "job": job, "url": ctx.link(recording_id)}
 
 
+# ---------- faces blurred for sharing (docs/video.md) ----------
+def _face_blur_out(ctx: Context, rid: int) -> dict[str, Any]:
+    from app.domain import face_blur, faces
+
+    out = face_blur.status(ctx.db, ctx.cfg, rid)
+    if out["blurred"]:
+        out["blurred"]["download"] = f"{store.API}/recordings/{rid}/files/{out['blurred']['file']}/download"
+    people = [
+        {"track": t["id"], "name": t["name"], "named": bool(t.get("face")), "first_seen": store.tc(t.get("first_ms") or 0)}
+        for t in faces.tracks_for(ctx.db, rid)
+    ]
+    return store.clean({**out, "faces": people, "recording_url": ctx.link(rid)})
+
+
+@tool(
+    "get_face_blur",
+    "A video's copy with the faces blurred",
+    "The faces found in a video (track ids and names, to pick from) and its copy with faces blurred for sharing, once "
+    "one is made: the file's id and where to download it with your token, whose faces it blurs, and whether visitors "
+    "play it instead of the original; and the latest job to make one, with its status, how far it got, why it waits or "
+    "why it failed. Members of the recording's namespace.",
+    Arg("recording_id", "integer", "the video", required=True),
+)
+def get_face_blur(ctx: Context, recording_id: int) -> dict[str, Any]:
+    rec = ctx.acl.recording(recording_id)
+    if not ctx.acl.member(rec):
+        raise ToolError("not found")
+    return _face_blur_out(ctx, recording_id)
+
+
+@tool(
+    "blur_faces",
+    "Blur faces in a video for sharing",
+    "Make a copy of a video with faces blurred, for sharing: every face found (who all, the default), the ones nobody "
+    "has named (unnamed), or the face tracks given (chosen, with tracks from get_face_blur). It runs in the background "
+    "as a heavy step and is kept as one of the recording's files, an attachment labelled Faces blurred; asking again "
+    "replaces it, and the original stays as it is. Check on it with get_face_blur. Needs a token with the write scope "
+    "and the right to process the recording; refused for anything but a video, or with no faces to blur.",
+    Arg("recording_id", "integer", "the video", required=True),
+    Arg("who", "string", "whose faces: all, unnamed or chosen", default="all", enum=("all", "unnamed", "chosen")),
+    Arg("tracks", "string[]", "with who=chosen: the face tracks to blur"),
+    writes=True,
+)
+def blur_faces(ctx: Context, recording_id: int, who: str = "all", tracks: list[str] | None = None) -> dict[str, Any]:
+    from app.api.v1.routes import video as video_routes
+    from app.schemas.video import FaceBlurCreate
+
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to blur faces")
+    try:
+        body = FaceBlurCreate(who=who or "all", tracks=tracks or [])
+    except ValidationError:
+        raise ToolError("who is all, unnamed or chosen, and tracks is a list of face track ids") from None
+    out = video_routes.blur_faces(recording_id, body, ctx.acl, ctx.user, ctx.db)
+    return {"job": out.job, "status": "blurring", "recording_url": ctx.link(recording_id)}
+
+
+@tool(
+    "set_face_blur_for_visitors",
+    "Show visitors the copy with faces blurred",
+    "Have visitors of a video (its public page, embeds, share links, IIIF and podcast feeds) play its copy with faces "
+    "blurred instead of the original, or not; members of its namespace play the original either way. Make the copy "
+    "with blur_faces first. Owners, with a token that has the write scope.",
+    Arg("recording_id", "integer", "the video", required=True),
+    Arg("on", "boolean", "true: visitors play the copy; false: the original", required=True),
+    writes=True,
+)
+def set_face_blur_for_visitors(ctx: Context, recording_id: int, on: bool) -> dict[str, Any]:
+    from app.api.v1.routes import video as video_routes
+    from app.schemas.video import FaceBlurVisitors
+
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to change what visitors play")
+    video_routes.set_face_blur_visitors(recording_id, FaceBlurVisitors(on=on), ctx.acl, ctx.user, ctx.db, ctx.cfg)
+    return _face_blur_out(ctx, recording_id)
+
+
 # ---------- a namespace's own ways in for other apps (integrations.py) ----------
 def _integrations(ctx: Context, namespace: str, sid: int) -> dict[str, Any]:
     return {

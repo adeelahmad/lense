@@ -3,7 +3,8 @@
 Face detection and recognition are off until a namespace owner turns them on and, for recognition, says what it is
 for. Descriptors (face prints) exist only while recognition is on; turning faces off removes every face and track.
 Media and frames are served to anyone the recording is visible to: a bearer token with a role in its namespace, a
-share link (``?s=``) or a signed link from a JSON response.
+share link (``?s=``) or a signed link from a JSON response. A copy of a video with its faces blurred is made only when
+someone asks for it, and visitors play it instead of the original only where an owner chooses that.
 """
 
 from __future__ import annotations
@@ -19,11 +20,15 @@ from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Writer, domain_error
 from app.api.media import sign_urls
 from app.api.streaming import LOCKED, picture_response, stored_file
 from app.api.v1.routes.recordings import serve_audio
-from app.domain import auth, convert, documents, enhance, files, ingest, jobs, keyring, store, video
+from app.domain import auth, convert, documents, enhance, face_blur, files, ingest, jobs, keyring, store, video
 from app.domain import faces as facemod
 from app.domain.store import API, DB, R
 from app.schemas.common import Ok
+from app.schemas.recordings import JobQueued
 from app.schemas.video import (
+    FaceBlur,
+    FaceBlurCreate,
+    FaceBlurVisitors,
     FaceDismiss,
     FaceMerge,
     FaceMerged,
@@ -55,12 +60,13 @@ FRAME_RX = re.compile(r"[\w.-]+\.jpg")
 def get_media(rid: int, request: Request, acl: Acl, db: Db, cfg: Cfg, s: str = "") -> Response:
     """The video or audio file, with byte ranges; a document's or an image's file, to save. Accepts a bearer token, a
     share link (``?s=``) or a signed link. With the asset's downloads off, 403 for anyone below its owners (players
-    stream /recordings/{rid}/audio, which stays open)."""
+    stream /recordings/{rid}/audio, which stays open). Visitors get the copy with the faces blurred where an owner chose
+    that."""
     rec = acl.recording(rid, share=s)
     acl.may_save(rec)  # this is the file to save; players stream /audio (docs/access.md#downloads)
     if rec.get("source") in documents.KINDS:
         return serve_document(db, cfg, rec, request)
-    return serve_audio(db, cfg, rec, rid, request)
+    return serve_audio(db, cfg, rec, rid, request, visitor=not acl.member(rec))
 
 
 def serve_document(db: DB, cfg: dict[str, Any], rec: dict[str, Any], request: Request) -> Response:
@@ -154,6 +160,50 @@ def delete_face_track(rid: int, track: str, user: Writer, acl: Acl, db: Db, cfg:
     db.q("DELETE $r", r=R("face_track", track))
     auth.audit(db, user.as_audit(), "face.not_a_face", f"recording:{rid}")
     return Ok()
+
+
+# ---------- faces blurred for sharing (face_blur.py) ----------
+def _face_blur(db: DB, cfg: dict[str, Any], rid: int, save: bool) -> FaceBlur:
+    return FaceBlur.model_validate(sign_urls(face_blur.status(db, cfg, rid), full=True, save=save))
+
+
+@router.get("/recordings/{rid}/blur-faces")
+def get_face_blur(rid: int, acl: Acl, db: Db, cfg: Cfg) -> FaceBlur:
+    """The video's copy with the faces blurred for sharing, once one is made (with a signed link to save it, and whether
+    visitors play it), and the latest job to make one: its status, how far ffmpeg got, why it waits or why it failed.
+    Members of its namespace."""
+    rec = acl.recording(rid)
+    if not acl.member(rec):
+        raise HTTPException(404, "not found")
+    return _face_blur(db, cfg, rid, acl.owns(rec))
+
+
+@router.post("/recordings/{rid}/blur-faces", status_code=202)
+def blur_faces(rid: int, body: FaceBlurCreate, acl: Acl, user: Writer, db: Db) -> JobQueued:
+    """Make a copy of the video with faces blurred, for sharing: every face found (`who` all, the default), the ones
+    nobody has named (unnamed), or the face tracks in `tracks` (chosen). It runs in the background as a heavy step
+    (quiet processing hours apply) and is kept as one of the asset's files, an attachment labelled "Faces blurred";
+    asking again replaces it, and asking while it runs gives the same job. The original stays as it is. Needs the
+    right to process the asset; 400 for anything but a video, or no faces to blur. Audited as
+    `recording.blur_faces`."""
+    acl.recording(rid, "process")
+    with domain_errors():
+        jid = face_blur.queue(db, rid, body.who, body.tracks, by=user.email, by_id=user.id)
+    auth.audit(db, user.as_audit(), "recording.blur_faces", f"recording:{rid}", store.clean({"who": body.who, "job": jid}))
+    return JobQueued(job=jid)
+
+
+@router.put("/recordings/{rid}/blur-faces/visitors")
+def set_face_blur_visitors(rid: int, body: FaceBlurVisitors, acl: Acl, user: Writer, db: Db, cfg: Cfg) -> FaceBlur:
+    """Have visitors (public pages, embeds, share links, IIIF, podcast feeds) play the copy with the faces blurred
+    instead of the original, or not; members play the original either way. While it's on and the copy is missing,
+    visitors get nothing rather than the faces. Owners (the right to publish it); 400 before a copy is made. Audited
+    as `recording.blur_faces.visitors`."""
+    rec = acl.recording(rid, "publish")
+    with domain_errors():
+        face_blur.set_visitors(db, rid, body.on)
+    auth.audit(db, user.as_audit(), "recording.blur_faces.visitors", f"recording:{rid}", {"on": body.on})
+    return _face_blur(db, cfg, rid, acl.owns(rec))
 
 
 # ---------- people on screen, per namespace ----------

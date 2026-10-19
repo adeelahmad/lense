@@ -131,6 +131,9 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 | `mark_nsfw` | mark a resource NSFW or not by hand, or hand it back to the model's score. Needs a write-scope token and editor access |
 | `set_language` | set or correct the [language an asset is in](api.md#an-assets-language) as a BCP 47 tag with a region if it matters (`en-GB`, `pt-BR`), written the usual way and kept over the one transcription detects; left out, it's forgotten. Needs a write-scope token and editor access |
 | `enhance` | [enhance an image](enhance.md) whatever the settings, keeping the original, and read it again from the enhanced copy. Needs a write-scope token and the process permission |
+| `get_face_blur` | a video's faces (track ids and names, to pick from) and its [copy with faces blurred](video.md#blurring-faces-for-sharing): the file and where to download it, whose faces it blurs and whether visitors play it; and the latest job making one, with how far it got, why it waits or why it failed. Members of its namespace |
+| `blur_faces` | make a [copy of a video with faces blurred](video.md#blurring-faces-for-sharing) for sharing: all faces, the unnamed ones or the tracks given; it runs in the background and is kept with the video's files, the original unchanged. Needs a write-scope token and the process permission |
+| `set_face_blur_for_visitors` | have visitors (public pages, embeds, share links, IIIF, feeds) play a video's copy with faces blurred instead of the original, or not. Needs a write-scope token and owner access |
 | `namespace_integrations` | whether a namespace has [its own MCP server](#one-namespaces-mcp-server) and [chat completions](api.md#chat-completions-for-any-app) on, their addresses, and the tools offered there |
 | `set_namespace_integrations` | turn a namespace's own MCP server or chat completions on or off, and pick the read tools its chat completions may use. Owners, with a write-scope token |
 | `list_files` | a folder of [the graph as files](file-tree.md): your namespaces, then their collections, topics (nested by narrower topics) and entities, each holding its assets' files |
@@ -215,7 +218,9 @@ app (merges and deletes can be undone), `write_note`, which adds a note, `create
 queues an episode, `create_feed` and `publish_to_feed`, which make and fill a [published feed](feeds.md),
 `save_circle`, `share_with_circle` and `undo_share`, which change your [circles](circles.md) and what you share with them,
 `write_spec`, which queues a spec, `translate_transcript`, which queues a translation, `draft_reply` and `edit_reply`, which draft and change [email replies](email-replies.md) (nothing is sent), `send_reply`, which asks to send one (it waits in Approvals), `set_nsfw` and `mark_nsfw`, which change [NSFW classification](nsfw.md) (owners or admins, and
-editors), `set_language`, which sets an asset's language (editors), `enhance`, which enhances an image and reads it again (the process permission),
+editors), `set_language`, which sets an asset's language (editors), `enhance`, which enhances an image and reads it again (the process permission), `blur_faces` and
+`set_face_blur_for_visitors`, which make a video's copy with faces blurred and choose whether visitors play it (the
+process permission, and owners),
 `set_namespace_integrations`, which turns a namespace's own MCP server or chat completions on or off (owners), `set_picture_descriptions`, which changes what describes pictures (admins), `set_file_storage`, which changes where new files are kept (admins), `set_secret_reference`, which points a secret field at a password manager's item (admins), `install_plugin`, which
 installs a plugin from a marketplace as your own extension, `add_mcp_server`, which adds an
 MCP server (admins), `subscribe_feed` and `unsubscribe_feed`, which follow and stop following news feeds (admins), `set_mail_routing`, which changes where an email account's messages go (admins), `add_mesh_node`,

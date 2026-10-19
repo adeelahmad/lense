@@ -25,6 +25,7 @@ from app.domain import (
     documents,
     enhance,
     events_content,
+    face_blur,
     hierarchy,
     iiif,
     ipgroups,
@@ -672,11 +673,22 @@ def _media_type(rec: dict[str, Any], path: Any) -> str | None:
     return None
 
 
-def serve_audio(db: DB, cfg: dict[str, Any], rec: dict[str, Any], rid: int, request: Request, player: bool = False) -> Response:
+def serve_audio(
+    db: DB, cfg: dict[str, Any], rec: dict[str, Any], rid: int, request: Request, player: bool = False, visitor: bool = False
+) -> Response:
     """The recording's audio (or video) file with byte ranges: local, from a local source, from the cache, or streamed.
-    For the player, its playable copy when one was made (playable.py); the file itself otherwise."""
+    For the player, its playable copy when one was made (playable.py); the file itself otherwise. For a `visitor` (no
+    role in its namespace), the copy with the faces blurred where an owner chose that (face_blur.py), and never the
+    file itself while that copy is missing."""
     if rec.get("source") != "audio":
         raise HTTPException(404, "no audio for this recording")
+    if visitor:
+        try:
+            blurred = face_blur.for_visitors(db, cfg, rid)
+        except face_blur.Missing:
+            raise HTTPException(404, "the copy with the faces blurred is missing") from None
+        if blurred:
+            return file_response(blurred[0], request, blurred[1], db, cfg)
     copy = playable.copy_of(db, cfg, rid) if player else None
     if copy:
         return file_response(copy[0], request, copy[1], db, cfg)
@@ -706,8 +718,9 @@ def serve_audio(db: DB, cfg: dict[str, Any], rec: dict[str, Any], rid: int, requ
 def get_audio(rid: int, request: Request, acl: Acl, db: Db, cfg: Cfg, s: str = "") -> Response:
     """The audio (or video) for the player, with byte ranges: a copy every browser plays when Settings › Video made one,
     else the file itself (``/media`` always gives the file). Accepts a bearer token, a share link (``?s=``) or a signed
-    link."""
-    return serve_audio(db, cfg, acl.recording(rid, share=s), rid, request, player=True)
+    link. Visitors get the copy with the faces blurred where an owner chose that (docs/video.md)."""
+    rec = acl.recording(rid, share=s)
+    return serve_audio(db, cfg, rec, rid, request, player=True, visitor=not acl.member(rec))
 
 
 @router.get("/{rid}/wordcloud.svg", response_class=Response, responses={200: {"content": {"image/svg+xml": {}}}})

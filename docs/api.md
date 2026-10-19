@@ -1574,6 +1574,9 @@ DELETE /api/v1/faces/{fid}
 POST   /api/v1/faces/{fid}/merge
 POST   /api/v1/faces/{fid}/speaker
 POST   /api/v1/faces/{fid}/dismiss
+GET    /api/v1/resources/{rid}/blur-faces
+POST   /api/v1/resources/{rid}/blur-faces
+PUT    /api/v1/resources/{rid}/blur-faces/visitors
 ```
 
 `PUT /namespaces/{name}/faces/mode {mode?, purpose?, pixelate?, reprocess?}` (owners) sets the namespace's face mode
@@ -1590,6 +1593,16 @@ first), how often it's seen, and `guess`, a name to offer: the voice it's linked
 suggested for it. `POST /faces/{fid}/name {name}` (editors) names one: a name another face of the namespace has (any
 case) joins it to that face, a merge whose id comes back as `merge` to undo with `POST /faces/merges/{mid}/undo`; any
 other name becomes its own, undone with `POST /faces/{fid} {"name": ""}` ([Naming faces](video.md#naming-faces)).
+
+`POST /resources/{rid}/blur-faces {who?, tracks?}` (the process permission) makes a copy of a video with faces
+blurred for sharing, in the background: every face found (`who` `all`, the default), the ones nobody has named
+(`unnamed`), or the face tracks in `tracks` (`chosen`); 202 with the job, 400 for anything but a video or with no faces
+to blur. The copy is kept as one of the resource's files (an attachment labelled "Faces blurred"); asking again
+replaces it. `GET /resources/{rid}/blur-faces` (members) gives `{blurred, job}`: the copy (`file`, `name`, `size`, a
+signed `download`, `faces`, `who`, `tracks`, `made_at`, `visitors`) and the latest job making one (`status`, `progress`
+in percent while ffmpeg runs, `waits` while quiet processing holds it, `error`). `PUT .../blur-faces/visitors {on}`
+(owners) has visitors play the copy from `/audio` and `/media` (and IIIF and feeds) instead of the original
+([Blurring faces for sharing](video.md#blurring-faces-for-sharing)).
 
 ### Objects
 

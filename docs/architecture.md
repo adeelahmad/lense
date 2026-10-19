@@ -82,8 +82,8 @@ jobs), drain it (it also hands its job back after the step it's on) and resume i
 record, so it holds across restarts. `GET /api/v1/events` streams job progress as server-sent events.
 
 **Quiet processing** (Settings › Workers, both off by default) keeps the heavy steps (`workers.heavy_steps`: by
-default transcribe, read, diarize, shots, ocr, faces, objects and nsfw, the ones that work through media on this
-machine) to when it suits a small machine at home:
+default transcribe, read, diarize, shots, ocr, faces, objects, nsfw and blur_faces, the ones that work through media
+on this machine) to when it suits a small machine at home:
 
 - `workers.heavy_hours`, a window like `01:00-06:00` in `workers.timezone` (UTC by default; it may pass midnight).
   Outside it no job starts a heavy step: a job that reaches one goes back on the queue, its log saying why, and waits

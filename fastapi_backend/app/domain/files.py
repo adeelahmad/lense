@@ -461,9 +461,13 @@ def update(db, cfg, rid, fid, changes):
 
 
 def delete(db, cfg, rid, fid):
-    """Delete one of the resource's files and its lines. Returns what it was."""
+    """Delete one of the resource's files and its lines. Returns what it was. A video's copy with the faces blurred
+    (face_blur.py) goes with the choice to show it to visitors."""
+    from . import face_blur
+
     f = get(db, rid, fid)
     db.run(["DELETE file_line WHERE file = $f", "DELETE $r"], f=int(fid), r=R("resource_file", int(fid)))
+    face_blur.forget_file(db, rid, fid)
     shutil.rmtree(folder(cfg, rid) / str(int(fid)), ignore_errors=True)
     return f
 

@@ -8701,6 +8701,143 @@ export type FaceAsset = {
 };
 
 /**
+ * FaceBlur
+ */
+export type FaceBlur = {
+  /**
+   * the copy with the faces blurred, once one is made
+   */
+  blurred?: FaceBlurCopy | null;
+  /**
+   * the latest job to make one
+   */
+  job?: FaceBlurJob | null;
+  [key: string]: unknown;
+};
+
+/**
+ * FaceBlurCopy
+ *
+ * The copy with the faces blurred, kept as one of the asset's files (an attachment).
+ */
+export type FaceBlurCopy = {
+  /**
+   * File
+   *
+   * its id among the asset's files
+   */
+  file: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Size
+   */
+  size?: number | null;
+  /**
+   * Download
+   *
+   * a signed link to save it
+   */
+  download: string;
+  /**
+   * Faces
+   *
+   * how many faces (tracks) are blurred
+   */
+  faces: number;
+  /**
+   * Who
+   *
+   * all, unnamed or chosen
+   */
+  who: string;
+  /**
+   * Tracks
+   *
+   * the face tracks blurred
+   */
+  tracks?: Array<string>;
+  /**
+   * Made At
+   */
+  made_at?: string | null;
+  /**
+   * Visitors
+   *
+   * visitors (public pages, embeds, share links, IIIF, feeds) play it instead of the original
+   */
+  visitors?: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * FaceBlurCreate
+ */
+export type FaceBlurCreate = {
+  /**
+   * Who
+   *
+   * whose faces to blur: every face found, the ones nobody has named, or the tracks in `tracks`
+   */
+  who?: "all" | "unnamed" | "chosen";
+  /**
+   * Tracks
+   *
+   * with who=chosen: the face tracks to blur (the player's faces[].id)
+   */
+  tracks?: Array<string>;
+};
+
+/**
+ * FaceBlurJob
+ *
+ * The latest job to make the copy.
+ */
+export type FaceBlurJob = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Status
+   *
+   * queued, running, held, succeeded, failed or cancelled
+   */
+  status: string;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Progress
+   *
+   * how far ffmpeg is, in percent, while it runs
+   */
+  progress?: number | null;
+  /**
+   * Waits
+   *
+   * why it waits to start (quiet processing hours, or heavy steps at once)
+   */
+  waits?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * FaceBlurVisitors
+ */
+export type FaceBlurVisitors = {
+  /**
+   * On
+   *
+   * visitors play the copy with the faces blurred instead of the original
+   */
+  on: boolean;
+};
+
+/**
  * FaceDismiss
  */
 export type FaceDismiss = {
@@ -45579,6 +45716,96 @@ export type DeleteFaceTrackResponses = {
 };
 
 export type DeleteFaceTrackResponse = DeleteFaceTrackResponses[keyof DeleteFaceTrackResponses];
+
+export type GetFaceBlurData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/blur-faces";
+};
+
+export type GetFaceBlurErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetFaceBlurError = GetFaceBlurErrors[keyof GetFaceBlurErrors];
+
+export type GetFaceBlurResponses = {
+  /**
+   * Successful Response
+   */
+  200: FaceBlur;
+};
+
+export type GetFaceBlurResponse = GetFaceBlurResponses[keyof GetFaceBlurResponses];
+
+export type BlurFacesData = {
+  body: FaceBlurCreate;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/blur-faces";
+};
+
+export type BlurFacesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type BlurFacesError = BlurFacesErrors[keyof BlurFacesErrors];
+
+export type BlurFacesResponses = {
+  /**
+   * Successful Response
+   */
+  202: JobQueued;
+};
+
+export type BlurFacesResponse = BlurFacesResponses[keyof BlurFacesResponses];
+
+export type SetFaceBlurVisitorsData = {
+  body: FaceBlurVisitors;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/blur-faces/visitors";
+};
+
+export type SetFaceBlurVisitorsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetFaceBlurVisitorsError = SetFaceBlurVisitorsErrors[keyof SetFaceBlurVisitorsErrors];
+
+export type SetFaceBlurVisitorsResponses = {
+  /**
+   * Successful Response
+   */
+  200: FaceBlur;
+};
+
+export type SetFaceBlurVisitorsResponse = SetFaceBlurVisitorsResponses[keyof SetFaceBlurVisitorsResponses];
 
 export type DeleteNamespaceFacesData = {
   body?: never;

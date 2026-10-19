@@ -72,7 +72,7 @@ def read_feed_audio(token: str, iid: int, request: Request, db: Db, cfg: Cfg) ->
         rid, rec = syndication.item_recording(db, feed, iid)
     except KeyError:
         raise HTTPException(404, "not found") from None
-    got = recording_routes.serve_audio(db, cfg, rec, rid, request)
+    got = recording_routes.serve_audio(db, cfg, rec, rid, request, visitor=True)  # a feed's listeners are visitors
     got.headers.update(PRIVATE)
     if request.method == "HEAD":  # the headers alone; nothing is read or decrypted
         return Response(status_code=got.status_code, headers=dict(got.headers))

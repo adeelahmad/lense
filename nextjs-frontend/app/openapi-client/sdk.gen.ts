@@ -86,6 +86,9 @@ import type {
   BackupLinkData,
   BackupLinkErrors,
   BackupLinkResponses,
+  BlurFacesData,
+  BlurFacesErrors,
+  BlurFacesResponses,
   BridgeStatusData,
   BridgeStatusResponses,
   BrowseSourceData,
@@ -678,6 +681,9 @@ import type {
   GetExtensionData,
   GetExtensionErrors,
   GetExtensionResponses,
+  GetFaceBlurData,
+  GetFaceBlurErrors,
+  GetFaceBlurResponses,
   GetFedoraStatusData,
   GetFedoraStatusResponses,
   GetFeedData,
@@ -1801,6 +1807,9 @@ import type {
   SetElsewhereData,
   SetElsewhereErrors,
   SetElsewhereResponses,
+  SetFaceBlurVisitorsData,
+  SetFaceBlurVisitorsErrors,
+  SetFaceBlurVisitorsResponses,
   SetInstallData,
   SetInstallErrors,
   SetInstallResponses,
@@ -6436,7 +6445,7 @@ export class Resources {
    *
    * The audio (or video) for the player, with byte ranges: a copy every browser plays when Settings › Video made one,
    * else the file itself (``/media`` always gives the file). Accepts a bearer token, a share link (``?s=``) or a signed
-   * link.
+   * link. Visitors get the copy with the faces blurred where an owner chose that (docs/video.md).
    */
   public static getAudio<ThrowOnError extends boolean = false>(
     options: Options<GetAudioData, ThrowOnError>,
@@ -9551,7 +9560,8 @@ export class Video {
    *
    * The video or audio file, with byte ranges; a document's or an image's file, to save. Accepts a bearer token, a
    * share link (``?s=``) or a signed link. With the asset's downloads off, 403 for anyone below its owners (players
-   * stream /recordings/{rid}/audio, which stays open).
+   * stream /recordings/{rid}/audio, which stays open). Visitors get the copy with the faces blurred where an owner chose
+   * that.
    */
   public static getMedia<ThrowOnError extends boolean = false>(
     options: Options<GetMediaData, ThrowOnError>,
@@ -9638,6 +9648,66 @@ export class Video {
     return (options.client ?? client).delete<DeleteFaceTrackResponses, DeleteFaceTrackErrors, ThrowOnError>({
       url: "/api/v1/resources/{rid}/faces/{track}",
       ...options,
+    });
+  }
+
+  /**
+   * Get Face Blur
+   *
+   * The video's copy with the faces blurred for sharing, once one is made (with a signed link to save it, and whether
+   * visitors play it), and the latest job to make one: its status, how far ffmpeg got, why it waits or why it failed.
+   * Members of its namespace.
+   */
+  public static getFaceBlur<ThrowOnError extends boolean = false>(
+    options: Options<GetFaceBlurData, ThrowOnError>,
+  ): RequestResult<GetFaceBlurResponses, GetFaceBlurErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetFaceBlurResponses, GetFaceBlurErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/blur-faces",
+      ...options,
+    });
+  }
+
+  /**
+   * Blur Faces
+   *
+   * Make a copy of the video with faces blurred, for sharing: every face found (`who` all, the default), the ones
+   * nobody has named (unnamed), or the face tracks in `tracks` (chosen). It runs in the background as a heavy step
+   * (quiet processing hours apply) and is kept as one of the asset's files, an attachment labelled "Faces blurred";
+   * asking again replaces it, and asking while it runs gives the same job. The original stays as it is. Needs the
+   * right to process the asset; 400 for anything but a video, or no faces to blur. Audited as
+   * `recording.blur_faces`.
+   */
+  public static blurFaces<ThrowOnError extends boolean = false>(
+    options: Options<BlurFacesData, ThrowOnError>,
+  ): RequestResult<BlurFacesResponses, BlurFacesErrors, ThrowOnError> {
+    return (options.client ?? client).post<BlurFacesResponses, BlurFacesErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/blur-faces",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Set Face Blur Visitors
+   *
+   * Have visitors (public pages, embeds, share links, IIIF, podcast feeds) play the copy with the faces blurred
+   * instead of the original, or not; members play the original either way. While it's on and the copy is missing,
+   * visitors get nothing rather than the faces. Owners (the right to publish it); 400 before a copy is made. Audited
+   * as `recording.blur_faces.visitors`.
+   */
+  public static setFaceBlurVisitors<ThrowOnError extends boolean = false>(
+    options: Options<SetFaceBlurVisitorsData, ThrowOnError>,
+  ): RequestResult<SetFaceBlurVisitorsResponses, SetFaceBlurVisitorsErrors, ThrowOnError> {
+    return (options.client ?? client).put<SetFaceBlurVisitorsResponses, SetFaceBlurVisitorsErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/blur-faces/visitors",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 

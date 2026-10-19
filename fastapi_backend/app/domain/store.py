@@ -309,7 +309,7 @@ DEFAULTS = {
         # quiet processing (quiet.py): a window like "01:00-06:00" for the heavy steps, and how many run at once; off
         "heavy_hours": None,
         "heavy_at_once": None,
-        "heavy_steps": ["transcribe", "read", "diarize", "shots", "ocr", "faces", "objects", "nsfw"],
+        "heavy_steps": ["transcribe", "read", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "blur_faces"],
         "timezone": "UTC",
         "steps": [
             "enhance",

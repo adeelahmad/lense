@@ -39,6 +39,7 @@ MEDIA_STEPS = {
     "objects",
     "nsfw",
     "describe",
+    "blur_faces",
 }  # they take longer the longer the recording
 FILED = ("audio", "document", "image")  # sources with a file of their own for the steps to work on
 TIMINGS = 25  # recent timings kept per kind of step, for estimates
@@ -281,6 +282,13 @@ def _nsfw(db, cfg, rid, say, spec=None):
     nsfw.step(db, cfg, rid, say)
 
 
+def _blur_faces(db, cfg, rid, say, spec=None):
+    """A copy of a video with the faces found in it blurred, for sharing (face_blur.py); only when someone asks."""
+    from . import face_blur
+
+    face_blur.step(db, cfg, rid, say, spec)
+
+
 def _convert(db, cfg, rid, say, spec=None):
     """New assets made from this one: a video's soundtrack as audio, a document's pages as images (conversions.py)."""
     from . import conversions
@@ -320,6 +328,7 @@ STEPS = {
     "spec": _write_spec,
     "reply": _draft_reply,
     "translate": _translate,
+    "blur_faces": _blur_faces,
 }
 
 
@@ -1175,6 +1184,8 @@ class Worker:
             self.can.add("clean")
         if not steps and self.can & {"transcribe", "read"}:  # converting needs what they need; older lists run it too
             self.can.add("convert")
+        if not steps and "faces" in self.can:  # blurring faces needs no more than finding them; older lists run it too
+            self.can.add("blur_faces")
         if not steps and "objects" in self.can:  # NSFW classification runs on ONNX Runtime too; older lists run it as well
             self.can.add("nsfw")
         if not steps and self.can & {"transcribe", "read"}:  # enhancing comes first; lists written before it run it too

@@ -2978,12 +2978,22 @@ export const FIELDS: FieldSpec[] = [
     key: "heavy_steps",
     label: "Heavy steps",
     kind: "checks",
-    options: ["transcribe", "read", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe", "embed"].map(
-      (s) => ({
-        value: s,
-        label: s,
-      }),
-    ),
+    options: [
+      "transcribe",
+      "read",
+      "diarize",
+      "shots",
+      "ocr",
+      "faces",
+      "objects",
+      "nsfw",
+      "blur_faces",
+      "describe",
+      "embed",
+    ].map((s) => ({
+      value: s,
+      label: s,
+    })),
   },
   {
     section: "workers",

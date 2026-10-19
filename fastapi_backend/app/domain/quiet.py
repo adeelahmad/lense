@@ -8,7 +8,7 @@ default, keep that to when it suits:
   already running finishes; two workers claiming in the same instant can briefly make it one more).
 
 The heavy steps are `workers.heavy_steps`: by default the ones that work through media on this machine (speech,
-voices, shots, text on screen, faces, objects, NSFW, reading documents). Everything else runs as before.
+voices, shots, text on screen, faces, objects, NSFW, reading documents, blurring faces). Everything else runs as before.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ import re
 
 from . import schedule, store
 
-HEAVY = ["transcribe", "read", "diarize", "shots", "ocr", "faces", "objects", "nsfw"]
+HEAVY = ["transcribe", "read", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "blur_faces"]
 WINDOW = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)-([01]\d|2[0-3]):([0-5]\d)$")
 
 

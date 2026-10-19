@@ -11734,7 +11734,7 @@
           "resources"
         ],
         "summary": "Get Audio",
-        "description": "The audio (or video) for the player, with byte ranges: a copy every browser plays when Settings \u203a Video made one,\nelse the file itself (``/media`` always gives the file). Accepts a bearer token, a share link (``?s=``) or a signed\nlink.",
+        "description": "The audio (or video) for the player, with byte ranges: a copy every browser plays when Settings \u203a Video made one,\nelse the file itself (``/media`` always gives the file). Accepts a bearer token, a share link (``?s=``) or a signed\nlink. Visitors get the copy with the faces blurred where an owner chose that (docs/video.md).",
         "operationId": "get_audio",
         "parameters": [
           {
@@ -22286,7 +22286,7 @@
           "video"
         ],
         "summary": "Get Media",
-        "description": "The video or audio file, with byte ranges; a document's or an image's file, to save. Accepts a bearer token, a\nshare link (``?s=``) or a signed link. With the asset's downloads off, 403 for anyone below its owners (players\nstream /recordings/{rid}/audio, which stays open).",
+        "description": "The video or audio file, with byte ranges; a document's or an image's file, to save. Accepts a bearer token, a\nshare link (``?s=``) or a signed link. With the asset's downloads off, 403 for anyone below its owners (players\nstream /recordings/{rid}/audio, which stays open). Visitors get the copy with the faces blurred where an owner chose\nthat.",
         "operationId": "get_media",
         "parameters": [
           {
@@ -22588,6 +22588,153 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/{rid}/blur-faces": {
+      "get": {
+        "tags": [
+          "video"
+        ],
+        "summary": "Get Face Blur",
+        "description": "The video's copy with the faces blurred for sharing, once one is made (with a signed link to save it, and whether\nvisitors play it), and the latest job to make one: its status, how far ffmpeg got, why it waits or why it failed.\nMembers of its namespace.",
+        "operationId": "get_face_blur",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FaceBlur"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "video"
+        ],
+        "summary": "Blur Faces",
+        "description": "Make a copy of the video with faces blurred, for sharing: every face found (`who` all, the default), the ones\nnobody has named (unnamed), or the face tracks in `tracks` (chosen). It runs in the background as a heavy step\n(quiet processing hours apply) and is kept as one of the asset's files, an attachment labelled \"Faces blurred\";\nasking again replaces it, and asking while it runs gives the same job. The original stays as it is. Needs the\nright to process the asset; 400 for anything but a video, or no faces to blur. Audited as\n`recording.blur_faces`.",
+        "operationId": "blur_faces",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FaceBlurCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobQueued"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/{rid}/blur-faces/visitors": {
+      "put": {
+        "tags": [
+          "video"
+        ],
+        "summary": "Set Face Blur Visitors",
+        "description": "Have visitors (public pages, embeds, share links, IIIF, podcast feeds) play the copy with the faces blurred\ninstead of the original, or not; members play the original either way. While it's on and the copy is missing,\nvisitors get nothing rather than the faces. Owners (the right to publish it); 400 before a copy is made. Audited\nas `recording.blur_faces.visitors`.",
+        "operationId": "set_face_blur_visitors",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FaceBlurVisitors"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FaceBlur"
                 }
               }
             }
@@ -53122,6 +53269,208 @@
           "id"
         ],
         "title": "FaceAsset"
+      },
+      "FaceBlur": {
+        "properties": {
+          "blurred": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FaceBlurCopy"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the copy with the faces blurred, once one is made"
+          },
+          "job": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FaceBlurJob"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the latest job to make one"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "FaceBlur"
+      },
+      "FaceBlurCopy": {
+        "properties": {
+          "file": {
+            "type": "integer",
+            "title": "File",
+            "description": "its id among the asset's files"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size"
+          },
+          "download": {
+            "type": "string",
+            "title": "Download",
+            "description": "a signed link to save it"
+          },
+          "faces": {
+            "type": "integer",
+            "title": "Faces",
+            "description": "how many faces (tracks) are blurred"
+          },
+          "who": {
+            "type": "string",
+            "title": "Who",
+            "description": "all, unnamed or chosen"
+          },
+          "tracks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tracks",
+            "description": "the face tracks blurred"
+          },
+          "made_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Made At"
+          },
+          "visitors": {
+            "type": "boolean",
+            "title": "Visitors",
+            "description": "visitors (public pages, embeds, share links, IIIF, feeds) play it instead of the original",
+            "default": false
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "file",
+          "name",
+          "download",
+          "faces",
+          "who"
+        ],
+        "title": "FaceBlurCopy",
+        "description": "The copy with the faces blurred, kept as one of the asset's files (an attachment)."
+      },
+      "FaceBlurCreate": {
+        "properties": {
+          "who": {
+            "type": "string",
+            "enum": [
+              "all",
+              "unnamed",
+              "chosen"
+            ],
+            "title": "Who",
+            "description": "whose faces to blur: every face found, the ones nobody has named, or the tracks in `tracks`",
+            "default": "all"
+          },
+          "tracks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "title": "Tracks",
+            "description": "with who=chosen: the face tracks to blur (the player's faces[].id)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "FaceBlurCreate"
+      },
+      "FaceBlurJob": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "queued, running, held, succeeded, failed or cancelled"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "progress": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Progress",
+            "description": "how far ffmpeg is, in percent, while it runs"
+          },
+          "waits": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waits",
+            "description": "why it waits to start (quiet processing hours, or heavy steps at once)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "status"
+        ],
+        "title": "FaceBlurJob",
+        "description": "The latest job to make the copy."
+      },
+      "FaceBlurVisitors": {
+        "properties": {
+          "on": {
+            "type": "boolean",
+            "title": "On",
+            "description": "visitors play the copy with the faces blurred instead of the original"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "on"
+        ],
+        "title": "FaceBlurVisitors"
       },
       "FaceDismiss": {
         "properties": {

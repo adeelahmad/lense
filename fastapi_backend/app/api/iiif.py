@@ -508,7 +508,7 @@ def iiif_audio(rid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg)
     if full.get("source") in documents.KINDS:  # a document or an image: its file, to save
         _may_save(request, db, user, rid)
         return serve_document(db, cfg, full, request)
-    return serve_audio(db, cfg, full, rid, request)
+    return serve_audio(db, cfg, full, rid, request, visitor=not _member(request, db, user, full["space"]))
 
 
 @router.get("/iiif/{rid}/pdf", response_class=FileResponse, responses={200: {"content": {"application/pdf": {}}}})
