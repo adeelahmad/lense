@@ -335,3 +335,63 @@ def test_tokens_go_only_to_viewers_the_person_signed_in_for(env):
     assert "window.close()" in done.text
     assert token(evil)["type"] == "AuthAccessToken2"
     assert token(VIEWER)["type"] == "AuthAccessToken2"  # confirming a second viewer keeps the first
+
+
+def test_notes_and_comments_as_web_annotations(env):
+    """With `notes` in iiif.layers, people with a role on an asset get its shared notes and its comments as W3C Web
+    Annotations: a layer on its canvas (commenting on their moment, replies replying to their thread), never anyone's
+    unshared notes, and nothing for the public, share or signed links, or people without a role on it."""
+    from app.domain import comments, notes, store
+
+    db, rid, m = env.db, env.clip, f"{BASE}/iiif/{env.clip}"
+    sid = store.ns_id(db, "pods")
+    root = db.values("SELECT VALUE record::id(id) FROM account WHERE email = 'root@x.io'")[0]
+    db.q("UPDATE $a SET name = 'Vi Viewer'", a=store.R("account", env.vi))
+    n = notes.create(db, rid, sid, env.vi, "Check this claim", t0=500, t1=1500, shared=True)
+    notes.create(db, rid, sid, env.vi, "My own reminder", t0=200)  # unshared: the writer's alone
+    thread = comments.create(db, rid, sid, root, "Is the capsid right?")
+    reply = comments.create(db, rid, sid, env.vi, "Yes, checked.", parent=thread)
+    make_user(db, "out@x.io", "outsider password 1", roles={"calls": "viewer"})
+    c, h = env.admin()
+    vi = env.client()
+    hv = login(vi, "vi@x.io", "viewer password 1")
+    hx = login(env.client(), "out@x.io", "outsider password 1")
+    anon = env.client()
+    layer = f"/iiif/{rid}/annotations/notes"
+
+    def refs(man):
+        return [a["id"] for a in man["items"][0].get("annotations", [])]
+
+    # off by default: nobody gets the layer
+    assert f"{m}/annotations/notes" not in refs(vi.get(f"/iiif/{rid}/manifest", headers=hv).json())
+    assert vi.get(layer, headers=hv).status_code == 404
+
+    layers = ["transcript", "speakers", "entities", "chapters", "screen", "notes"]
+    assert c.put("/api/v1/settings/iiif", headers=h, json={"layers": layers}).status_code == 200
+    r = vi.get(f"/iiif/{rid}/manifest", headers=hv)
+    man = r.json()
+    assert iiif.validate(man) == []
+    assert f"{m}/annotations/notes" in refs(man)
+    assert r.headers["cache-control"] == "private, no-store" and "Authorization" in r.headers["vary"]
+    page = vi.get(layer, headers=hv)
+    assert page.headers["cache-control"] == "private, no-store"
+    items = page.json()["items"]
+    assert [(a["id"], a["motivation"], a["body"]["value"], a["target"]) for a in items] == [
+        (f"{m}/annotations/notes/n{n}", "commenting", "Check this claim", f"{m}/canvas/1#t=0.5,1.5"),
+        (f"{m}/annotations/notes/c{thread}", "commenting", "Is the capsid right?", f"{m}/canvas/1"),
+        (f"{m}/annotations/notes/c{reply}", "replying", "Yes, checked.", f"{m}/annotations/notes/c{thread}"),
+    ]
+    assert items[0]["creator"] == {"type": "Person", "name": "Vi Viewer"} and "email" not in json.dumps(items)
+    assert items[0]["created"].endswith("Z") and "My own reminder" not in page.text
+    # the same through the IIIF access cookie a viewer's sign-in sets
+    cookie = env.client()
+    sign_in(cookie, "vi@x.io", "viewer password 1", VIEWER)
+    assert len(cookie.get(layer).json()["items"]) == 3
+
+    # the public asset's manifest stays the same for everyone else, and the layer isn't theirs
+    pub = anon.get(f"/iiif/{rid}/manifest")
+    assert f"{m}/annotations/notes" not in refs(pub.json()) and "private" not in pub.headers.get("cache-control", "")
+    assert anon.get(layer).status_code == 404
+    assert env.client().get(layer, headers=hx).status_code == 404  # a role elsewhere only
+    other = notes.create(db, env.call, store.ns_id(db, "calls"), env.vi, "Elsewhere", shared=True)
+    assert other and env.client().get(f"/iiif/{env.call}/annotations/notes", headers=hv).status_code == 404

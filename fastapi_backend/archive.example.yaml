@@ -108,7 +108,7 @@ sources:                            # bootstrap-only: the web app can't change t
 iiif:                               # can also be changed in the app
   base_url: null                    # the stable public HTTPS address; identifiers are built from it (null: the request's address)
   default_language: none            # language of titles and summaries when not given, e.g. en
-  layers: [transcript, speakers, entities, chapters, screen]   # what published manifests carry (when the transcript is open)
+  layers: [transcript, speakers, entities, chapters, screen]   # what published manifests carry (when the transcript is open); notes: shared notes and comments, for people with a role only
   rights: null                      # default licence, e.g. http://creativecommons.org/licenses/by/4.0/
   attribution: null                 # default required statement
   provider: null                    # {name: ..., homepage: ..., logo: ...}

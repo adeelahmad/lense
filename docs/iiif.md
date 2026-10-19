@@ -12,6 +12,18 @@ can open them, and harvesters can follow them.
     (`/iiif/<id>/files/<file>.vtt`, whatever their format), an index as a table of contents (a Range), and a thumbnail
     as the Manifest's thumbnail. Files that need permission sit behind the Authorization Flow; attachments always do.
   - A schema.org record and a Dublin Core record, linked with `seeAlso`.
+- **Notes and comments** ([API](api.md#notes)), with `notes` in `iiif.layers` (Settings, IIIF; off by default): the
+  asset's shared notes and its comments as W3C Web Annotations, in an AnnotationPage at
+  `/iiif/<id>/annotations/notes`, which the Canvas lists under `annotations`.
+  - A note, or a comment that starts a thread, is `commenting` on its moment (`canvas/1#t=…`) or on the whole Canvas;
+    a reply is `replying`, targeting its thread's annotation. Each says who wrote it (their name, never their email)
+    and when (`created`, `modified`).
+  - Only people with a role on the asset, in its namespace or on its collection, get it: the requester's own sign-in
+    or the IIIF access cookie. Public access, share links, signed links and IP groups never do, so a public asset's
+    Manifest is the same for everyone else, and the layer answers 404 to them. Unshared notes are their writer's alone
+    and are never in it. A Manifest or page that carries the layer is sent `Cache-Control: private, no-store`.
+  - On a document, the layer is per page (`?page=<n>`): a note about a moment is on the page its text is on then, one
+    about the whole document on the first page.
 - **Documents and images** ([API](api.md#documents-and-images)): a Canvas per page, each with its page drawn as an
   Image (`/iiif/<id>/pages/<n>.jpg`, from 1) and its size; the first page is the thumbnail.
   - The text is annotations on the page, each targeting where its block is (`canvas/<n>#xywh=…`), one page at a time
@@ -48,7 +60,8 @@ An asset's access decides what is published ([Access](access.md)). It's set per 
 namespace, and only owners change it:
 
 - `public`: published. Its open parts (media, text, index) are plain links; closed ones sit behind the
-  Authorization Flow. Chapters are ranges when the index is open.
+  Authorization Flow. Chapters are ranges when the index is open. Notes and comments are never published: only
+  people with a role on the asset get them.
 - `restricted` and `private` (the default): not published. The manifest answers 404 unless the request carries
   permission, and collections leave the asset out.
 

@@ -4,7 +4,8 @@ Content State 1.0 links, Change Discovery 1.0 and importing IIIF audio published
 IIIF publishes public recordings (see access.py and docs/access.md). A public recording's open parts are plain links;
 closed ones carry IIIF Authorization Flow 2.0 probe services (see iiif_auth), transcript layers are only published
 when the transcript is open, and chapters only when the index is. Restricted and private recordings are left out of
-collections unless the requester may read them.
+collections unless the requester may read them. People's shared notes and comments (the `notes` layer) are never
+published: only people with a role on the recording get them, as W3C Web Annotations.
 """
 
 from __future__ import annotations
@@ -193,7 +194,9 @@ def _provider(meta, base):
     return [agent]
 
 
-def manifest(db, cfg, rid, base):
+def manifest(db, cfg, rid, base, notes=False):
+    """A recording's Manifest. With `notes` (the requester has a role on it, and iiif.layers has `notes`), its canvases
+    also list the notes-and-comments layer where there are any."""
     rec = db.one("SELECT * FROM $r", r=R("recording", rid))
     if not rec:
         raise KeyError(rid)
@@ -293,6 +296,15 @@ def manifest(db, cfg, rid, base):
             cv["thumbnail"] = thumb
     doc_layers = [k for k in ("transcript", "entities") if k in layers and not text_locked]
     page_items = [_page_canvas(cfg, base, m, rid, p, canvases, audio_locked, doc_layers) for p in pages]
+    if notes:
+        on = {p for p, _ in _notes(db, rid, m, canvases)}
+        ref = {"id": f"{m}/annotations/{NOTES}", "type": "AnnotationPage", "label": lm(NOTES_LABEL, "en")}
+        if paged and canvases:
+            for c, p in zip(page_items, pages, strict=True):
+                if p["idx"] in on:
+                    c.setdefault("annotations", []).append({**ref, "id": f"{ref['id']}?page={p['idx'] + 1}"})
+        elif on:
+            annotations.append(ref)
     if page_items and page_items[0].get("thumbnail"):
         thumb = page_items[0]["thumbnail"]  # a document's first page stands for it
     pic = next((f for f in kept if f["role"] == "thumbnail"), None)
@@ -589,6 +601,79 @@ def annotation_page(db, cfg, rid, base, layer, page=None):
     own = f"{m}/annotations/{layer}" + (f"?page={page}" if page is not None else "")
     label = "Text" if layer == "transcript" and canvases else LAYERS[layer]  # a document's text isn't a transcript
     return {"@context": P3, "id": own, "type": "AnnotationPage", "label": lm(label, "en"), "items": items}
+
+
+NOTES = "notes"  # the layer of notes and comments (iiif.layers), for people with a role on the asset only
+NOTES_LABEL = "Notes and comments"
+
+
+def _when(t):
+    return t.replace("+00:00", "Z") if t else None
+
+
+def _notes(db, rid, m, canvases):
+    """The asset's shared notes and its comments as W3C Web Annotations: [(page index or None, annotation)]. A note or
+    a thread is `commenting` on its moment (on a document, the page its text at that moment is on) or on the whole
+    asset; a reply is `replying` to its thread. Unshared notes are their writer's alone and never in here."""
+    from . import comments, notes
+
+    shared = notes.shared(db, rid)
+    said = comments.on(db, rid)
+    people = {}
+    ids = {x["account"] for x in shared + said if x.get("account") is not None}
+    if ids:
+        rows = db.rows("SELECT record::id(id) AS id, name FROM account WHERE id IN $ids", ids=[R("account", a) for a in ids])
+        people = {a["id"]: a.get("name") for a in rows}
+    segs = render.player_data(db, rid)["segments"] if canvases else []
+
+    def page_at(t0):  # a document's page at a moment of its reading-pace clock: its first for the whole of it
+        if not canvases:
+            return None
+        at = [s["p"] for s in segs if t0 is not None and s.get("p") in canvases and s["t0"] <= t0]
+        return at[-1] if at else min(canvases)
+
+    def where(x, page):
+        if page is not None:
+            return canvases.get(page, (f"{m}/canvas/1",))[0]
+        return f"{m}/canvas/1" if x.get("t0") is None else f"{m}/canvas/1#t={_t(x['t0'])},{_t(x['t1'])}"
+
+    def anno(aid, x, motivation, tgt, agent=False):
+        name = "Lens" if agent else people.get(x.get("account"))
+        return _prune(
+            {
+                "id": aid,
+                "type": "Annotation",
+                "motivation": motivation,
+                "body": {"type": "TextualBody", "value": x["text"], "format": "text/plain"},
+                "target": tgt,
+                "creator": {"type": "Software" if agent else "Person", "name": name} if name else None,
+                "created": _when(x.get("created_at")),
+                "modified": _when(x.get("edited_at")),
+            }
+        )
+
+    out, threads = [], {}
+    for n in shared:
+        page = page_at(n.get("t0"))
+        out.append((page, anno(f"{m}/annotations/notes/n{n['id']}", n, "commenting", where(n, page))))
+    for c in said:
+        aid, agent = f"{m}/annotations/notes/c{c['id']}", c.get("author") == "assistant"
+        if c.get("parent") is None:
+            page = threads[c["id"]] = page_at(c.get("t0"))
+            out.append((page, anno(aid, c, "commenting", where(c, page), agent)))
+        else:  # a reply goes on its thread (comments.py), on the thread's page
+            out.append((threads.get(c["parent"]), anno(aid, c, "replying", f"{m}/annotations/notes/c{c['parent']}", agent)))
+    return out
+
+
+def notes_page(db, rid, base, page=None):
+    """The notes-and-comments layer (_notes); `page` (from 1) keeps to a document's page's."""
+    rec = db.one("SELECT source FROM $r", r=R("recording", rid)) or {}
+    m = f"{base}/iiif/{rid}"
+    canvases = page_canvases(m, documents.pages(db, rid)) if rec.get("source") in documents.KINDS else {}
+    items = [a for p, a in _notes(db, rid, m, canvases) if page is None or p == page - 1]
+    own = f"{m}/annotations/{NOTES}" + (f"?page={page}" if page is not None else "")
+    return {"@context": P3, "id": own, "type": "AnnotationPage", "label": lm(NOTES_LABEL, "en"), "items": items}
 
 
 def collection_url(base, ns, cid=None):

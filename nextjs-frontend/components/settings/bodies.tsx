@@ -3696,7 +3696,11 @@ function IiifBody({ ctx }: { ctx: BodyCtx }) {
           <F ctx={ctx} id="iiif.provider.homepage" label="Homepage" />
           <F ctx={ctx} id="iiif.provider.logo" label="Logo" />
         </div>
-        <F ctx={ctx} id="iiif.layers" hint="Annotation layers are published only when an asset’s text is open." />
+        <F
+          ctx={ctx}
+          id="iiif.layers"
+          hint="Annotation layers are published only when an asset’s text is open; notes and comments only to people with a role on it."
+        />
         <div className="flex flex-col gap-1.5">
           <span className="text-[13px] font-bold leading-tight text-fg-strong">
             External viewers <span className="font-normal text-fg-muted">· “Open in” buttons</span>

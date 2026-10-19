@@ -336,8 +336,9 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [prompt injection](docs/assistant.md#third-party-content-and-prompt-injection), [HTTPS](docs/https.md),
   [remote access](docs/remote-access.md); [checks](docs/requirements.md#stay-private-and-safe))
 - **Use open standards.** RDF and Dublin Core for every record, OAuth for apps and OpenID Connect sign-in, MCP, MQTT,
-  IIIF for publishing, OpenTelemetry and Prometheus for monitoring, an optional Fedora mirror, and a CSV catalogue of
-  the assets you select in the Library.
+  IIIF for publishing (with your team's shared notes and comments as W3C Web Annotations, for people with a role on the
+  asset only), OpenTelemetry and Prometheus for monitoring, an optional Fedora mirror, and a CSV catalogue of the assets
+  you select in the Library.
   ([Linked data](docs/rdf.md), [IIIF](docs/iiif.md), [Fedora](docs/fedora.md),
   [catalogue](docs/processing.md#finding-by-any-attribute);
   [checks](docs/requirements.md#use-open-standards))
