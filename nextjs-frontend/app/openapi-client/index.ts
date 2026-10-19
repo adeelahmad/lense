@@ -1303,6 +1303,7 @@ export type {
   ForgotPasswordRequest,
   ForgotPasswordResponse,
   ForgotPasswordResponses,
+  GeoPoint,
   GetActivityData,
   GetActivityError,
   GetActivityErrors,

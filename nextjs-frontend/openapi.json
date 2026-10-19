@@ -53688,6 +53688,28 @@
         ],
         "title": "ForgotPasswordRequest"
       },
+      "GeoPoint": {
+        "properties": {
+          "lat": {
+            "type": "number",
+            "title": "Lat",
+            "description": "latitude, north positive"
+          },
+          "lon": {
+            "type": "number",
+            "title": "Lon",
+            "description": "longitude, east positive"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "lat",
+          "lon"
+        ],
+        "title": "GeoPoint",
+        "description": "Where a photo was taken, from its own file (its EXIF GPS fix), in WGS 84 degrees."
+      },
       "GoogleClient": {
         "properties": {
           "origin": {
@@ -72403,6 +72425,29 @@
               }
             ],
             "description": "the places and dates anytopdf found (analysis.anytopdf)"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At",
+            "description": "when it was made: a date in its file's name, else what its file says (a photo's EXIF, a video's creation time), else its file's last change; a source's or a document's own date wins"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GeoPoint"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "a photo: where it was taken, from its EXIF GPS (members of its namespace only)"
           },
           "nsfw": {
             "anyOf": [

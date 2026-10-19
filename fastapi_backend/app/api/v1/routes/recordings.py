@@ -311,7 +311,7 @@ def retag_recordings(body: RecordingsRetag, acl: Acl, user: Writer, db: Db) -> T
 def get_recording(rid: int, acl: Acl, db: Db, cfg: Cfg) -> Recording:
     r = acl.recording(rid)
     space = db.one("SELECT name FROM $s", s=R("space", r["space"])) or {}
-    d = {k: v for k, v in r.items() if k not in ("envelope", "stats", "summary", "access_parts", "enrichment")}
+    d = {k: v for k, v in r.items() if k not in ("envelope", "stats", "summary", "access_parts", "enrichment", "place")}
     a = acc.of(db, rid)
     d.update(access=a["access"], open=a["open"], featured=a["featured"], access_inherited=a["inherited"])
     d.update(
@@ -336,6 +336,8 @@ def get_recording(rid: int, acl: Acl, db: Db, cfg: Cfg) -> Recording:
     d["converted_from"] = _attached_to(acl, db, r.get("converted_from"))
     if r.get("enrichment") and acl.member(r):  # where a photo was taken: members only
         d["enrichment"] = {k: v for k, v in r["enrichment"].items() if k != "photo_fp"}
+    if r.get("place") and acl.member(r):  # its file's GPS fix, likewise
+        d["place"] = r["place"]
     d["nsfw"] = _nsfw(db, cfg, r, rid)
     d["enhanced"] = enhance.brief(r.get("enhanced"), rid)
     waiting = r.get("awaits_pdf") or None

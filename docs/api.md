@@ -1216,7 +1216,8 @@ runs instead of the namespace's once a new asset is made, `content_type` is the 
 type](processing.md#content-types) (one of the file's base type, else 400; its pipeline runs) and `collection` is
 where it goes (none of them with `recording`, which keeps its own). The same file uploaded again with a content type
 gives the asset it already is that one. The name loses any folders and its extension is lowercased; `modified`
-(the file's last-modified time in milliseconds) dates the asset when its name doesn't. 400 for a type not in
+(the file's last-modified time in milliseconds) dates the asset when neither its name nor the file itself does
+([When an asset was made](processing.md#when-an-asset-was-made)). 400 for a type not in
 `uploads.extensions`, 413 over `uploads.max_mb`, 507 when the server's disk can't hold it with 512 MB to spare.
 
 `PUT /uploads/{uid}?offset=` sends the next piece as the raw request body (`application/octet-stream`), starting at

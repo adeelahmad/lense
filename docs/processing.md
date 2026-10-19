@@ -81,6 +81,24 @@ key terms with Universal-3 and Slam-1, or boosted words with the others. SenseVo
 they transcribe as before. The words go only to the engine the recording was going to anyway, and a provider's row in
 the [activity ledger](activity.md) says how many it was given. Run Transcribe again on an asset to use new names.
 
+### When an asset was made
+
+An asset's date (`recorded_at`) is set once, when it arrives (scanned, uploaded, shared into a mounted folder or sent
+to an import webhook), from the first of these that says it:
+
+1. A date in its file's name, such as `2024-03-05 interview.mp3` or `IMG_20240305_101500.jpg`.
+2. The file itself: a photo's EXIF (`DateTimeOriginal`, with its `OffsetTimeOriginal` where the camera wrote one, else
+   `DateTime`), or a video's or a recording's creation time as ffprobe reads it (QuickTime's
+   `com.apple.quicktime.creationdate`, which keeps the phone's local time, else `creation_time`, in UTC).
+3. When the file last changed (for an upload, the last-modified time the browser sends).
+
+Nothing is guessed: a clock that was never set (a year before 1971, such as QuickTime's 1904) or a date in the future
+counts as no date. A date an imported transcript gives wins over all three, as an email's or a document's own date
+does once it is read, and a file uploaded again into the namespace that has it keeps its asset's date. A file on a
+[storage source](#storage-sources) is dated by the source (the date it lists, else when the file last changed there). A photo's GPS fix from its EXIF is kept as the asset's `place` (`{lat, lon}`, in degrees);
+`GET /api/v1/recordings/{rid}` and the MCP tool `get_recording` give it to the namespace's members only, never to
+visitors. It is read on this machine and nothing is sent anywhere. Assets that arrived before keep their dates.
+
 ### Cleaning up transcripts
 
 Speech comes out of transcription as it was said, and the extractor, chapters, keywords and search all read it. With

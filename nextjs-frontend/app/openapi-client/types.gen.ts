@@ -9594,6 +9594,27 @@ export type ForgotPasswordRequest = {
 };
 
 /**
+ * GeoPoint
+ *
+ * Where a photo was taken, from its own file (its EXIF GPS fix), in WGS 84 degrees.
+ */
+export type GeoPoint = {
+  /**
+   * Lat
+   *
+   * latitude, north positive
+   */
+  lat: number;
+  /**
+   * Lon
+   *
+   * longitude, east positive
+   */
+  lon: number;
+  [key: string]: unknown;
+};
+
+/**
  * GoogleClient
  */
 export type GoogleClient = {
@@ -20633,6 +20654,16 @@ export type Recording = {
    * the places and dates anytopdf found (analysis.anytopdf)
    */
   enrichment?: Enrichment | null;
+  /**
+   * Recorded At
+   *
+   * when it was made: a date in its file's name, else what its file says (a photo's EXIF, a video's creation time), else its file's last change; a source's or a document's own date wins
+   */
+  recorded_at?: string | null;
+  /**
+   * a photo: where it was taken, from its EXIF GPS (members of its namespace only)
+   */
+  place?: GeoPoint | null;
   /**
    * NSFW classification, where it's on in its namespace and it was classified
    */

@@ -365,6 +365,7 @@ def finish(db, cfg, row, admin=False):
         )
         copy = bool(dup and (has_file(db, cfg, dup) if kind or read else has_media(db, cfg, dup)))  # it's here already, with its file
         probed = ingest.probe(dest) if not copy and (target or not (kind or read)) else None  # read before the file is encrypted
+        taken = ingest.taken(dest) if not (copy or target or read or dup) else (None, None)  # a new asset's: when and where
         if not copy:
             keyring.protect(db, cfg, sid, dest)
         job = None
@@ -382,7 +383,7 @@ def finish(db, cfg, row, admin=False):
             _typed(db, rid, chosen)
             job = jobs.enqueue(db, rid, None, by=by, pipeline=row.get("pipeline"))
         elif kind:
-            rid, job = _document(db, dest, st, fp, sid, {**row, "content_type": chosen}, kind, dup, by)
+            rid, job = _document(db, dest, st, fp, sid, {**row, "content_type": chosen}, kind, dup, by, taken)
         else:
             dur, ch = probed
             media = store.clean(
@@ -413,7 +414,8 @@ def finish(db, cfg, row, admin=False):
                         "fingerprint": fp,
                         "fp_key": f"{sid}:{fp}",
                         "title": row.get("title") or pathlib.Path(row["filename"]).stem,
-                        "recorded_at": ingest.recorded_at(dest, st.st_mtime),
+                        "recorded_at": ingest.recorded_at(dest, st.st_mtime, taken[0]),
+                        **({"place": taken[1]} if taken[1] else {}),
                         "status": "new",
                         "created_at": store.now(),
                     },
@@ -458,10 +460,11 @@ def _as_text(dest):
     return chats.read(dest.read_text(encoding="utf-8-sig", errors="replace"), dest.name)
 
 
-def _document(db, dest, st, fp, sid, row, kind, dup, by):
+def _document(db, dest, st, fp, sid, row, kind, dup, by, taken):
     """A document or an image: a resource of its own, or the one the file was before (imported as a transcript, or
     whose file went), which takes it as this kind; its pages are drawn and read by the namespace's pipeline (or the
-    one chosen). One whose PDF an import webhook hands back (`await_pdf`) waits for it instead, with no job."""
+    one chosen). One whose PDF an import webhook hands back (`await_pdf`) waits for it instead, with no job. A new one
+    is dated, and placed, by what its file says (`taken`, ingest.taken) when its name doesn't date it."""
     d = {"path": str(dest), "source": kind, "size": st.st_size, "mtime": st.st_mtime, "media": {"kind": kind}, "status": "new"}
     if row.get("content_type"):
         d["content_type"] = row["content_type"]
@@ -482,7 +485,8 @@ def _document(db, dest, st, fp, sid, row, kind, dup, by):
                 "fingerprint": fp,
                 "fp_key": f"{sid}:{fp}",
                 "title": row.get("title") or pathlib.Path(row["filename"]).stem,
-                "recorded_at": ingest.recorded_at(dest, st.st_mtime),
+                "recorded_at": ingest.recorded_at(dest, st.st_mtime, taken[0]),
+                **({"place": taken[1]} if taken[1] else {}),
                 "created_at": store.now(),
             },
         )

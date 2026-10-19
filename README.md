@@ -143,8 +143,9 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   emails a light server can't convert itself.
   Google accounts connect with Connect with Google once Lens has a Google client, and Dropbox, OneDrive and Google
   Drive can sign in through rclone on the Lens server, with no app of your own to register. Upload audio, video, PDFs,
-  Office files, photos, JSON and zip or tar archives, and, with an Apache Tika server (an opt-in extra), documents
-  nothing else here can read; capture web pages one at a time, from a link list or a bookmarks file, by API or by asking
+  Office files, photos, JSON and zip or tar archives (photos and videos dated by when they were taken, from the file
+  itself, and photos placed by their GPS), and, with an Apache Tika server (an opt-in extra), documents nothing else
+  here can read; capture web pages one at a time, from a link list or a bookmarks file, by API or by asking
   the assistant, from private networks you allow in Settings too; and import videos and podcasts by their address (off
   by default), taking a video's own captions as its transcript when people wrote some (off by default too). Say what a
   file or a page is as it comes in (a podcast, an interview, a scan), in Import, by API or to the assistant, and its
