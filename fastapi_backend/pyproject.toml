@@ -120,6 +120,7 @@ dev = [
     "pywebrtc-audio>=0.2.0,<0.3",  # the clean_audio step's WebRTC audio processing, tested on synthetic audio
     "python-vaultwarden>=1.1.2,<2",  # the Vaultwarden client, tested against a fake Vaultwarden
     "moto[ec2]>=5.1,<6",
+    "paramiko>=3.5,<5",
 ]
 
 [tool.hatch.build.targets.wheel]

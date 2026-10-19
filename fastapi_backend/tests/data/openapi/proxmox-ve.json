@@ -1,0 +1,1808 @@
+{
+ "info": {
+  "title": "Proxmox VE API",
+  "version": "apidoc.js",
+  "x-lens-converted": "Proxmox's own schema as OpenAPI: optional fields as required lists, booleans as 0 or 1 too, POST and PUT parameters as the form body",
+  "x-lens-fetched": "2026-10-19",
+  "x-lens-source": "https://pve.proxmox.com/pve-docs/api-viewer/apidoc.js"
+ },
+ "openapi": "3.1.0",
+ "paths": {
+  "/cluster/nextid": {
+   "get": {
+    "operationId": "get /cluster/nextid",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "vmid",
+      "required": false,
+      "schema": {
+       "maximum": 999999999,
+       "minimum": 100,
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "properties": {
+          "data": {
+           "type": "integer"
+          }
+         },
+         "required": [
+          "data"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     }
+    },
+    "x-pve-description": "Get next free VMID. Pass a VMID to assert that its free (at time of check)."
+   }
+  },
+  "/cluster/resources": {
+   "get": {
+    "operationId": "get /cluster/resources",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "type",
+      "required": false,
+      "schema": {
+       "enum": [
+        "vm",
+        "storage",
+        "node",
+        "sdn"
+       ],
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "properties": {
+          "data": {
+           "items": {
+            "properties": {
+             "cgroup-mode": {
+              "type": "integer"
+             },
+             "content": {
+              "type": "string"
+             },
+             "cpu": {
+              "minimum": 0,
+              "type": "number"
+             },
+             "disk": {
+              "minimum": 0,
+              "type": "integer"
+             },
+             "diskread": {
+              "type": "integer"
+             },
+             "diskwrite": {
+              "type": "integer"
+             },
+             "hastate": {
+              "type": "string"
+             },
+             "host-arch": {
+              "enum": [
+               "x86_64",
+               "aarch64"
+              ],
+              "type": "string"
+             },
+             "id": {
+              "type": "string"
+             },
+             "level": {
+              "type": "string"
+             },
+             "lock": {
+              "type": "string"
+             },
+             "maxcpu": {
+              "minimum": 0,
+              "type": "number"
+             },
+             "maxdisk": {
+              "minimum": 0,
+              "type": "integer"
+             },
+             "maxmem": {
+              "type": "integer"
+             },
+             "mem": {
+              "minimum": 0,
+              "type": "integer"
+             },
+             "memhost": {
+              "minimum": 0,
+              "type": "integer"
+             },
+             "name": {
+              "type": "string"
+             },
+             "netin": {
+              "type": "integer"
+             },
+             "netout": {
+              "type": "integer"
+             },
+             "network": {
+              "type": "string"
+             },
+             "network-type": {
+              "enum": [
+               "fabric",
+               "zone"
+              ],
+              "type": "string"
+             },
+             "node": {
+              "type": "string"
+             },
+             "plugintype": {
+              "type": "string"
+             },
+             "pool": {
+              "type": "string"
+             },
+             "protocol": {
+              "type": "string"
+             },
+             "sdn": {
+              "type": "string"
+             },
+             "shared": {
+              "anyOf": [
+               {
+                "type": "boolean"
+               },
+               {
+                "enum": [
+                 0,
+                 1
+                ]
+               }
+              ]
+             },
+             "status": {
+              "type": "string"
+             },
+             "storage": {
+              "type": "string"
+             },
+             "tags": {
+              "type": "string"
+             },
+             "template": {
+              "anyOf": [
+               {
+                "type": "boolean"
+               },
+               {
+                "enum": [
+                 0,
+                 1
+                ]
+               }
+              ]
+             },
+             "type": {
+              "enum": [
+               "node",
+               "storage",
+               "pool",
+               "qemu",
+               "lxc",
+               "openvz",
+               "sdn",
+               "network"
+              ],
+              "type": "string"
+             },
+             "uptime": {
+              "type": "integer"
+             },
+             "vmid": {
+              "maximum": 999999999,
+              "minimum": 100,
+              "type": "integer"
+             },
+             "zone-type": {
+              "type": "string"
+             }
+            },
+            "required": [
+             "id",
+             "type"
+            ],
+            "type": "object"
+           },
+           "type": "array"
+          }
+         },
+         "required": [
+          "data"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     }
+    },
+    "x-pve-description": "Resources index (cluster wide)."
+   }
+  },
+  "/nodes": {
+   "get": {
+    "operationId": "get /nodes",
+    "parameters": [],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "properties": {
+          "data": {
+           "items": {
+            "properties": {
+             "cpu": {
+              "type": "number"
+             },
+             "level": {
+              "type": "string"
+             },
+             "maxcpu": {
+              "type": "integer"
+             },
+             "maxmem": {
+              "type": "integer"
+             },
+             "mem": {
+              "type": "integer"
+             },
+             "node": {
+              "type": "string"
+             },
+             "ssl_fingerprint": {
+              "type": "string"
+             },
+             "status": {
+              "enum": [
+               "unknown",
+               "online",
+               "offline"
+              ],
+              "type": "string"
+             },
+             "uptime": {
+              "type": "integer"
+             }
+            },
+            "required": [
+             "node",
+             "status"
+            ],
+            "type": "object"
+           },
+           "type": "array"
+          }
+         },
+         "required": [
+          "data"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     }
+    },
+    "x-pve-description": "Cluster node index."
+   }
+  },
+  "/nodes/{node}/qemu/{vmid}": {
+   "delete": {
+    "operationId": "delete /nodes/{node}/qemu/{vmid}",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "node",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "vmid",
+      "required": true,
+      "schema": {
+       "maximum": 999999999,
+       "minimum": 100,
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "destroy-unreferenced-disks",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "boolean"
+        },
+        {
+         "enum": [
+          0,
+          1
+         ]
+        }
+       ]
+      }
+     },
+     {
+      "in": "query",
+      "name": "purge",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "boolean"
+        },
+        {
+         "enum": [
+          0,
+          1
+         ]
+        }
+       ]
+      }
+     },
+     {
+      "in": "query",
+      "name": "skiplock",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "boolean"
+        },
+        {
+         "enum": [
+          0,
+          1
+         ]
+        }
+       ]
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "properties": {
+          "data": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "data"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     }
+    },
+    "x-pve-description": "Destroy the VM and  all used/owned volumes. Removes any VM specific permissions and firewall rules"
+   }
+  },
+  "/nodes/{node}/qemu/{vmid}/agent/exec": {
+   "post": {
+    "operationId": "post /nodes/{node}/qemu/{vmid}/agent/exec",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "node",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "vmid",
+      "required": true,
+      "schema": {
+       "maximum": 999999999,
+       "minimum": 100,
+       "type": "integer"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/x-www-form-urlencoded": {
+       "schema": {
+        "additionalProperties": false,
+        "properties": {
+         "command": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "input-data": {
+          "maxLength": 65536,
+          "type": "string"
+         }
+        },
+        "required": [
+         "command"
+        ],
+        "type": "object"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "properties": {
+          "data": {
+           "properties": {
+            "pid": {
+             "type": "integer"
+            }
+           },
+           "required": [
+            "pid"
+           ],
+           "type": "object"
+          }
+         },
+         "required": [
+          "data"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     }
+    },
+    "x-pve-description": "Executes the given command in the vm via the guest-agent and returns an object with the pid."
+   }
+  },
+  "/nodes/{node}/qemu/{vmid}/agent/ping": {
+   "post": {
+    "operationId": "post /nodes/{node}/qemu/{vmid}/agent/ping",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "node",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "vmid",
+      "required": true,
+      "schema": {
+       "maximum": 999999999,
+       "minimum": 100,
+       "type": "integer"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/x-www-form-urlencoded": {
+       "schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "properties": {
+          "data": {
+           "type": "object"
+          }
+         },
+         "required": [
+          "data"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     }
+    },
+    "x-pve-description": "Execute ping."
+   }
+  },
+  "/nodes/{node}/qemu/{vmid}/clone": {
+   "post": {
+    "operationId": "post /nodes/{node}/qemu/{vmid}/clone",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "node",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "vmid",
+      "required": true,
+      "schema": {
+       "maximum": 999999999,
+       "minimum": 100,
+       "type": "integer"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/x-www-form-urlencoded": {
+       "schema": {
+        "additionalProperties": false,
+        "properties": {
+         "bwlimit": {
+          "minimum": 0,
+          "type": "integer"
+         },
+         "description": {
+          "type": "string"
+         },
+         "format": {
+          "enum": [
+           "raw",
+           "qcow2",
+           "vmdk"
+          ],
+          "type": "string"
+         },
+         "full": {
+          "anyOf": [
+           {
+            "type": "boolean"
+           },
+           {
+            "enum": [
+             0,
+             1
+            ]
+           }
+          ]
+         },
+         "name": {
+          "type": "string"
+         },
+         "newid": {
+          "maximum": 999999999,
+          "minimum": 100,
+          "type": "integer"
+         },
+         "pool": {
+          "type": "string"
+         },
+         "snapname": {
+          "maxLength": 40,
+          "type": "string"
+         },
+         "storage": {
+          "type": "string"
+         },
+         "target": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "newid"
+        ],
+        "type": "object"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "properties": {
+          "data": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "data"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     }
+    },
+    "x-pve-description": "Create a copy of virtual machine/template."
+   }
+  },
+  "/nodes/{node}/qemu/{vmid}/config": {
+   "put": {
+    "operationId": "put /nodes/{node}/qemu/{vmid}/config",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "node",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "vmid",
+      "required": true,
+      "schema": {
+       "maximum": 999999999,
+       "minimum": 100,
+       "type": "integer"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/x-www-form-urlencoded": {
+       "schema": {
+        "additionalProperties": false,
+        "properties": {
+         "acpi": {
+          "anyOf": [
+           {
+            "type": "boolean"
+           },
+           {
+            "enum": [
+             0,
+             1
+            ]
+           }
+          ]
+         },
+         "affinity": {
+          "type": "string"
+         },
+         "agent": {
+          "type": "string"
+         },
+         "allow-ksm": {
+          "anyOf": [
+           {
+            "type": "boolean"
+           },
+           {
+            "enum": [
+             0,
+             1
+            ]
+           }
+          ]
+         },
+         "amd-sev": {
+          "type": "string"
+         },
+         "arch": {
+          "enum": [
+           "x86_64",
+           "aarch64"
+          ],
+          "type": "string"
+         },
+         "args": {
+          "type": "string"
+         },
+         "audio0": {
+          "type": "string"
+         },
+         "autostart": {
+          "anyOf": [
+           {
+            "type": "boolean"
+           },
+           {
+            "enum": [
+             0,
+             1
+            ]
+           }
+          ]
+         },
+         "balloon": {
+          "minimum": 0,
+          "type": "integer"
+         },
+         "bios": {
+          "enum": [
+           "seabios",
+           "ovmf"
+          ],
+          "type": "string"
+         },
+         "boot": {
+          "type": "string"
+         },
+         "bootdisk": {
+          "pattern": "^(?:(ide|sata|scsi|virtio)\\d+)$",
+          "type": "string"
+         },
+         "cdrom": {
+          "type": "string"
+         },
+         "cicustom": {
+          "type": "string"
+         },
+         "cipassword": {
+          "type": "string"
+         },
+         "citype": {
+          "enum": [
+           "configdrive2",
+           "nocloud",
+           "opennebula"
+          ],
+          "type": "string"
+         },
+         "ciupgrade": {
+          "anyOf": [
+           {
+            "type": "boolean"
+           },
+           {
+            "enum": [
+             0,
+             1
+            ]
+           }
+          ]
+         },
+         "ciuser": {
+          "type": "string"
+         },
+         "cores": {
+          "minimum": 1,
+          "type": "integer"
+         },
+         "cpu": {
+          "type": "string"
+         },
+         "cpulimit": {
+          "maximum": 128,
+          "minimum": 0,
+          "type": "number"
+         },
+         "cpuunits": {
+          "maximum": 262144,
+          "minimum": 1,
+          "type": "integer"
+         },
+         "delete": {
+          "type": "string"
+         },
+         "description": {
+          "maxLength": 8192,
+          "type": "string"
+         },
+         "digest": {
+          "maxLength": 40,
+          "type": "string"
+         },
+         "efidisk0": {
+          "type": "string"
+         },
+         "force": {
+          "anyOf": [
+           {
+            "type": "boolean"
+           },
+           {
+            "enum": [
+             0,
+             1
+            ]
+           }
+          ]
+         },
+         "freeze": {
+          "anyOf": [
+           {
+            "type": "boolean"
+           },
+           {
+            "enum": [
+             0,
+             1
+            ]
+           }
+          ]
+         },
+         "hookscript": {
+          "type": "string"
+         },
+         "hostpci[n]": {
+          "type": "string"
+         },
+         "hotplug": {
+          "type": "string"
+         },
+         "hugepages": {
+          "enum": [
+           "any",
+           "2",
+           "1024"
+          ],
+          "type": "string"
+         },
+         "ide[n]": {
+          "type": "string"
+         },
+         "intel-tdx": {
+          "type": "string"
+         },
+         "ipconfig[n]": {
+          "type": "string"
+         },
+         "ivshmem": {
+          "type": "string"
+         },
+         "keephugepages": {
+          "anyOf": [
+           {
+            "type": "boolean"
+           },
+           {
+            "enum": [
+             0,
+             1
+            ]
+           }
+          ]
+         },
+         "keyboard": {
+          "enum": [
+           "de",
+           "de-ch",
+           "da",
+           "en-gb",
+           "en-us",
+           "es",
+           "fi",
+           "fr",
+           "fr-be",
+           "fr-ca",
+           "fr-ch",
+           "hu",
+           "is",
+           "it",
+           "ja",
+           "lt",
+           "mk",
+           "nl",
+           "no",
+           "pl",
+           "pt",
+           "pt-br",
+           "sv",
+           "sl",
+           "tr"
+          ],
+          "type": "string"
+         },
+         "kvm": {
+          "anyOf": [
+           {
+            "type": "boolean"
+           },
+           {
+            "enum": [
+             0,
+             1
+            ]
+           }
+          ]
+         },
+         "localtime": {
+          "anyOf": [
+           {
+            "type": "boolean"
+           },
+           {
+            "enum": [
+             0,
+             1
+            ]
+           }
+          ]
+         },
+         "lock": {
+          "enum": [
+           "backup",
+           "clone",
+           "create",
+           "migrate",
+           "rollback",
+           "snapshot",
+           "snapshot-delete",
+           "suspending",
+           "suspended"
+          ],
+          "type": "string"
+         },
+         "machine": {
+          "type": "string"
+         },
+         "memory": {
+          "type": "string"
+         },
+         "migrate_downtime": {
+          "minimum": 0,
+          "type": "number"
+         },
+         "migrate_speed": {
+          "minimum": 0,
+          "type": "integer"
+         },
+         "name": {
+          "type": "string"
+         },
+         "nameserver": {
+          "type": "string"
+         },
+         "net[n]": {
+          "type": "string"
+         },
+         "numa": {
+          "anyOf": [
+           {
+            "type": "boolean"
+           },
+           {
+            "enum": [
+             0,
+             1
+            ]
+           }
+          ]
+         },
+         "numa[n]": {
+          "type": "string"
+         },
+         "onboot": {
+          "anyOf": [
+           {
+            "type": "boolean"
+           },
+           {
+            "enum": [
+             0,
+             1
+            ]
+           }
+          ]
+         },
+         "ostype": {
+          "enum": [
+           "other",
+           "wxp",
+           "w2k",
+           "w2k3",
+           "w2k8",
+           "wvista",
+           "win7",
+           "win8",
+           "win10",
+           "win11",
+           "l24",
+           "l26",
+           "solaris"
+          ],
+          "type": "string"
+         },
+         "parallel[n]": {
+          "pattern": "^(?:/dev/parport\\d+|/dev/usb/lp\\d+)$",
+          "type": "string"
+         },
+         "protection": {
+          "anyOf": [
+           {
+            "type": "boolean"
+           },
+           {
+            "enum": [
+             0,
+             1
+            ]
+           }
+          ]
+         },
+         "reboot": {
+          "anyOf": [
+           {
+            "type": "boolean"
+           },
+           {
+            "enum": [
+             0,
+             1
+            ]
+           }
+          ]
+         },
+         "revert": {
+          "type": "string"
+         },
+         "rng0": {
+          "type": "string"
+         },
+         "sata[n]": {
+          "type": "string"
+         },
+         "scsi[n]": {
+          "type": "string"
+         },
+         "scsihw": {
+          "enum": [
+           "lsi",
+           "lsi53c810",
+           "virtio-scsi-pci",
+           "virtio-scsi-single",
+           "megasas",
+           "pvscsi"
+          ],
+          "type": "string"
+         },
+         "searchdomain": {
+          "type": "string"
+         },
+         "serial[n]": {
+          "pattern": "^(?:(/dev/[^,]+|socket))$",
+          "type": "string"
+         },
+         "shares": {
+          "maximum": 50000,
+          "minimum": 0,
+          "type": "integer"
+         },
+         "skiplock": {
+          "anyOf": [
+           {
+            "type": "boolean"
+           },
+           {
+            "enum": [
+             0,
+             1
+            ]
+           }
+          ]
+         },
+         "smbios1": {
+          "maxLength": 512,
+          "type": "string"
+         },
+         "smp": {
+          "minimum": 1,
+          "type": "integer"
+         },
+         "sockets": {
+          "minimum": 1,
+          "type": "integer"
+         },
+         "spice_enhancements": {
+          "type": "string"
+         },
+         "sshkeys": {
+          "type": "string"
+         },
+         "startdate": {
+          "pattern": "^(?:(now|\\d{4}-\\d{1,2}-\\d{1,2}(T\\d{1,2}:\\d{1,2}:\\d{1,2})?))$",
+          "type": "string"
+         },
+         "startup": {
+          "type": "string"
+         },
+         "tablet": {
+          "anyOf": [
+           {
+            "type": "boolean"
+           },
+           {
+            "enum": [
+             0,
+             1
+            ]
+           }
+          ]
+         },
+         "tags": {
+          "type": "string"
+         },
+         "tdf": {
+          "anyOf": [
+           {
+            "type": "boolean"
+           },
+           {
+            "enum": [
+             0,
+             1
+            ]
+           }
+          ]
+         },
+         "template": {
+          "anyOf": [
+           {
+            "type": "boolean"
+           },
+           {
+            "enum": [
+             0,
+             1
+            ]
+           }
+          ]
+         },
+         "tpmstate0": {
+          "type": "string"
+         },
+         "unused[n]": {
+          "type": "string"
+         },
+         "usb[n]": {
+          "type": "string"
+         },
+         "vcpus": {
+          "minimum": 1,
+          "type": "integer"
+         },
+         "vga": {
+          "type": "string"
+         },
+         "virtio[n]": {
+          "type": "string"
+         },
+         "virtiofs[n]": {
+          "type": "string"
+         },
+         "vmgenid": {
+          "pattern": "^(?:(?:[a-fA-F0-9]{8}(?:-[a-fA-F0-9]{4}){3}-[a-fA-F0-9]{12}|[01]))$",
+          "type": "string"
+         },
+         "vmstatestorage": {
+          "type": "string"
+         },
+         "watchdog": {
+          "type": "string"
+         }
+        },
+        "type": "object"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "properties": {
+          "data": {
+           "type": "null"
+          }
+         },
+         "required": [
+          "data"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     }
+    },
+    "x-pve-description": "Set virtual machine options (synchronous API) - You should consider using the POST method instead for any actions involving hotplug or storage allocation."
+   }
+  },
+  "/nodes/{node}/qemu/{vmid}/status/current": {
+   "get": {
+    "operationId": "get /nodes/{node}/qemu/{vmid}/status/current",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "node",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "vmid",
+      "required": true,
+      "schema": {
+       "maximum": 999999999,
+       "minimum": 100,
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "properties": {
+          "data": {
+           "properties": {
+            "agent": {
+             "anyOf": [
+              {
+               "type": "boolean"
+              },
+              {
+               "enum": [
+                0,
+                1
+               ]
+              }
+             ]
+            },
+            "clipboard": {
+             "enum": [
+              "vnc"
+             ],
+             "type": "string"
+            },
+            "cpu": {
+             "type": "number"
+            },
+            "cpus": {
+             "type": "number"
+            },
+            "diskread": {
+             "type": "integer"
+            },
+            "diskwrite": {
+             "type": "integer"
+            },
+            "ha": {
+             "type": "object"
+            },
+            "lock": {
+             "type": "string"
+            },
+            "maxdisk": {
+             "type": "integer"
+            },
+            "maxmem": {
+             "type": "integer"
+            },
+            "mem": {
+             "type": "integer"
+            },
+            "memhost": {
+             "type": "integer"
+            },
+            "name": {
+             "type": "string"
+            },
+            "netin": {
+             "type": "integer"
+            },
+            "netout": {
+             "type": "integer"
+            },
+            "pid": {
+             "type": "integer"
+            },
+            "pressurecpufull": {
+             "type": "number"
+            },
+            "pressurecpusome": {
+             "type": "number"
+            },
+            "pressureiofull": {
+             "type": "number"
+            },
+            "pressureiosome": {
+             "type": "number"
+            },
+            "pressurememoryfull": {
+             "type": "number"
+            },
+            "pressurememorysome": {
+             "type": "number"
+            },
+            "qmpstatus": {
+             "type": "string"
+            },
+            "running-machine": {
+             "type": "string"
+            },
+            "running-qemu": {
+             "type": "string"
+            },
+            "serial": {
+             "anyOf": [
+              {
+               "type": "boolean"
+              },
+              {
+               "enum": [
+                0,
+                1
+               ]
+              }
+             ]
+            },
+            "spice": {
+             "anyOf": [
+              {
+               "type": "boolean"
+              },
+              {
+               "enum": [
+                0,
+                1
+               ]
+              }
+             ]
+            },
+            "status": {
+             "enum": [
+              "stopped",
+              "running"
+             ],
+             "type": "string"
+            },
+            "tags": {
+             "type": "string"
+            },
+            "template": {
+             "anyOf": [
+              {
+               "type": "boolean"
+              },
+              {
+               "enum": [
+                0,
+                1
+               ]
+              }
+             ]
+            },
+            "uptime": {
+             "type": "integer"
+            },
+            "vmid": {
+             "maximum": 999999999,
+             "minimum": 100,
+             "type": "integer"
+            }
+           },
+           "required": [
+            "ha",
+            "status",
+            "vmid"
+           ],
+           "type": "object"
+          }
+         },
+         "required": [
+          "data"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     }
+    },
+    "x-pve-description": "Get virtual machine status."
+   }
+  },
+  "/nodes/{node}/qemu/{vmid}/status/start": {
+   "post": {
+    "operationId": "post /nodes/{node}/qemu/{vmid}/status/start",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "node",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "vmid",
+      "required": true,
+      "schema": {
+       "maximum": 999999999,
+       "minimum": 100,
+       "type": "integer"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/x-www-form-urlencoded": {
+       "schema": {
+        "additionalProperties": false,
+        "properties": {
+         "force-cpu": {
+          "type": "string"
+         },
+         "machine": {
+          "type": "string"
+         },
+         "migratedfrom": {
+          "type": "string"
+         },
+         "migration_network": {
+          "type": "string"
+         },
+         "migration_type": {
+          "enum": [
+           "secure",
+           "insecure"
+          ],
+          "type": "string"
+         },
+         "nets-host-mtu": {
+          "pattern": "^(?:net\\d+=\\d+(,net\\d+=\\d+)*)$",
+          "type": "string"
+         },
+         "skiplock": {
+          "anyOf": [
+           {
+            "type": "boolean"
+           },
+           {
+            "enum": [
+             0,
+             1
+            ]
+           }
+          ]
+         },
+         "stateuri": {
+          "maxLength": 128,
+          "type": "string"
+         },
+         "targetstorage": {
+          "type": "string"
+         },
+         "timeout": {
+          "minimum": 0,
+          "type": "integer"
+         },
+         "with-conntrack-state": {
+          "anyOf": [
+           {
+            "type": "boolean"
+           },
+           {
+            "enum": [
+             0,
+             1
+            ]
+           }
+          ]
+         }
+        },
+        "type": "object"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "properties": {
+          "data": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "data"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     }
+    },
+    "x-pve-description": "Start virtual machine."
+   }
+  },
+  "/nodes/{node}/qemu/{vmid}/status/stop": {
+   "post": {
+    "operationId": "post /nodes/{node}/qemu/{vmid}/status/stop",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "node",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "vmid",
+      "required": true,
+      "schema": {
+       "maximum": 999999999,
+       "minimum": 100,
+       "type": "integer"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/x-www-form-urlencoded": {
+       "schema": {
+        "additionalProperties": false,
+        "properties": {
+         "keepActive": {
+          "anyOf": [
+           {
+            "type": "boolean"
+           },
+           {
+            "enum": [
+             0,
+             1
+            ]
+           }
+          ]
+         },
+         "migratedfrom": {
+          "type": "string"
+         },
+         "overrule-shutdown": {
+          "anyOf": [
+           {
+            "type": "boolean"
+           },
+           {
+            "enum": [
+             0,
+             1
+            ]
+           }
+          ]
+         },
+         "skiplock": {
+          "anyOf": [
+           {
+            "type": "boolean"
+           },
+           {
+            "enum": [
+             0,
+             1
+            ]
+           }
+          ]
+         },
+         "timeout": {
+          "minimum": 0,
+          "type": "integer"
+         }
+        },
+        "type": "object"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "properties": {
+          "data": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "data"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     }
+    },
+    "x-pve-description": "Stop virtual machine. The qemu process will exit immediately. This is akin to pulling the power plug of a running computer and may damage the VM data."
+   }
+  },
+  "/nodes/{node}/tasks/{upid}/status": {
+   "get": {
+    "operationId": "get /nodes/{node}/tasks/{upid}/status",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "node",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "upid",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "properties": {
+          "data": {
+           "properties": {
+            "exitstatus": {
+             "type": "string"
+            },
+            "id": {
+             "type": "string"
+            },
+            "node": {
+             "type": "string"
+            },
+            "pid": {
+             "type": "integer"
+            },
+            "pstart": {
+             "type": "integer"
+            },
+            "starttime": {
+             "type": "integer"
+            },
+            "status": {
+             "enum": [
+              "running",
+              "stopped"
+             ],
+             "type": "string"
+            },
+            "type": {
+             "type": "string"
+            },
+            "upid": {
+             "type": "string"
+            },
+            "user": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "id",
+            "node",
+            "pid",
+            "pstart",
+            "starttime",
+            "status",
+            "type",
+            "upid",
+            "user"
+           ],
+           "type": "object"
+          }
+         },
+         "required": [
+          "data"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     }
+    },
+    "x-pve-description": "Read task status."
+   }
+  },
+  "/version": {
+   "get": {
+    "operationId": "get /version",
+    "parameters": [],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "properties": {
+          "data": {
+           "properties": {
+            "console": {
+             "enum": [
+              "applet",
+              "vv",
+              "html5",
+              "xtermjs"
+             ],
+             "type": "string"
+            },
+            "release": {
+             "type": "string"
+            },
+            "repoid": {
+             "pattern": "^(?:[0-9a-fA-F]{8,64})$",
+             "type": "string"
+            },
+            "version": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "release",
+            "repoid",
+            "version"
+           ],
+           "type": "object"
+          }
+         },
+         "required": [
+          "data"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     }
+    },
+    "x-pve-description": "API version details, including some parts of the global datacenter config."
+   }
+  }
+ },
+ "servers": [
+  {
+   "url": "https://pve.example:8006/api2/json"
+  }
+ ]
+}

@@ -62,12 +62,37 @@ def check_request(spec, method, path, body, params=None):
     known = {_deref(spec, x).get("name") for x in (op.get("parameters") or []) + (op.get("x-path-parameters") or [])}
     unknown = set(params or ()) - known
     assert not unknown, f"{method} {path} takes no query {sorted(unknown)}"
-    schema = (((_deref(spec, op.get("requestBody")) or {}).get("content") or {}).get("application/json") or {}).get("schema")
+    content = (_deref(spec, op.get("requestBody")) or {}).get("content") or {}
+    schema = (content.get("application/json") or content.get("application/x-www-form-urlencoded") or {}).get("schema")
     if schema is None:
         assert body is None, f"{method} {path} takes no body"
         return
+    if body is None and not _required(spec, schema):  # nothing it needs: a call may send no body
+        return
     errors = sorted(_validator(spec, schema).iter_errors(body), key=lambda e: list(e.path))
     assert not errors, f"{method} {path}: " + "; ".join(f"{'/'.join(map(str, e.path))}: {e.message}" for e in errors[:5])
+
+
+def form(spec, method, path, raw):
+    """A form body (`application/x-www-form-urlencoded`) as the fields the operation's schema names, each read as its
+    type says (`newid=105` is 105 for an integer, a repeated field is a list), for check_request."""
+    from urllib.parse import parse_qs
+
+    op = operation(spec, method, path)
+    content = (_deref(spec, op.get("requestBody")) or {}).get("content") or {}
+    props = ((content.get("application/x-www-form-urlencoded") or {}).get("schema") or {}).get("properties") or {}
+    out = {}
+    for k, vs in parse_qs(raw.decode() if isinstance(raw, bytes) else raw or "", keep_blank_values=True).items():
+        t = (props.get(k) or {}).get("type") or ("boolean" if "anyOf" in (props.get(k) or {}) else None)
+        if t == "array":
+            out[k] = vs
+            continue
+        v = vs[-1]
+        try:
+            out[k] = int(v) if t in ("integer", "boolean") else float(v) if t == "number" else v
+        except ValueError:
+            out[k] = v  # not the type: check_request says so
+    return out
 
 
 def check_response(spec, method, path, status, body):
