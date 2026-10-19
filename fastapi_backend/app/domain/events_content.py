@@ -4,7 +4,8 @@ nothing is stored twice.
 
 Each new asset is one activity, `create-recording-<id>`, the same every time it's read, of the most specific kind its
 row tells: an email received from a mailbox (`email.received`), a calendar event (`calendar_event.added`), a news
-feed's post (`feed_post.received`), a file from storage or Drive (`file.added`), an upload (`upload.added`), a page or video saved from the web
+feed's post (`feed_post.received`), a file from storage or Drive (`file.added`; `file.changed`, an Update, when it is a
+file read again because it changed there, linked to its earlier asset as `previous`), an upload (`upload.added`), a page or video saved from the web
 (`web_page.saved`), something imported (pasted text, a transcript, an import hook's: `import.received`), else
 `asset.added`, their parent. The kind is read from the row's content type, where it came from and who brought it,
 never from its file.
@@ -36,7 +37,7 @@ from .events import _s, _sample
 R = store.R
 FIELDS = (
     "id AS rid, record::id(id) AS id, space, title, source, media, remote, content_type, created_at, path, web, engine, "
-    "created_by, mail, event, post, email, size, duration_ms, attached_to, converted_from, sensor, form"
+    "created_by, mail, event, post, email, size, duration_ms, attached_to, converted_from, sensor, form, replaces"
 )
 TYPES = {"audio": "Audio", "video": "Video", "image": "Image", "document": "Document", "transcript": "Document"}
 AUTOMATION_RX = re.compile(r"^automation:(\d+)$")
@@ -308,7 +309,7 @@ def _feed_post(r):
 def _file(r, kind):
     """A file's fields: its name in its source (or the name it was uploaded with), media type, size and length."""
     remote = r.get("remote") or {}
-    path = remote.get("path") if kind == "file.added" else pathlib.PurePosixPath(str(r.get("path") or "")).name
+    path = remote.get("path") if kind in ("file.added", "file.changed") else pathlib.PurePosixPath(str(r.get("path") or "")).name
     media_type = mimetypes.guess_type(str(path or ""))[0]
     return store.clean(
         {
@@ -348,7 +349,7 @@ def _kind(r, ctype, source_type, actor):
     if (r.get("web") or {}).get("url"):
         return "web_page.saved"
     if (r.get("remote") or {}).get("source") is not None:
-        return "file.added"
+        return "file.changed" if _num(r.get("replaces")) is not None else "file.added"
     if UPLOAD_RX.search(str(r.get("path") or "")):
         return "upload.added"
     if str(r.get("engine") or "").startswith("import:") or str(r.get("path") or "").startswith(("paste:", "hook:")):
@@ -368,6 +369,8 @@ def _summary(kind, actor, obj):
         return f"{who} received the post “{title}”" + (f" from {obj['site']}" if obj.get("site") else "")
     if kind == "upload.added":
         return f"{who} uploaded “{title}”"
+    if kind == "file.changed":
+        return f"{who} updated “{title}”"
     if kind == "web_page.saved":
         return f"{who} saved “{title}”" + (f" from {obj['site']}" if obj.get("site") else "")
     if kind == "import.received":
@@ -450,8 +453,10 @@ def _activities(db, rows):
             obj.update(_event(r))
         elif kind == "feed_post.received":
             obj.update(_feed_post(r))
-        elif kind in ("file.added", "upload.added"):
+        elif kind in ("file.added", "upload.added", "file.changed"):
             obj.update(_file(r, kind))
+            if kind == "file.changed":
+                obj["previous"] = {"id": f"lens:recording/{int(r['replaces'])}", "url": f"/resources/{int(r['replaces'])}"}
         elif kind == "web_page.saved":
             obj.update(_web(r))
         elif kind == "import.received":
@@ -558,19 +563,19 @@ def _addrs(title, item="Address"):
     return {"type": "array", "title": title, "items": {"type": "string", "title": item}}
 
 
-def _child(name, label, props, untrusted, sample_actor, sample_obj, summary):
+def _child(name, label, props, untrusted, sample_actor, sample_obj, summary, as_type="Create"):
     events.kind(
         name,
         label=label,
         source="recordings",
-        as_type="Create",
+        as_type=as_type,
         object_type="Document",
         parent="asset.added",
         fields={"object": {"type": "object", "properties": props}},
         untrusted=untrusted,
         sample={
             "id": "create-recording-7",
-            "type": "Create",
+            "type": as_type,
             "kind": name,
             "published": "2026-10-15T16:21:58.000Z",
             "actor": sample_actor,
@@ -692,6 +697,32 @@ _child(
         "size": 48213,
     },
     "Office share added “Minutes”",
+)
+_child(
+    "file.changed",
+    "File changed",
+    {
+        **FILE_FIELDS,
+        "previous": {
+            "type": "object",
+            "title": "Earlier version",
+            "properties": {"id": _s("Its asset"), "url": _s("Its page")},
+        },
+    },
+    ("object.name", "object.path"),
+    {"type": "Service", "id": "lens:source/9", "name": "Office share"},
+    {
+        "type": "Document",
+        "name": "Minutes",
+        "media": "document",
+        "content_type": "document",
+        "path": "board/2026-10 minutes.docx",
+        "mediaType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "size": 49120,
+        "previous": {"id": "lens:recording/6", "url": "/resources/6"},
+    },
+    "Office share updated “Minutes”",
+    as_type="Update",
 )
 _child(
     "upload.added",

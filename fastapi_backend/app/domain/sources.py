@@ -779,7 +779,7 @@ def poll_watch(db, cfg, wid, log=print):
     )
     src = get(db, w["source"])
     first, now = not w.get("last_scan_at"), dt.datetime.now(dt.timezone.utc)
-    known = {r["path"]: r for r in db.rows("SELECT path, size, modified, status FROM remote_file WHERE watch = $w", w=wid)}
+    known = {r["path"]: r for r in db.rows("SELECT path, size, modified, status, recording FROM remote_file WHERE watch = $w", w=wid)}
     gone = {w["space"]: deletion.gone_remote(db, w["space"])}  # recordings someone deleted stay deleted
     stats = {"seen": 0, "new": 0, "waiting": 0, "skipped": 0, "errors": 0}
     routes, shared = w.get("routes") or [], (src.get("routes") or []) if feeds.is_email(src) else []
@@ -813,7 +813,11 @@ def poll_watch(db, cfg, wid, log=print):
             held.add(f["path"])
         else:
             try:
-                rid, _job = _ingest(db, cfg, src, f, kind, space, f"watch:{wid}", w.get("steps"), w.get("pipeline"))
+                rid, job = _ingest(db, cfg, src, f, kind, space, f"watch:{wid}", w.get("steps"), w.get("pipeline"))
+                before = (k or {}).get("recording")
+                if job and isinstance(before, int) and before != rid and not feeds.handles(src):
+                    # the file changed there and was read again as a new asset: file.changed, linked to the earlier one
+                    db.q("UPDATE $r SET replaces = $b", r=R("recording", rid), b=before)
                 db.q("UPSERT $k CONTENT $d", k=key, d={**row, "status": "queued", "recording": rid})
                 stats["new"] += 1
                 if space != w["space"]:

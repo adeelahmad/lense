@@ -234,6 +234,7 @@ const NOUNS: Record<string, [string, string, string]> = {
   "calendar_event.changed": ["changed", "calendar event", "calendar events"],
   "feed_post.received": ["received", "post", "posts"],
   "file.added": ["added", "file", "files"],
+  "file.changed": ["updated", "file", "files"],
   "upload.added": ["uploaded", "file", "files"],
   "web_page.saved": ["saved", "web page", "web pages"],
   "import.received": ["imported", "item", "items"],
