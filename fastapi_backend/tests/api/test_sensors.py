@@ -236,6 +236,38 @@ def test_bridge_client_reads_another_broker():
         b.stop()
 
 
+def test_a_message_published_while_subscribing_comes_once(monkeypatch):
+    """A retained message published just as a subscription is made reaches the subscriber once: live if it was
+    subscribed in time, as the retained message if not, never both."""
+    b = mqtt.Broker("127.0.0.1", 0, lambda *a: {"tcp": 1}, lambda *a: None).start()
+    try:
+        made = mqtt.packet
+
+        def packet(kind, flags, body=b""):
+            if kind == mqtt.SUBACK:  # the subscription is made, its acknowledgement not yet sent
+                b.publish("home/door", b"open", retain=True)
+            return made(kind, flags, body)
+
+        monkeypatch.setattr(mqtt, "packet", packet)
+        sub = Device(b.port, "sub", "u", "p")
+        sub.sock.sendall(made(mqtt.SUBSCRIBE, 2, struct.pack("!H", 3) + mqtt.string("home/#") + b"\x00"))
+        got = []
+        sub.sock.settimeout(0.5)
+        try:
+            while True:  # the broker may send a subscription's messages before its acknowledgement (MQTT 3.1.1, 3.8.4)
+                kind, flags, body = mqtt.read_packet(sub.f, 1 << 20)
+                if kind == mqtt.PUBLISH:
+                    topic, payload, _qos, retain, _ = mqtt.parse_publish(flags, body)
+                    got.append((topic, payload, retain))
+                else:
+                    got.append(kind)
+        except (TimeoutError, OSError):
+            pass
+        assert sorted(got, key=str) == sorted([("home/door", b"open", False), mqtt.SUBACK], key=str)
+    finally:
+        b.stop()
+
+
 def test_broker_over_websockets():
     from websockets.sync.client import connect
 

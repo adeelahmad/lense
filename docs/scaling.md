@@ -9,13 +9,13 @@ launched. Everything it does is in the [activity ledger](activity.md), and its c
 Status: in progress. Built: groups, rules, approvals, budgets, the scaler, the API, MCP and assistant tools,
 Settings › Auto scaling (the switch, [adding providers and making groups](#in-settings), and each group's terms to
 approve or pause), and **This machine**, a provider that runs more `lens worker` processes where Lens runs. In
-progress: **AWS EC2** (spot or on demand), **DigitalOcean** and **Hetzner Cloud** providers are built (credentials
+progress: **AWS EC2** (spot or on demand), **DigitalOcean**, **Hetzner Cloud** and **Lambda** GPU instance providers are built (credentials
 checked, prices, launching, watching and deleting machines), and their machines join over the [mesh](mesh.md) as
 worker nodes that transcribe and tell voices apart; so are **Proxmox VE**, clones of a VM template on your own server,
 and **Linux hosts over SSH**, workers started on machines you have. They haven't been tried on a real cloud machine
 yet. Also in progress: **RunPod** GPUs, **Hugging Face** Inference Endpoints and **Amazon SageMaker** real-time
 endpoints, which serve a model with vLLM and take Lens's model calls while one runs. Planned: more model hosts
-(Lambda, Bedrock).
+(Lambda instances serving a model, Bedrock).
 
 Auto scaling is **off** until an admin turns it on, and a group launches nothing until a person approves its terms
 signed in to the web app. Agents can propose and manage groups, but never approve one.
@@ -83,6 +83,7 @@ carries none of them.
 | `runpod` (RunPod, a model host) | GPU pods serving `model` with vLLM, with `token` (sealed); `cloud_type` (`SECURE` or `COMMUNITY`), `data_centers`, `hf_token` (sealed) for gated models | what RunPod charges for the pod it found | `model`, `gpu_types` (`NVIDIA L4`), `gpu_count` (1), `disk_gb` (60), `max_model_len`, `interruptible` (spot, off), `image` (vLLM's), `args`, `use_as_provider` (on) |
 | `ssh` (Linux hosts over SSH) | `lens worker` started on `hosts` (`user@host` or `user@host:port`), signed in with `private_key` (sealed; `passphrase` if it has one) | nothing, unless you give it a price | `per_host` (1): workers on each host; `steps` |
 | `hetzner` (Hetzner Cloud) | servers in `location`, with `token` (sealed), optional `ssh_keys` | Hetzner's hourly gross price in euros, times `usd_per_eur` (1.1; set your rate) | `server_type` (`cx22`), `image` (`ubuntu-24.04`), `steps` |
+| `lambda` (Lambda, GPU instances) | instances in `region` (`us-east-1`), with `token` (a Lambda Cloud API key, sealed) and `ssh_key` (the name of a key in your Lambda account; none: its first) | Lambda's `price_cents_per_hour` for the type | `instance_type` (`gpu_1x_a10`), `steps` |
 
 A worker on This machine stops with the process that started it, and the scaler that takes over starts them again where
 it runs.
@@ -96,8 +97,15 @@ unit, usable once within an hour. The machine joins Lens over the [mesh](mesh.md
 long-lived secret. A worker node runs only `transcribe` and `diarize` (it never gets the archive's key:
 [Worker nodes](mesh.md#worker-nodes)), so a group on these providers counts only those steps' jobs in its metrics
 (`unit_steps`), and one whose template names none of them waits and launches nothing. Each machine
-carries Lens's tag (`scaling.tag`: a DigitalOcean tag, a Hetzner label `lens=<tag>`), so Lens's machines can be told
-apart. Letting a unit go deletes its machine; a machine switched off at the provider counts as gone and is deleted.
+carries Lens's tag (`scaling.tag`: a DigitalOcean tag, a Hetzner label `lens=<tag>`, a Lambda tag `lens` with the tag
+as its value and `lens-unit` with the unit's name), so Lens's machines can be told apart. Letting a unit go deletes its
+machine; a machine switched off at the provider counts as gone and is deleted.
+
+A Lambda unit is a GPU instance of `instance_type`, so its worker transcribes and tells voices apart on the GPU. Lambda
+puts an SSH key on every instance, so the account needs one (the provider's check says so when it has none); Lens
+never signs in with it. The check counts the instance types with room in the region; a launch where Lambda has none
+fails with Lambda's message, which counts toward pausing the group. An instance Lambda takes back (`preempted`)
+counts as gone, with that in the unit's `why`.
 
 A Proxmox unit is a clone of `vm_template`, tagged with Lens's tag and started. Its template needs the QEMU guest
 agent (`qemu-guest-agent` installed, and the VM's Guest Agent option on): once the agent answers, Lens runs the same
@@ -167,7 +175,7 @@ A unit that never comes up, whether it doesn't join within `join_minutes` or its
 as a failed launch: three in a row pause the group (with the reason in its `paused_why`), and a unit that comes up
 clears the count.
 
-The tests hold the fakes of Hugging Face, RunPod, DigitalOcean and Hetzner Cloud to each provider's own published
+The tests hold the fakes of Hugging Face, RunPod, DigitalOcean, Hetzner Cloud and Lambda to each provider's own published
 API document (trimmed copies in `fastapi_backend/tests/data/openapi/`, each with where and when it was fetched): a
 request the real API wouldn't take, an answer it couldn't give, or a field Lens reads that the document doesn't have,
 fails the test. AWS runs against [moto](https://github.com/getmoto/moto), which keeps EC2's instances, tags, volumes
@@ -331,7 +339,7 @@ Turning scaling on (`change_settings scaling`) always asks.
 ## Refine later
 
 Spreading model calls across a group's units, and serving only some kinds of call (chat, decisions); more model
-hosts (Lambda, Bedrock); SageMaker's streamed invocations (`InvokeEndpointWithResponseStream`), so a SageMaker answer
+hosts (Lambda instances serving a model, Bedrock); SageMaker's streamed invocations (`InvokeEndpointWithResponseStream`), so a SageMaker answer
 streams as it is written; Hugging Face's scale to zero and private endpoints; RunPod network volumes, so a model is downloaded once; Proxmox LXC containers; revoking a unit's mesh
 certificate when it goes; reporting machines with Lens's tag that Lens has no unit for (`listing`); a live euro rate;
 preemptible and spot instances at clouds other than AWS and RunPod; draining an AWS spot unit on its two-minute notice

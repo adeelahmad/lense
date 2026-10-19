@@ -216,15 +216,13 @@ class Broker:
 
     def publish(self, topic, payload, retain=False, origin=None):
         """Send a message to every subscriber whose filter takes it (at QoS 0), and keep it when retained."""
-        if retain:
-            with self.lock:
-                if payload:
-                    if topic in self.retained or len(self.retained) < MAX_RETAINED:
-                        self.retained[topic] = payload
-                else:
-                    self.retained.pop(topic, None)
         data = publish_packet(topic, payload)
-        with self.lock:
+        with self.lock:  # kept and sent at once: a subscription made meanwhile gets it one way, never both
+            if retain and payload:
+                if topic in self.retained or len(self.retained) < MAX_RETAINED:
+                    self.retained[topic] = payload
+            elif retain:
+                self.retained.pop(topic, None)
             targets = [s for s in self.sessions.values() if any(matches(f, topic) for f in s.subs)]
         for s in targets:
             s.send(data)
@@ -356,15 +354,14 @@ class Broker:
             i += 1  # the QoS asked for: we grant 0
             flt = raw.decode("utf-8", "replace")
             if valid_filter(flt):
-                with self.lock:
-                    session.subs[flt] = 0
                 codes.append(0)
                 added.append(flt)
             else:
                 codes.append(0x80)
-        session.send(packet(SUBACK, 0, struct.pack("!H", pid) + bytes(codes)))
-        with self.lock:
+        with self.lock:  # subscribed and the retained messages read at once (see publish)
+            session.subs.update(dict.fromkeys(added, 0))
             kept = list(self.retained.items())
+        session.send(packet(SUBACK, 0, struct.pack("!H", pid) + bytes(codes)))
         for topic, payload in kept:
             if any(matches(f, topic) for f in added):
                 session.send(publish_packet(topic, payload, retain=True))
