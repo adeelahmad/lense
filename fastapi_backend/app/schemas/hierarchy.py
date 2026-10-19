@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import datetime as dt
 from typing import Literal
 
 from pydantic import Field
 
-from app.schemas.common import RequestModel, ResponseModel
+from app.schemas.common import GRANT_END, GrantState, RequestModel, ResponseModel
 
 CollectionRole = Literal["viewer", "editor", "admin"]
 
@@ -52,7 +53,7 @@ class CollectionStep(ResponseModel):
     name: str
 
 
-class CollectionMember(ResponseModel):
+class CollectionMember(GrantState):
     account: int
     email: str | None = None
     name: str | None = None
@@ -68,3 +69,4 @@ class CollectionMemberSet(RequestModel):
     email: str | None = None
     account: int | None = None
     role: CollectionRole | None = None
+    expires_at: dt.datetime | None = Field(None, description=GRANT_END)

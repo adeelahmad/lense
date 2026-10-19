@@ -120,7 +120,8 @@ def granted(db, account):
     the collections inside them)."""
     if not account:
         return frozenset()
-    given = set(db.values("SELECT VALUE recording FROM permission WHERE account = $a", a=account))
+    rows = db.rows("SELECT recording, expires_at FROM permission WHERE account = $a", a=account)
+    given = {r["recording"] for r in rows if auth.live(r)}  # an ended permission opens nothing (auth.live)
     return frozenset(given | hierarchy.recordings_in(db, [c for cols in hierarchy.roles_of(db, account).values() for c in cols]))
 
 
@@ -135,7 +136,11 @@ def in_collection(db, rid, account):
 
 
 def has_permission(db, rid, account):
-    return bool(account and db.one("SELECT id FROM $p", p=R("permission", f"{rid}-{account}")))
+    """Permission given on the recording itself that hasn't ended."""
+    if not account:
+        return False
+    row = db.one("SELECT id, expires_at FROM $p", p=R("permission", f"{rid}-{account}"))
+    return bool(row) and auth.live(row)
 
 
 def permitted(db, roles, account, rid, space, network=ipgroups.NOWHERE):
@@ -146,7 +151,7 @@ def permitted(db, roles, account, rid, space, network=ipgroups.NOWHERE):
 
 def people(db, rid):
     """The people given permission on a recording, newest first."""
-    rows = db.rows("SELECT account, by, at FROM permission WHERE recording = $r", r=rid)
+    rows = db.rows("SELECT account, by, at, expires_at FROM permission WHERE recording = $r", r=rid)
     accounts = (
         {
             a["id"]: a
@@ -164,6 +169,7 @@ def people(db, rid):
             "name": accounts[r["account"]].get("name"),
             "by": r.get("by"),
             "at": r.get("at"),
+            **auth.grant_state(r),
         }
         for r in rows
         if r["account"] in accounts
@@ -171,21 +177,31 @@ def people(db, rid):
     return sorted(out, key=lambda x: x.get("at") or "", reverse=True)
 
 
-def give(db, rid, account, by=None):
-    """Give someone permission on a recording (again: keeps the first grant)."""
+def give(db, rid, account, by=None, expires_at=auth.KEEP):
+    """Give someone permission on a recording (again: keeps who gave it first, and when). `expires_at` ends it on that
+    date (None: no end; left out: the end it had, unless that has passed: auth.next_end)."""
+    p = R("permission", f"{rid}-{account}")
+    end = auth.next_end(db.one("SELECT expires_at FROM $p", p=p), expires_at)
     db.q(
-        "UPSERT $p SET recording = $r, account = $a, by = by ?? $by, at = at ?? $at",
-        p=R("permission", f"{rid}-{account}"),
+        "UPSERT $p SET recording = $r, account = $a, by = by ?? $by, at = at ?? $at, "
+        + ("expires_at = $end" if end else "expires_at = NONE"),
+        p=p,
         r=rid,
         a=account,
         by=by,
         at=store.now(),
+        end=end,
     )
 
 
+def given(db, rid, account):
+    """Whether someone was given permission on the recording, ended or not."""
+    return bool(account and db.one("SELECT id FROM $p", p=R("permission", f"{rid}-{account}")))
+
+
 def take(db, rid, account):
-    """Take someone's permission on a recording away; False when they had none."""
-    had = has_permission(db, rid, account)
+    """Take someone's permission on a recording away (ended or not); False when they had none."""
+    had = given(db, rid, account)
     db.q("DELETE $p", p=R("permission", f"{rid}-{account}"))
     return had
 
@@ -256,7 +272,7 @@ def decide(db, rid, account, approve, by=None):
     if not req or req.get("status") != "pending":
         return False
     if approve:
-        give(db, rid, account, by)
+        give(db, rid, account, by, None)  # approving gives permission without an end
     db.q(
         "UPDATE $r SET status = $s, decided_by = $by, decided_at = $at",
         r=_request_id(rid, account),

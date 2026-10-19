@@ -14,6 +14,7 @@ import type {
   RecordingIpGroup,
 } from "@/app/openapi-client/types.gen";
 import { accessSummary } from "@/components/access/model";
+import { untilLine, untilToIso } from "@/components/access/until";
 import { keys as iiifKeys } from "@/components/iiif/queries";
 import { useToast } from "@/components/ui/toast";
 import { data, useApiClient } from "@/lib/api/browser";
@@ -62,17 +63,29 @@ export function usePermissions(rid: number, enabled = true) {
   });
 }
 
-/** Give someone with an account permission on a recording; the list comes back with them in it. */
+/** Give someone with an account permission on a recording, until a day or (empty) without an end; giving it again
+ * changes the end. The list comes back with them in it. */
 export function useGivePermission(rid: number) {
   const client = useApiClient();
   const qc = useQueryClient();
   const toast = useToast();
   return useMutation({
-    mutationFn: (email: string) =>
-      data(Resources.addRecordingPermission({ client, path: { rid }, body: { email: email.trim() } })),
-    onSuccess: (list: Permission[], email) => {
+    mutationFn: ({ email, until = "" }: { email: string; until?: string }) =>
+      data(
+        Resources.addRecordingPermission({
+          client,
+          path: { rid },
+          body: { email: email.trim(), expires_at: untilToIso(until) },
+        }),
+      ),
+    onSuccess: (list: Permission[], { email, until }) => {
       qc.setQueryData(permissionsKey(rid), list);
-      toast({ title: "Permission given", body: `${email.trim()} sees all of it now.`, tone: "green" });
+      const end = until ? untilLine({ expires_at: untilToIso(until) }).replace("Until", "until") : "";
+      toast({
+        title: "Permission given",
+        body: `${email.trim()} sees all of it${end ? ` ${end}` : " now"}.`,
+        tone: "green",
+      });
     },
   });
 }

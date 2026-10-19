@@ -15,7 +15,7 @@ collection acts as an owner of its recordings and gives roles on it (docs/access
 
 from __future__ import annotations
 
-from . import store
+from . import auth, store
 
 R = store.R
 ROLES = {"viewer": 1, "editor": 2, "admin": 3}  # on a collection; an admin acts as an owner of its recordings
@@ -262,7 +262,8 @@ def migrate_homes(db):
 def roles_of(db, account):
     """{space: {collection id: role}}: the collections someone was given a role on, and the ones inside them; where
     two of their roles reach a collection, the higher one."""
-    grants = db.rows("SELECT collection, space, role FROM collection_role WHERE account = $a", a=account) if account else []
+    rows = db.rows("SELECT collection, space, role, expires_at FROM collection_role WHERE account = $a", a=account) if account else []
+    grants = [g for g in rows if auth.live(g)]  # an ended role opens nothing (auth.live)
     out = {}
     for sid in sorted({g["space"] for g in grants}):
         kids, seen = _children(of_space(db, sid)), out.setdefault(sid, {})
@@ -297,7 +298,7 @@ def members(db, cid):
     steps = path(db, cid)
     above = {s["id"]: s for s in steps[:-1]}
     rows = db.rows(
-        "SELECT collection, account, role, by, at FROM collection_role WHERE collection IN $c",
+        "SELECT collection, account, role, by, at, expires_at FROM collection_role WHERE collection IN $c",
         c=[s["id"] for s in steps],
     )
     people = _people(db, [r["account"] for r in rows])
@@ -317,21 +318,24 @@ def members(db, cid):
                 "inherited_from": r["inherited_from"],
             }
         )
+        | auth.grant_state(r)
         for r in out
         if r["account"] in people
     ]
 
 
-def give(db, cid, account, role, by=None):
-    """Give someone a role on a collection, change it, or (role None) take it away; the role they had before."""
+def give(db, cid, account, role, by=None, expires_at=auth.KEEP):
+    """Give someone a role on a collection, change it, or (role None) take it away; the role they had before.
+    `expires_at` ends it on that date (None: no end; left out: the end it had, unless that has passed)."""
     c = get(db, cid)
     rid = R("collection_role", f"{c['id']}-{int(account)}")
-    before = (db.one("SELECT role FROM $r", r=rid) or {}).get("role")
+    had = db.one("SELECT role, expires_at FROM $r", r=rid) or {}
     if role is None:
         db.q("DELETE $r", r=rid)
     elif role in ROLES:
         doc = {"collection": c["id"], "space": c["space"], "account": int(account), "role": role, "by": by, "at": store.now()}
+        doc["expires_at"] = auth.next_end(had, expires_at)
         db.q("UPSERT $r CONTENT $d", r=rid, d=store.clean(doc))
     else:
         raise ValueError("A collection role is viewer, editor or admin.")
-    return before
+    return had.get("role")

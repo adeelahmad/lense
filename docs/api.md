@@ -125,7 +125,7 @@ PATCH  /api/v1/users/{uid}
 DELETE /api/v1/users/{uid}                 remove for good (authentication.md#removing-someone)
 POST   /api/v1/users/{uid}/signin-link     ?email=true also emails it
 GET    /api/v1/namespaces/{name}/members
-PUT    /api/v1/namespaces/{name}/members       {email | account, role}: built-in or custom; null removes
+PUT    /api/v1/namespaces/{name}/members       {email | account, role, expires_at}: built-in or custom; null removes
 GET    /api/v1/roles                           the permissions and every role (access.md#roles-and-permissions)
 POST   /api/v1/roles                           admins: {name, label, description, permissions}
 PATCH  /api/v1/roles/{name}                    admins: a custom role's label, description, permissions
@@ -586,9 +586,15 @@ owners of the namespace, and admins of the collection). Someone who sees only so
 those, starting from the ones they were given (their `path` and `depth` start there). An admin of a collection can't
 make collections at the top of the namespace, move one there or into a collection they aren't an admin of, or change
 the default. `GET …/{cid}/members` lists who was given a role on the collection and then who has one through a
-collection it's inside (`inherited_from`); `PUT …/{cid}/members {email | account, role}` gives, changes or (`role:
-null`) takes away a role, answers with the members, and is audited as `collection.member`. People with a role in the
-namespace aren't listed: theirs holds everywhere in it.
+collection it's inside (`inherited_from`); `PUT …/{cid}/members {email | account, role, expires_at}` gives, changes or
+(`role: null`) takes away a role, answers with the members, and is audited as `collection.member`. People with a role
+in the namespace aren't listed: theirs holds everywhere in it.
+
+**Grants that end.** A role in a namespace, a role on a collection and permission on an asset take an optional
+`expires_at` (a date and time, UTC unless it says otherwise) when they're given or changed: after it, the grant opens
+nothing anywhere ([Access](access.md#grants-that-end)). `null` means no end; leaving it out keeps the end the grant
+had, unless that has passed (given again after it ended, a grant starts over without one). A date that has passed
+answers 400. Lists (`…/members`, `…/permissions`) give each grant's `expires_at` and `expired`.
 
 ## resources
 
@@ -616,6 +622,7 @@ GET    /api/v1/resources/{rid}/access
 PUT    /api/v1/resources/{rid}/access
 GET    /api/v1/resources/{rid}/permissions
 POST   /api/v1/resources/{rid}/permissions
+PATCH  /api/v1/resources/{rid}/permissions/{account}
 DELETE /api/v1/resources/{rid}/permissions/{account}
 GET    /api/v1/resources/{rid}/requests
 POST   /api/v1/resources/{rid}/requests/{account}/approve
@@ -762,10 +769,12 @@ gone) opens a neutral page with status 410 that says nothing about the asset.
 `null` follows the namespace again. Changes are audited as `recording.access`, kept in the metadata history, and
 announced in the IIIF change feed. [Access](access.md) explains what each level lets people do.
 
-`/resources/{rid}/permissions` lists the people given permission on the asset (owners). `POST` with `{"email":
-…}` gives it to the account with that address (404 when there is none, 400 for members of the namespace, who already
-see all of it); `DELETE …/{account}` takes it away. Both answer with the list and are audited as
-`recording.permission.give` and `recording.permission.take`. `/resources/{rid}/requests` lists the requests for access
+`/resources/{rid}/permissions` lists the people given permission on the asset (owners), each with `expires_at` and
+`expired`. `POST` with `{"email": …, "expires_at": …}` gives it to the account with that address until then (404 when
+there is none, 400 for members of the namespace, who already see all of it, and for an end that has passed); giving it
+again changes the end. `PATCH …/{account} {"expires_at": …}` changes only the end (`null`: none), which brings an
+ended permission back; `DELETE …/{account}` takes it away. They answer with the list and are audited as
+`recording.permission.give`, `recording.permission.change` and `recording.permission.take`. `/resources/{rid}/requests` lists the requests for access
 (owners); approving one gives permission, declining lets the person ask again (audited as
 `recording.request.approve` and `recording.request.decline`).
 

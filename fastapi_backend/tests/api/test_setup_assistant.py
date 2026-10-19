@@ -191,6 +191,32 @@ def test_the_assistant_manages_people_with_approval(app, db, cfg, folder, new_cl
     assert auth.roles(db, sam) == {} and auth.get_account(db, sam["id"])["disabled"]
 
 
+def test_the_assistant_gives_a_role_until_a_date(app, db, cfg, folder, new_client, llm):
+    from app.domain import auth
+
+    s = Assist(app, db, cfg, folder, new_client)
+    c, h = s.cl["admin"]
+    sam = auth.get_account(db, auth.create_account(db, "sam@x.io", None))
+    llm.tool_script = [
+        {
+            "content": "",
+            "tool_calls": [call(1, "change_person", {"email": "sam@x.io", "namespace": "pods", "role": "viewer", "until": "2020-01-01"})],
+        },
+        {
+            "content": "",
+            "tool_calls": [call(2, "change_person", {"email": "sam@x.io", "namespace": "pods", "role": "viewer", "until": "2999-12-31"})],
+        },
+        {"content": "Asked."},
+    ]
+    cid = c.post("/api/v1/chats", headers=h, json={}).json()["id"]
+    ev = sse(c.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "let sam view pods until 2999"}).text)
+    appr = ev["approval"]
+    assert [a["summary"] for a in appr] == ["sam@x.io: viewer in pods until 2999-12-31"]  # a date that has passed is refused
+    r = c.post(f"/api/v1/approvals/{appr[0]['id']}", headers=h, json={"decision": "approve"}).json()
+    assert r["status"] == "done" and r["until"] == "2999-12-31T00:00:00+00:00"
+    assert auth.roles(db, sam) == {store.ns_id(db, "pods"): "viewer"}
+
+
 def test_the_assistant_captures_web_pages(app, db, cfg, folder, new_client, llm, monkeypatch):
     from app.domain import convert
 

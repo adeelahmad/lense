@@ -163,7 +163,8 @@ def list_collection_members(name: str, cid: int, acl: Acl, user: CurrentUser, db
 def set_collection_member(name: str, cid: int, body: CollectionMemberSet, acl: Acl, user: Writer, db: Db) -> list[CollectionMember]:
     """Give someone a role on the collection (and the collections inside it), change it, or (role null) take it away.
     They needn't have a role in the namespace: then they see just this collection. Owners of the namespace and admins
-    of the collection. Answers with the members; audited as `collection.member`."""
+    of the collection. `expires_at` ends the role on that date (docs/access.md). Answers with the members; audited as
+    `collection.member`."""
     sid, only = _seen(acl, name)
     c = _in(db, sid, cid, only)
     if not _can_grant(acl, sid, cid):
@@ -171,9 +172,12 @@ def set_collection_member(name: str, cid: int, body: CollectionMemberSet, acl: A
     acct = auth.find_account(db, body.email) if body.email else auth.get_account(db, body.account or 0)
     if not acct:
         raise HTTPException(404, "no such person")
+    end = body.expires_at if "expires_at" in body.model_fields_set else auth.KEEP
     with domain_errors():
-        before = hierarchy.give(db, cid, acct["id"], body.role, user.email)
-    if before != body.role:
+        before = hierarchy.give(db, cid, acct["id"], body.role, user.email, end)
+    if before != body.role or end is not auth.KEEP:
         detail = {"namespace": name, "name": c["name"], "account": acct["id"], "email": acct["email"], "role": body.role, "before": before}
+        if end is not auth.KEEP:
+            detail["expires_at"] = body.expires_at.isoformat() if body.expires_at else None
         auth.audit(db, user.as_audit(), "collection.member", f"collection:{cid}", detail)
     return [CollectionMember.model_validate(m) for m in hierarchy.members(db, cid)]

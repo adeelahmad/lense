@@ -57,6 +57,7 @@ from app.schemas.recordings import (
     Output,
     Permission,
     PermissionAdd,
+    PermissionChange,
     Placed,
     Player,
     Recording,
@@ -488,15 +489,36 @@ def list_recording_permissions(rid: int, acl: Acl, user: CurrentUser, db: Db) ->
 @router.post("/{rid}/permissions")
 def add_recording_permission(rid: int, body: PermissionAdd, acl: Acl, user: Writer, db: Db) -> list[Permission]:
     """Give someone with an account permission on the asset (owners): they see all of it on the pages visitors see
-    and in IIIF, whatever its access; members of its namespace already do. Answers with everyone who has permission."""
+    and in IIIF, whatever its access; members of its namespace already do. `expires_at` ends it on that date
+    (docs/access.md); giving it again changes the end. Answers with everyone who has permission."""
     r = acl.recording(rid, "publish")
     acct = auth.find_account(db, body.email)
     if not acct or acct.get("disabled"):
         raise HTTPException(404, "No account uses that address. An admin can create one.")
     if auth.allows(auth.roles(db, acct), r["space"]):
         raise HTTPException(400, "They have a role in this namespace, so they already see all of it.")
-    acc.give(db, rid, acct["id"], user.email)
-    auth.audit(db, user.as_audit(), "recording.permission.give", f"recording:{rid}", {"email": acct["email"]})
+    end = body.expires_at if "expires_at" in body.model_fields_set else auth.KEEP
+    with domain_errors():
+        acc.give(db, rid, acct["id"], user.email, end)
+    detail: dict[str, Any] = {"email": acct["email"]}
+    if end is not auth.KEEP:
+        detail["expires_at"] = body.expires_at.isoformat() if body.expires_at else None
+    auth.audit(db, user.as_audit(), "recording.permission.give", f"recording:{rid}", detail)
+    return [Permission.model_validate(p) for p in acc.people(db, rid)]
+
+
+@router.patch("/{rid}/permissions/{account}")
+def change_recording_permission(rid: int, account: int, body: PermissionChange, acl: Acl, user: Writer, db: Db) -> list[Permission]:
+    """Change when someone's permission on the asset ends (owners): `expires_at` a date, or null for no end. An
+    ended permission given a new end holds again. Answers with everyone who has permission."""
+    acl.recording(rid, "publish")
+    if not acc.given(db, rid, account):
+        raise HTTPException(404, "not found")
+    with domain_errors():
+        acc.give(db, rid, account, user.email, body.expires_at)
+    email = (auth.get_account(db, account) or {}).get("email")
+    detail = {"email": email, "expires_at": body.expires_at.isoformat() if body.expires_at else None}
+    auth.audit(db, user.as_audit(), "recording.permission.change", f"recording:{rid}", detail)
     return [Permission.model_validate(p) for p in acc.people(db, rid)]
 
 

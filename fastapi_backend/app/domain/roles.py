@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import re
 
-from . import store
+from . import auth, store
 
 R = store.R
 
@@ -171,5 +171,5 @@ def delete(db, name):
 def holders(db, sid, perm):
     """The accounts whose role in namespace `sid` has permission `perm` (admins aside)."""
     t = table(db)
-    rows = db.rows("SELECT account, role FROM membership WHERE space = $s", s=sid)
-    return [r["account"] for r in rows if perm in t.get(r["role"], frozenset())]
+    rows = db.rows("SELECT account, role, expires_at FROM membership WHERE space = $s", s=sid)
+    return [r["account"] for r in rows if perm in t.get(r["role"], frozenset()) and auth.live(r)]

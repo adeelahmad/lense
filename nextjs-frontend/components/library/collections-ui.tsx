@@ -18,6 +18,8 @@ import {
   useCollectionTree,
   useSetCollectionMember,
 } from "@/components/library/use-collections";
+import { ended, untilLine, untilToIso } from "@/components/access/until";
+import { UntilInput } from "@/components/access/until-field";
 import { FieldsDialog } from "@/components/fields/fields-dialog";
 import { FieldValuesPanel } from "@/components/fields/fields-ui";
 import { Button } from "@/components/ui/button";
@@ -544,6 +546,7 @@ export function MembersDialog({
   const set = useSetCollectionMember(ns, node.id);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<CollectionMember["role"]>("viewer");
+  const [until, setUntil] = useState("");
   const own = (members.data ?? []).filter((m) => !m.inherited_from);
   const above = (members.data ?? []).filter((m) => m.inherited_from);
   return (
@@ -563,7 +566,11 @@ export function MembersDialog({
         className="flex flex-wrap items-end gap-2"
         onSubmit={(e) => {
           e.preventDefault();
-          if (email.trim()) set.mutate({ email: email.trim(), role }, { onSuccess: () => setEmail("") });
+          if (email.trim())
+            set.mutate(
+              { email: email.trim(), role, expires_at: untilToIso(until) },
+              { onSuccess: () => (setEmail(""), setUntil("")) },
+            );
         }}
       >
         <Field label="Email" className="min-w-[200px] flex-1">
@@ -587,11 +594,17 @@ export function MembersDialog({
             />
           )}
         </Field>
+        <Field label="Until" className="w-[160px]">
+          {(f) => <UntilInput id={f.id} value={until} onChange={setUntil} className="w-full" />}
+        </Field>
         <Button type="submit" variant="secondary" icon={<Plus />} disabled={!email.trim() || set.isPending}>
           Give
         </Button>
       </form>
-      <p className="-mt-1 text-[12.5px] text-fg-muted">{ROLE_HINT[role]}.</p>
+      <p className="-mt-1 text-[12.5px] text-fg-muted">
+        {ROLE_HINT[role]}. {until ? "It ends after the day you picked" : "Leave Until empty for no end"}; give it again
+        to change that.
+      </p>
       {members.isLoading ? (
         <SkeletonRows rows={2} />
       ) : !own.length && !above.length ? (
@@ -603,8 +616,15 @@ export function MembersDialog({
           {own.map((m) => (
             <li key={m.account} className="flex items-center gap-2 border-t border-border py-2 first:border-t-0">
               <span className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate text-[14px] font-semibold text-fg">{m.name || m.email}</span>
-                {m.name && <span className="truncate text-[12px] text-fg-muted">{m.email}</span>}
+                <span className={cn("truncate text-[14px] font-semibold", ended(m) ? "text-fg-muted" : "text-fg")}>
+                  {m.name || m.email}
+                </span>
+                {(m.name || m.expires_at) && (
+                  <span className="truncate text-[12px] text-fg-muted">
+                    {[m.name ? m.email : "", untilLine(m)].filter(Boolean).join(" · ")}
+                    {ended(m) ? ": opens nothing until given again" : ""}
+                  </span>
+                )}
               </span>
               <Select
                 aria-label={`Role of ${m.name || m.email}`}

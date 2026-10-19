@@ -4929,6 +4929,18 @@ export type CollectionDetail = {
  */
 export type CollectionMember = {
   /**
+   * Expires At
+   *
+   * when it ends (UTC); null: no end
+   */
+  expires_at?: string | null;
+  /**
+   * Expired
+   *
+   * it has ended: it opens nothing until it's given again
+   */
+  expired?: boolean;
+  /**
    * Account
    */
   account: number;
@@ -4979,6 +4991,12 @@ export type CollectionMemberSet = {
    * Role
    */
   role?: "viewer" | "editor" | "admin" | null;
+  /**
+   * Expires At
+   *
+   * when it ends (UTC unless the time says otherwise): after that it opens nothing, and lists show it as expired. null: no end. Left out: the end it had, unless that has passed (given again, it starts over without one).
+   */
+  expires_at?: string | null;
 };
 
 /**
@@ -13643,6 +13661,18 @@ export type MeUpdate = {
  */
 export type Member = {
   /**
+   * Expires At
+   *
+   * when it ends (UTC); null: no end
+   */
+  expires_at?: string | null;
+  /**
+   * Expired
+   *
+   * it has ended: it opens nothing until it's given again
+   */
+  expired?: boolean;
+  /**
    * Account
    */
   account: number;
@@ -13679,6 +13709,12 @@ export type MemberSet = {
    * Role
    */
   role?: string | null;
+  /**
+   * Expires At
+   *
+   * when it ends (UTC unless the time says otherwise): after that it opens nothing, and lists show it as expired. null: no end. Left out: the end it had, unless that has passed (given again, it starts over without one).
+   */
+  expires_at?: string | null;
 };
 
 /**
@@ -17900,6 +17936,18 @@ export type Paused = {
  */
 export type Permission = {
   /**
+   * Expires At
+   *
+   * when it ends (UTC); null: no end
+   */
+  expires_at?: string | null;
+  /**
+   * Expired
+   *
+   * it has ended: it opens nothing until it's given again
+   */
+  expired?: boolean;
+  /**
    * Account
    */
   account: number;
@@ -17934,6 +17982,24 @@ export type PermissionAdd = {
    * the address of an account in this archive
    */
   email: string;
+  /**
+   * Expires At
+   *
+   * when it ends (UTC unless the time says otherwise): after that it opens nothing, and lists show it as expired. null: no end. Left out: the end it had, unless that has passed (given again, it starts over without one).
+   */
+  expires_at?: string | null;
+};
+
+/**
+ * PermissionChange
+ */
+export type PermissionChange = {
+  /**
+   * Expires At
+   *
+   * when it ends (UTC unless the time says otherwise): after that it opens nothing, and lists show it as expired. null: no end. Left out: the end it had, unless that has passed (given again, it starts over without one).
+   */
+  expires_at?: string | null;
 };
 
 /**
@@ -37515,6 +37581,43 @@ export type RemoveRecordingPermissionResponses = {
 
 export type RemoveRecordingPermissionResponse =
   RemoveRecordingPermissionResponses[keyof RemoveRecordingPermissionResponses];
+
+export type ChangeRecordingPermissionData = {
+  body: PermissionChange;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+    /**
+     * Account
+     */
+    account: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/permissions/{account}";
+};
+
+export type ChangeRecordingPermissionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ChangeRecordingPermissionError = ChangeRecordingPermissionErrors[keyof ChangeRecordingPermissionErrors];
+
+export type ChangeRecordingPermissionResponses = {
+  /**
+   * Response Recordings-Change Recording Permission
+   *
+   * Successful Response
+   */
+  200: Array<Permission>;
+};
+
+export type ChangeRecordingPermissionResponse =
+  ChangeRecordingPermissionResponses[keyof ChangeRecordingPermissionResponses];
 
 export type ListRecordingIpGroupsData = {
   body?: never;

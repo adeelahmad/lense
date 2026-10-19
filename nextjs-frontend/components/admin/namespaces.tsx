@@ -7,6 +7,8 @@ import { useState } from "react";
 
 import { Namespaces, Pipelines, Users } from "@/app/openapi-client";
 import { IpGroupsSection } from "@/components/access/ip-groups";
+import { ended, untilLine, untilToIso } from "@/components/access/until";
+import { UntilInput } from "@/components/access/until-field";
 import { NsAssistantSection } from "@/components/assistant/ns-assistant-section";
 import { ImportHooksSection } from "@/components/imports/import-hooks";
 import { ConnectAppsSection } from "@/components/integrations/connect-apps-section";
@@ -229,16 +231,18 @@ export function NamespaceDetail({ ns }: { ns: string }) {
   });
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<Role>("editor");
+  const [until, setUntil] = useState("");
   const [addError, setAddError] = useState<string | null>(null);
 
   const setMember = useMutation({
-    mutationFn: (b: { email?: string; account?: number; role: Role | null }) =>
+    mutationFn: (b: { email?: string; account?: number; role: Role | null; expires_at?: string | null }) =>
       data(Users.setMember({ client, path: { name: ns }, body: b })),
     onSuccess: (_r, b) => {
       void qc.invalidateQueries({ queryKey: ["members", ns] });
       void qc.invalidateQueries({ queryKey: ["users"] });
       if (b.email) {
         setEmail("");
+        setUntil("");
         setAddError(null);
       }
       toast({
@@ -328,10 +332,10 @@ export function NamespaceDetail({ ns }: { ns: string }) {
               <Banner tone="info">{needRole("owner", ns)}.</Banner>
             ) : (
               <form
-                className="grid items-start gap-2.5 sm:grid-cols-[minmax(0,1fr)_150px_auto]"
+                className="grid items-start gap-2.5 sm:grid-cols-[minmax(0,1fr)_150px_160px_auto]"
                 onSubmit={(e) => {
                   e.preventDefault();
-                  if (validEmail) setMember.mutate({ email: email.trim(), role });
+                  if (validEmail) setMember.mutate({ email: email.trim(), role, expires_at: untilToIso(until) });
                 }}
               >
                 <Field label="Add by email" error={addError}>
@@ -370,6 +374,9 @@ export function NamespaceDetail({ ns }: { ns: string }) {
                       }))}
                     />
                   )}
+                </Field>
+                <Field label="Until" hint="Empty: no end">
+                  {(f) => <UntilInput id={f.id} value={until} onChange={setUntil} className="w-full" />}
                 </Field>
                 <Button type="submit" className="sm:mt-[22px]" disabled={!validEmail || setMember.isPending}>
                   Add
@@ -423,7 +430,10 @@ export function NamespaceDetail({ ns }: { ns: string }) {
                           {m.name || m.email}
                           {self ? " (you)" : ""}
                         </b>
-                        <span className="truncate text-[12px] leading-none text-fg-muted">{m.email}</span>
+                        <span className="truncate text-[12px] leading-none text-fg-muted">
+                          {[m.email, untilLine(m)].filter(Boolean).join(" · ")}
+                          {ended(m) ? ": opens nothing until given again" : ""}
+                        </span>
                       </span>
                       <Tooltip content={self ? "You can’t change your own role here" : undefined}>
                         <span className="relative">

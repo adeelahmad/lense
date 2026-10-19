@@ -1689,6 +1689,14 @@ properties_claimed:
     violation_symptoms: [integrity-bypass]
     x-voided-by: "liveness plus asset match only (domain/auth.py:441-444); ?s= routes (api/deps.py:252, Q7)"
     provenance: {kind: documented, source: 'docs/authentication.md "give read-only access to one asset''s player and embed"'}
+  - id: P-GRANT-END
+    kind: integrity
+    components: [authz]
+    tier: security-critical
+    conditions: "a role in a namespace, a role on a collection or permission on an asset given with an end date opens nothing after it, on every route; every check reads grants through auth.permissions, hierarchy.roles_of and access.granted / has_permission, which leave ended ones out; only someone who may give the grant changes its end"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "links signed before the end keep opening their path until they expire (N-SIGNED-BEARER); a read of membership, collection_role or permission that skips auth.live (domain/auth.py live)"
+    provenance: {kind: documented, source: 'docs/access.md "After its end a grant opens nothing"'}
   - id: P-FEEDS
     kind: confidentiality
     components: [authz, optional]
