@@ -32,7 +32,7 @@ import {
 import { Social } from "@/components/timeline/social";
 import { useCommentCounts, useReactions } from "@/components/timeline/use-social";
 import { ViewsMenu } from "@/components/timeline/views";
-import { aDay, useKinds, useMarks, useMutes, useNewItems, useTimeline } from "@/components/timeline/use-timeline";
+import { useKinds, useMarks, useMutes, useNewItems, useTimeline } from "@/components/timeline/use-timeline";
 import { Button } from "@/components/ui/button";
 import { Segmented } from "@/components/ui/tabs";
 import { Drawer } from "@/components/ui/dialog";
@@ -222,7 +222,7 @@ export function TimelinePage() {
     (a: Activity, opts?: MuteOpts) =>
       mutes.mute(
         opts?.kind ? { kind: a.kind, name: labels[a.kind] ?? a.kind } : { actor: a.actor.id, name: a.actor.name },
-        opts?.day ? aDay() : undefined,
+        opts?.span,
       ),
     [mutes, labels],
   );

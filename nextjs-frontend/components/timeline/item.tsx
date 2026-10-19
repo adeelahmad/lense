@@ -35,10 +35,12 @@ import {
   groupSummary,
   objectFields,
   objectHref,
+  SNOOZES,
   type Activity,
   type Family,
   type Group,
   type Mark,
+  type Snooze,
 } from "@/components/timeline/model";
 import { SocialSummary } from "@/components/timeline/social";
 import { sumReactions } from "@/components/timeline/social-model";
@@ -202,10 +204,11 @@ export function ActivityDetail({
   );
 }
 
-/** How to mute from an item: its actor (the default) or its kind, for good or for a day. */
-export type MuteOpts = { kind?: boolean; day?: boolean };
+/** How to mute from an item: its actor (the default) or its kind, for good or for a snooze (an hour, a day, a week). */
+export type MuteOpts = { kind?: boolean; span?: Snooze };
+const SNOOZE_SPANS = Object.keys(SNOOZES) as Snooze[];
 
-/** Mute the item's actor with one click, and the other ways (for a day, its kind) behind a small menu beside it. */
+/** Mute the item's actor with one click, and the other ways (a snooze, its kind) behind a small menu beside it. */
 function MuteButton({ name, kind, onMute }: { name: string; kind?: string; onMute: (opts?: MuteOpts) => void }) {
   return (
     <span className="inline-flex items-center">
@@ -225,17 +228,21 @@ function MuteButton({ name, kind, onMute }: { name: string; kind?: string; onMut
           </IconButton>
         </MenuTrigger>
         <MenuContent align="start">
-          <MenuItem icon={<Clock />} onSelect={() => onMute({ day: true })}>
-            Mute {name} for a day
-          </MenuItem>
+          {SNOOZE_SPANS.map((span) => (
+            <MenuItem key={span} icon={<Clock />} onSelect={() => onMute({ span })}>
+              Mute {name} for {span}
+            </MenuItem>
+          ))}
           {kind && (
             <>
               <MenuItem icon={<VolumeX />} onSelect={() => onMute({ kind: true })}>
                 Mute {kind} items
               </MenuItem>
-              <MenuItem icon={<Clock />} onSelect={() => onMute({ kind: true, day: true })}>
-                Mute {kind} items for a day
-              </MenuItem>
+              {SNOOZE_SPANS.map((span) => (
+                <MenuItem key={span} icon={<Clock />} onSelect={() => onMute({ kind: true, span })}>
+                  Mute {kind} items for {span}
+                </MenuItem>
+              ))}
             </>
           )}
         </MenuContent>
