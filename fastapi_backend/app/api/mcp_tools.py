@@ -4527,7 +4527,8 @@ def list_circles(ctx: Context, shares: str | None, limit: int) -> dict[str, Any]
     Arg("members", "string[]", "everyone in it, by account id or email (replaces who was)"),
     Arg("add", "string[]", "people to add"),
     Arg("remove", "string[]", "people to take out"),
-    Arg("lets", "string[]", "what its people may ask your agent: free_busy (when you're free); replaces what they could"),
+    Arg("lets", "string[]", "what its people may ask your agent: free_busy (when you're free), questions; replaces what they could"),
+    Arg("about", "string[]", "the namespaces of yours, by name, their questions are answered from (never a vault)"),
     Arg("delete", "boolean", "delete the circle", default=False),
     writes=True,
     personal=True,
@@ -4540,6 +4541,7 @@ def save_circle(
     add: list[str] | None,
     remove: list[str] | None,
     lets: list[str] | None,
+    about: list[str] | None,
     delete: bool,
 ) -> dict[str, Any]:
     from app.domain import circles
@@ -4551,14 +4553,14 @@ def save_circle(
             raise ToolError("name the circle to delete with circle_id")
         if not name:
             raise ToolError("a new circle needs a name")
-        cid = circles.create(ctx.db, me, name, list(members or []) + list(add or []), lets or ())
+        cid = circles.create(ctx.db, me, name, list(members or []) + list(add or []), lets or (), about or ())
         auth.audit(ctx.db, ctx.user.as_audit(), "circle.create", f"circle:{cid}", {"via": "mcp"})
         return {"circle": circles.get(ctx.db, cid, me["id"])}
     if delete:
         circles.delete(ctx.db, me, circle_id)
         auth.audit(ctx.db, ctx.user.as_audit(), "circle.delete", f"circle:{circle_id}", {"via": "mcp"})
         return {"deleted": circle_id}
-    out = circles.update(ctx.db, me, circle_id, name, members, add or (), remove or (), lets)
+    out = circles.update(ctx.db, me, circle_id, name, members, add or (), remove or (), lets, about)
     auth.audit(ctx.db, ctx.user.as_audit(), "circle.update", f"circle:{circle_id}", {"via": "mcp"})
     return {"circle": out}
 
@@ -4628,6 +4630,22 @@ def undo_share(ctx: Context, share_id: int) -> dict[str, Any]:
     out = circles.undo(ctx.db, _me(ctx), share_id)
     auth.audit(ctx.db, ctx.user.as_audit(), "circle.unshare", f"circle_share:{share_id}", {"via": "mcp"})
     return out
+
+
+@tool(
+    "ask_their_agent",
+    "Ask someone's agent",
+    "Ask the agent of someone in your circles a question (what does the trip need, when is the recital). It answers "
+    "only from the namespaces they let you ask about, citing what it used, and says when it can't tell. They see the "
+    "question and the answer in their own timeline. Refused when they haven't let you ask.",
+    Arg("person", "string", "whose agent, by account id or email", required=True, max_length=200),
+    Arg("question", "string", "the question", required=True, max_length=1000),
+    personal=True,
+)
+def ask_their_agent(ctx: Context, person: str, question: str) -> dict[str, Any]:
+    from app.domain import circles_ask
+
+    return circles_ask.ask(ctx.db, ctx.cfg, _me(ctx), person, question, via="mcp")
 
 
 @tool(

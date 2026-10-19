@@ -268,6 +268,7 @@ GET    /api/v1/circles/people
 GET    /api/v1/circles/shares
 POST   /api/v1/circles/shares
 POST   /api/v1/circles/when-free
+POST   /api/v1/circles/ask
 DELETE /api/v1/circles/shares/{share_id}
 GET    /api/v1/circles/{circle_id}
 PATCH  /api/v1/circles/{circle_id}
@@ -283,7 +284,9 @@ it (needs `publish` there). Each person gets `share.received` in their timeline 
 with the permissions it gave. A circle's `lets` says what its people may ask your agent: `free_busy` lets them see when
 you're free. `POST /circles/when-free` takes `people`, a window (`start`, `end`, at most 31 days, in `tz`), `minutes`,
 `day_start` and `day_end`, and answers each person's busy times (only when, never what) or why not, and the free
-stretches when you and all of them are free; each person asked gets `agent.asked` in their timeline.
+stretches when you and all of them are free; each person asked gets `agent.asked` in their timeline. With `lets`
+holding `questions` and `about` naming namespaces of yours, `POST /circles/ask` (`person`, `question`) answers from
+those namespaces only, with its `sources`; the person asked sees the question and the answer.
 
 ## automations
 

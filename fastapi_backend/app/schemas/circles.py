@@ -9,7 +9,7 @@ from pydantic import Field
 from app.schemas.common import RequestModel, ResponseModel
 
 Member = int | str
-Let = Literal["free_busy"]
+Let = Literal["free_busy", "questions"]
 
 
 class Person(ResponseModel):
@@ -22,7 +22,8 @@ class Circle(ResponseModel):
     id: int
     name: str
     members: list[Person]
-    lets: list[Let] = Field(default_factory=list, description="what its people may ask your agent: free_busy, when you're free")
+    lets: list[Let] = Field(default_factory=list, description="what its people may ask your agent: free_busy, questions")
+    about: list[str] = Field(default_factory=list, description="the namespaces of yours their questions are answered from")
     created_at: str | None = None
     updated_at: str | None = None
 
@@ -35,7 +36,10 @@ class CircleList(ResponseModel):
 class CircleCreate(RequestModel):
     name: str = Field(min_length=1, max_length=80)
     members: list[Member] = Field(default_factory=list, max_length=200, description="people by account id or email")
-    lets: list[Let] = Field(default_factory=list, description="what its people may ask your agent: free_busy, when you're free")
+    lets: list[Let] = Field(default_factory=list, description="what its people may ask your agent: free_busy, questions")
+    about: list[Member] = Field(
+        default_factory=list, max_length=50, description="namespaces of yours, by name or id, their questions are answered from"
+    )
 
 
 class CircleUpdate(RequestModel):
@@ -44,6 +48,7 @@ class CircleUpdate(RequestModel):
     add: list[Member] = Field(default_factory=list, max_length=200, description="people to add")
     remove: list[Member] = Field(default_factory=list, max_length=200, description="people to take out")
     lets: list[Let] | None = Field(None, description="what its people may ask your agent, replacing what they could")
+    about: list[Member] | None = Field(None, max_length=50, description="namespaces of yours their questions are answered from")
 
 
 class ShareIn(RequestModel):
@@ -97,15 +102,15 @@ class WhenFreeIn(RequestModel):
     day_end: int = Field(18, ge=1, le=24, description="the hour each day ends, in tz")
 
 
-class Span(ResponseModel):
+class BusySpan(ResponseModel):
     start: str
     end: str
 
 
-class Times(ResponseModel):
+class BusyTimes(ResponseModel):
     id: int | None = None
     name: str | None = None
-    busy: list[Span] | None = Field(None, description="when they're busy; never what, where or with whom")
+    busy: list[BusySpan] | None = Field(None, description="when they're busy; never what, where or with whom")
     person: str | None = Field(None, description="who was asked about, when they haven't let you see")
     refused: str | None = None
 
@@ -114,5 +119,25 @@ class WhenFree(ResponseModel):
     start: str
     end: str
     tz: str
-    people: list[Times]
-    free: list[Span] = Field(description="when everyone who let you see, and you, are free, within the hours of the day asked for")
+    people: list[BusyTimes]
+    free: list[BusySpan] = Field(description="when everyone who let you see, and you, are free, within the hours of the day asked for")
+
+
+class AskIn(RequestModel):
+    person: Member = Field(description="whose agent to ask, by account id or email")
+    question: str = Field(min_length=1, max_length=1000)
+
+
+class AnswerSource(ResponseModel):
+    n: int
+    title: str | None = None
+    time: str | None = None
+    cited: bool = False
+    url: str | None = Field(None, description="its page, when you can open it")
+
+
+class AgentAnswer(ResponseModel):
+    id: int
+    name: str
+    answer: str
+    sources: list[AnswerSource]

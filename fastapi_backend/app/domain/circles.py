@@ -29,7 +29,7 @@ MAX_CIRCLES = 50
 MAX_MEMBERS = 200
 NAME_MAX = 80
 NOTE_MAX = 2000
-LETS = ("free_busy",)  # what a circle's people may ask its owner's agent (circles_ask.py); nothing until picked
+LETS = ("free_busy", "questions")  # what a circle's people may ask its owner's agent (circles_ask.py); nothing until picked
 SHARE_FIELDS = "id AS rid, record::id(id) AS id, by, at, circles, people, object, tag, note, with_item, granted, space, via"
 TO_FIELDS = "id AS rid, record::id(id) AS id, share, account, at, opens"
 UNTRUSTED = ("object.name", "object.summary", "object.content")
@@ -87,6 +87,7 @@ def _view(db, row, names=None):
         "name": row["name"],
         "members": members,
         "lets": [x for x in row.get("lets") or [] if x in LETS],
+        "about": [n for n in (store.space_names(db).get(s) for s in row.get("ask_spaces") or []) if n],
         "created_at": row.get("created_at"),
         "updated_at": row.get("updated_at"),
     }
@@ -94,13 +95,17 @@ def _view(db, row, names=None):
 
 def circles(db, owner):
     """Someone's circles, by name, each with its members who can still sign in."""
-    rows = db.rows("SELECT record::id(id) AS id, name, members, lets, created_at, updated_at FROM circle WHERE owner = $o", o=owner)
+    rows = db.rows(
+        "SELECT record::id(id) AS id, name, members, lets, ask_spaces, created_at, updated_at FROM circle WHERE owner = $o", o=owner
+    )
     names = _people(db, [m for r in rows for m in r.get("members") or []])
     return sorted((_view(db, r, names) for r in rows), key=lambda c: (c["name"].lower(), c["id"]))
 
 
 def _row(db, cid, owner):
-    r = db.one("SELECT record::id(id) AS id, owner, name, members, lets, created_at, updated_at FROM $r", r=R("circle", int(cid)))
+    r = db.one(
+        "SELECT record::id(id) AS id, owner, name, members, lets, ask_spaces, created_at, updated_at FROM $r", r=R("circle", int(cid))
+    )
     if not r or r.get("owner") != owner:
         raise KeyError(cid)
     return r
@@ -151,32 +156,51 @@ def _lets(lets):
     return out
 
 
-def create(db, me, name, members=(), lets=()):
+def _about(db, me, about):
+    """Namespace ids, from names or ids, that `me` reads outside vaults: what a circle's agents may ask about."""
+    names = {v: k for k, v in store.space_names(db).items()}
+    mine = set(auth.roles(db, me))
+    out = []
+    for a in about or []:
+        sid = int(a) if str(a).strip().isdigit() else names.get(str(a).strip())
+        if sid is None or sid not in mine:
+            raise Problem(f"{a} isn't a namespace you read")
+        if _vault(db, sid):
+            raise Problem(f"{a} is a vault: what's in it stays in it")
+        if sid not in out:
+            out.append(sid)
+    return out
+
+
+def create(db, me, name, members=(), lets=(), about=()):
     """A new circle of `me`'s, with members picked by id or email, and what they may ask `me`'s agent (`lets`). Its id."""
     if len(db.values("SELECT VALUE id FROM circle WHERE owner = $o", o=me["id"])) >= MAX_CIRCLES:
         raise Problem(f"you can have at most {MAX_CIRCLES} circles")
     name = _name(db, me["id"], name)
     picked = _members(db, me, members)
     allowed = _lets(lets)
+    spaces = _about(db, me, about)
     cid = db.next_id("circle")
     at = store.now()
     db.q(
         "CREATE $r CONTENT $d",
         r=R("circle", cid),
-        d={"owner": me["id"], "name": name, "members": picked, "lets": allowed, "created_at": at, "updated_at": at},
+        d={"owner": me["id"], "name": name, "members": picked, "lets": allowed, "ask_spaces": spaces, "created_at": at, "updated_at": at},
     )
     return cid
 
 
-def update(db, me, cid, name=None, members=None, add=(), remove=(), lets=None):
-    """Rename a circle of `me`'s, set its members, or add and take some away, or set what they may ask `me`'s agent.
-    KeyError for anyone else's."""
+def update(db, me, cid, name=None, members=None, add=(), remove=(), lets=None, about=None):
+    """Rename a circle of `me`'s, set its members, or add and take some away, or set what they may ask `me`'s agent
+    (`lets`) and which namespaces of `me`'s its questions are answered from (`about`). KeyError for anyone else's."""
     row = _row(db, cid, me["id"])
     patch = {"updated_at": store.now()}
     if name is not None:
         patch["name"] = _name(db, me["id"], name, row["id"])
     if lets is not None:
         patch["lets"] = _lets(lets)
+    if about is not None:
+        patch["ask_spaces"] = _about(db, me, about)
     if members is not None or add or remove:
         now = list(row.get("members") or []) if members is None else _members(db, me, members)
         now += [m for m in _members(db, me, add) if m not in now]

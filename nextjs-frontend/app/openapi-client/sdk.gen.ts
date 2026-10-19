@@ -74,6 +74,9 @@ import type {
   AskGraphData,
   AskGraphErrors,
   AskGraphResponses,
+  AskTheirAgentData,
+  AskTheirAgentErrors,
+  AskTheirAgentResponses,
   BackupFileData,
   BackupFileErrors,
   BackupFileResponses,
@@ -14261,6 +14264,26 @@ export class Circles {
     return (options.client ?? client).delete<UndoCircleShareResponses, UndoCircleShareErrors, ThrowOnError>({
       url: "/api/v1/circles/shares/{sid}",
       ...options,
+    });
+  }
+
+  /**
+   * Ask Their Agent
+   *
+   * Ask someone's agent a question, answered only from the namespaces they let a circle of theirs with you ask about
+   * (`lets: questions` and `about`), citing what it used. They see the question and the answer in their own timeline
+   * (agent.asked).
+   */
+  public static askTheirAgent<ThrowOnError extends boolean = false>(
+    options: Options<AskTheirAgentData, ThrowOnError>,
+  ): RequestResult<AskTheirAgentResponses, AskTheirAgentErrors, ThrowOnError> {
+    return (options.client ?? client).post<AskTheirAgentResponses, AskTheirAgentErrors, ThrowOnError>({
+      url: "/api/v1/circles/ask",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 

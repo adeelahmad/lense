@@ -39,3 +39,11 @@ export function firstPick(circles: Pick<Circle, "id">[]): number[] {
 export function shareable(kind: string): boolean {
   return !kind.startsWith("share.");
 }
+
+export type Let = "free_busy" | "questions";
+
+/** A circle's `lets` with one turned on or off, keeping the others. */
+export function withLet(lets: Let[] | undefined, which: Let, on: boolean): Let[] {
+  const rest = (lets ?? []).filter((l) => l !== which);
+  return on ? [...rest, which] : rest;
+}

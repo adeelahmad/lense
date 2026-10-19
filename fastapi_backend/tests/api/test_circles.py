@@ -9,7 +9,7 @@ import time
 
 import pytest
 
-from app.domain import access, ai_tools, auth, circles, events, store
+from app.domain import access, ai_tools, auth, circles, circles_ask, events, store
 from tests.api.test_mcp import rpc, tool, tool_error
 from tests.helpers import login, make_user, seed
 
@@ -361,3 +361,44 @@ def test_when_people_are_free(client, db, cfg, env):
         box.call("when_free", {"people": ["adeel@x.io"], "start": "2026-10-20T09:00", "end": "2026-10-20T18:00", "minutes": 60})[0]
     )
     assert len(res["free"]) == 3 and _feed(client, env["adeel"], "agent.asked")[0]["summary"].startswith("Sam's agent asked")
+
+
+def test_asking_their_agent(client, db, cfg, env):
+    from tests import fake_llm
+    from tests.api._assist import start_llm
+
+    fam = _family(client, env)
+    ask = {"person": "adeel@x.io", "question": "When does the shipment leave, and are the capsid samples going?"}
+    r = client.post(f"{URL}/ask", headers=env["sam"], json=ask)
+    assert r.status_code == 400 and r.json()["detail"] == "adeel@x.io hasn't let you ask their agent"
+    # he lets the family ask about calls only, never a namespace he doesn't read
+    r = client.patch(f"{URL}/{fam['id']}", headers=env["adeel"], json={"lets": ["questions"], "about": ["elsewhere"]})
+    assert r.status_code == 400 and "isn't a namespace you read" in r.json()["detail"]
+    got = client.patch(f"{URL}/{fam['id']}", headers=env["adeel"], json={"lets": ["questions"], "about": ["calls"]}).json()
+    assert got["lets"] == ["questions"] and got["about"] == ["calls"]
+    was = dict(cfg["llm"])
+    srv = start_llm(cfg)
+    try:  # the model as the API calls it, with the settings the app read at its start
+        sam = {"id": env["ids"]["sam"], "email": "sam@x.io", "name": "Sam"}
+        out = circles_ask.ask(db, cfg, sam, ask["person"], ask["question"])
+        sent = fake_llm.Handler.seen[-1]["messages"]
+    finally:
+        srv.shutdown()
+        cfg["llm"].clear()
+        cfg["llm"].update(was)
+    assert out["name"] == "Adeel" and out["answer"] == "OK"
+    assert out["sources"] and all(s["title"] == "call" for s in out["sources"])  # nothing from pods
+    assert all(s["url"].startswith("/resources/") for s in out["sources"])  # Sam reads calls
+    assert "Adeel's agent" in sent[0]["content"] and "shipment leaves on Friday" in sent[1]["content"]
+    assert "capsid model beat" not in sent[1]["content"]  # pods stays out
+    assert 'source="a question from Sam"' in sent[1]["content"]  # the question is outside text
+    # he sees the question and the answer; nobody else does
+    [seen] = _feed(client, env["adeel"], "agent.asked")
+    assert seen["summary"].startswith("Sam asked your agent “When does the shipment leave")
+    assert seen["object"]["content"] == "OK" and "object.name" in seen["lens"]["untrusted"]
+    assert _feed(client, env["sam"], "agent.asked") == []
+    # outside the circle: refused; with no model: the excerpts themselves; over MCP too
+    assert client.post(f"{URL}/ask", headers=env["ed"], json=ask).status_code == 400
+    out = tool(client, env["sara"], "ask_their_agent", person="adeel@x.io", question="When does the shipment leave?")
+    assert out["answer"].startswith("No language model is configured") and "[1] call" in out["answer"]
+    assert _feed(client, env["adeel"], "agent.asked")[0]["summary"].startswith("sara's agent asked your agent")
