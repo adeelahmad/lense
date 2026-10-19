@@ -10,7 +10,7 @@ Status: in progress. Circles are built in steps; only what is merged is called b
 | Part | Status |
 | --- | --- |
 | Circles of people on the same Lens, sharing an activity or a resource with them and a note, with the item or without, undo; API, MCP and the assistant | built |
-| Circles under Profile in the web app, and a Share action on timeline items and resource pages | planned |
+| Circles under Profile in the web app, and a Share action on timeline items and resource pages | built |
 | Rules per circle: what your agent shares without asking (kinds, entities, a match tree) and what it asks you first about | planned |
 | Asking someone's agent (when are they free, what does the trip need), answered only from what they let that circle see, with citations | planned |
 | Circles across Lens servers over ActivityPub: a signed inbox, an outbox and WebFinger handles like `sam@lens.example` | planned |
@@ -24,6 +24,9 @@ Colleagues); none is made for you.
 You can add people you share a namespace with, and people who have you in a circle of theirs, so your son can add you
 back once you have added him. Admins can add anyone. Adding someone tells them nothing; sharing does.
 
+**In the web app**, your circles are under Profile: a suggested name makes a circle in one click, *Add someone…*
+adds a person, the × by a name takes them out, and deleting a circle is undone from its message.
+
 ## Sharing
 
 Share one thing at a time with one or more of your circles, or with people in them:
@@ -36,6 +39,10 @@ Add a note in your own words ("Sam's trip is on Friday: he needs a packed lunch"
 what it said when you shared it: the name, the line the timeline gave it, the entities it is about, the kind of
 activity and your note. Their automations can follow `share.received` like any other kind ("when Dad shares a school
 notice, add it to my calendar"), and their agent reads the note and snapshot as outside text.
+
+In the web app, open an item in the [timeline](timeline.md) and pick **Share**, or pick **Share with a circle…** in
+a resource's ⋯ menu. Your only circle is already picked; add a note and share. The message that says it was shared
+has **Undo**. Shares show in the timeline under *Shared*.
 
 **With the item.** A share says what the item is, not what is in it. Turn on *with the item* to also give each
 person who can't open the resource permission on that one resource, as an owner gives permission on an asset

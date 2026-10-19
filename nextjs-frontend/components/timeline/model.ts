@@ -152,14 +152,26 @@ export function toQuery(f: Filters): ListQuery {
 }
 
 // ---------- kinds ----------
-export type Family = "Email" | "Calendar" | "Files" | "Notes" | "Sensors" | "Chat" | "Automations" | "System";
-export const FAMILIES: Family[] = ["Email", "Calendar", "Files", "Notes", "Sensors", "Chat", "Automations", "System"];
+export type Family =
+  "Email" | "Calendar" | "Files" | "Notes" | "Shared" | "Sensors" | "Chat" | "Automations" | "System";
+export const FAMILIES: Family[] = [
+  "Email",
+  "Calendar",
+  "Files",
+  "Notes",
+  "Shared",
+  "Sensors",
+  "Chat",
+  "Automations",
+  "System",
+];
 
 const FAMILY_OF: [RegExp, Family][] = [
   [/^email\./, "Email"],
   [/^calendar_event\./, "Calendar"],
   [/^(asset|file|upload|web_page|import)\./, "Files"],
   [/^(note|comment|entity)\./, "Notes"],
+  [/^share\./, "Shared"],
   [/^sensor\./, "Sensors"],
   [/^chat\./, "Chat"],
   [/^(automation|approval|routine|webhook)\./, "Automations"],

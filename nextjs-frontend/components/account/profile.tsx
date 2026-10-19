@@ -7,6 +7,7 @@ import { signOut } from "next-auth/react";
 import { useState } from "react";
 
 import { Auth, Tokens } from "@/app/openapi-client";
+import { CirclesPanel } from "@/components/account/circles";
 import { ConnectedAccountsPanel } from "@/components/account/connected-accounts";
 import { PasskeysPanel } from "@/components/account/passkeys";
 import { confirmMismatch, passwordBlocked } from "@/components/account/profile-model";
@@ -81,6 +82,7 @@ export function ProfilePage() {
           </div>
         </div>
       </Panel>
+      <CirclesPanel />
       <PasskeysPanel />
       <ConnectedAccountsPanel />
       {status.data?.passwords && (
