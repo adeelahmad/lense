@@ -42,6 +42,7 @@ import math
 import re
 import threading
 import time
+from secrets import token_urlsafe
 
 from . import activity, budgets, jobs, schedule, settings, store
 from . import scaling_bedrock, scaling_clouds, scaling_models, scaling_proxmox, scaling_sagemaker, scaling_ssh  # noqa: F401 - registers their drivers
@@ -1056,6 +1057,18 @@ def can_join(cfg):
     return bool(getattr(mesh, "make_token", None) and getattr(mesh, "join_line", None))
 
 
+def unit_key(db, cfg, gid):
+    """The API key a model group's units serve with (RunPod and Hugging Face give it to vLLM), made once and kept
+    sealed on the group: one key for all of them, so Lens's model calls can go to any of its units (Scaler._serve)."""
+    row = db.one("SELECT unit_key FROM $r", r=R("scale_group", gid)) or {}
+    ctx = f"scale_group:{gid}.unit_key"
+    if row.get("unit_key"):
+        return settings.unseal(cfg, row["unit_key"], ctx)
+    key = token_urlsafe(32)
+    db.q("UPDATE $r SET unit_key = $k", r=R("scale_group", gid), k=settings.seal(cfg, key, ctx))
+    return key
+
+
 def bootstrap(db, cfg, g, name):
     """How a unit joins Lens: a worker started here gets its name and inherits the rest; a machine elsewhere gets the
     mesh's install line (`LENS_JOIN=… LENS_JOIN_TOKEN=… sh install.sh`) with a one-time join token good for an hour,
@@ -1063,7 +1076,10 @@ def bootstrap(db, cfg, g, name):
     user over the mesh once it has joined (docs/mesh.md, Worker nodes). {env, line, token_id, tag} (line and token_id
     None without the mesh)."""
     boot = {"env": {"LENS_SCALING_UNIT": name}, "line": None, "token_id": None, "tag": conf(cfg)["tag"]}
-    if g.get("kind") == "model" or not can_join(cfg):  # a model server is reached over HTTPS: it joins nothing
+    if g.get("kind") == "model":  # a model server is reached over HTTPS: it joins nothing
+        boot["key"] = unit_key(db, cfg, g["id"])
+        return boot
+    if not can_join(cfg):
         return boot
     mesh = mesh_module()
     make, line = mesh.make_token, mesh.join_line
@@ -1190,13 +1206,17 @@ class Scaler:
                 self.log("scaling: no model unit runs; the LLM provider is the one from before again")
             if serving or row.get("previous"):
                 db.q("UPSERT $r SET serving = NONE, previous = NONE", r=ROW)
+            self._spread(cfg, None)
             return
         if serving.get("base_url") and llm.get("base_url") != serving["base_url"]:
             if not serving.get("held"):  # a person picked another provider: theirs stays
                 db.q("UPSERT $r SET serving.held = true, previous = NONE", r=ROW)
+            self._spread(cfg, None)
             return
-        if serving.get("base_url") in {n["endpoint"]["base_url"] for n in units}:
-            return  # still served by a unit that runs
+        served = [n for n in units if n["endpoint"]["base_url"] == serving.get("base_url")]
+        if served:  # still served by a unit that runs
+            self._spread(cfg, self._others(cfg, units, endpoint_of(cfg, served[0])))
+            return
         n = units[0]
         e = endpoint_of(cfg, n)
         if not serving:
@@ -1209,6 +1229,32 @@ class Scaler:
         refs = [_ref("scale_node", n["id"]), _ref("scale_group", n["group"])]
         activity.record("run", "scaling.serve", refs, cfg, db, detail={"unit": n["name"], "model": e["model"]})
         self.log(f"scaling: model calls go to {n['name']} ({e['model']})")
+        self._spread(cfg, self._others(cfg, units, e))
+
+    @staticmethod
+    def _others(cfg, units, e):
+        """The served unit's endpoint and the addresses of the other running units that serve the same model with the
+        same key (a group's units share one: unit_key), which take Lens's model calls in turn with it."""
+        urls = set()
+        for n in units:
+            o = endpoint_of(cfg, n)
+            if (
+                o
+                and o["base_url"] != e["base_url"]
+                and o.get("model") == e.get("model")
+                and (o.get("api_key") or "") == (e.get("api_key") or "")
+            ):
+                urls.add(o["base_url"])
+        return {"base_url": e["base_url"], "urls": sorted(urls)} if urls else None
+
+    def _spread(self, cfg, want):
+        """Keeps `llm.spread` (llm.py `_spread`) at `want`: the served address and the others its calls go to in turn."""
+        if (cfg.get("llm") or {}).get("spread") != want:
+            settings.save(self.db, cfg, "llm", {"spread": want}, "auto scaling")
+            n = len(want["urls"]) + 1 if want else 1
+            self.log(
+                f"scaling: model calls go to {n} unit{'s' if n > 1 else ''} in turn" if want else "scaling: model calls go to one place"
+            )
 
     def _group(self, cfg, g, now, did):
         db = self.db

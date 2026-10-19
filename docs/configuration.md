@@ -214,6 +214,10 @@ of their own then: they never borrow the AWS key. The keys need `bedrock:InvokeM
 (InvokeEndpointWithResponseStream), as the container writes them. Keys allowed only `bedrock:InvokeModel` or `sagemaker:InvokeEndpoint` still work: their answers come whole. Picking a provider changes nothing until you save; from then on, what Lens asks its model
 (summaries, chat, descriptions, with the text they need) goes to that provider.
 
+`llm.spread` sends those calls to more addresses in turn: `{"base_url": ..., "urls": [...]}`, the provider's address
+and others serving the same model with the same key. It is used only while `llm.base_url` is that `base_url`, and
+auto scaling keeps it while a group's units serve ([Auto scaling](scaling.md)).
+
 ## Chat models
 
 People can choose the model a conversation uses, and ask a question again with another (Retry with another model).

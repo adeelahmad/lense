@@ -76,7 +76,7 @@ class RunPod(Rest):
         return {"pods": len(pods) if isinstance(pods, list) else 0}
 
     def launch(self, p, template, name, boot):
-        s, key = p["settings"], secrets.token_urlsafe(32)
+        s, key = p["settings"], boot.get("key") or secrets.token_urlsafe(32)
         model = template["model"]
         args = ["--model", model, "--served-model-name", model, "--port", str(PORT)]
         if (template.get("gpu_count") or 1) > 1:
@@ -204,7 +204,7 @@ class HuggingFace(Rest):
         return float(hw["pricePerHour"]) if hw.get("pricePerHour") is not None else None
 
     def launch(self, p, template, name, boot):
-        ns, key, model = self.namespace(p), secrets.token_urlsafe(32), template["model"]
+        ns, key, model = self.namespace(p), boot.get("key") or secrets.token_urlsafe(32), template["model"]
         hw = self.hardware(p, ns, template["hardware"])
         if len(name) > 32:  # endpoint names are at most 32 characters: keep the unit's number on the end
             n = name.rsplit("-", 1)[-1]
