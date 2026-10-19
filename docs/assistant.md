@@ -303,6 +303,9 @@ When the configured model supports function calling, chat becomes an agent.
   bookmark export) and `import_urls` captures each page as a document, as `POST /api/v1/import/web/links` does. Like
   `import_files`, it picks the namespace when you don't name one, takes a content type when you say what the pages
   are, and waits for your approval.
+- **Undo an import:** `import_runs` lists your recent bulk imports (a folder scan, an archive's files, a list of links,
+  a source's files) and `undo_import` deletes everything one of them made, as the Import screen's Undo does
+  ([Import runs](api.md#import-runs)). It needs owner rights on each asset and always waits for your approval.
 - **Keep typing:** what you send while an answer is being written waits its turn and goes next.
 - **Your browser** (Chrome and Edge): asked from the Lens extension's side panel, the assistant can open, read, click
   and type in that browser and download files into the conversation, on sites you allow, asking before anything that

@@ -155,9 +155,10 @@ def test_a_held_upload_stays_out_until_placed(app, db, cfg, folder, new_client, 
         )
 
 
-def test_the_assistant_manages_people_with_approval(app, db, cfg, folder, new_client, llm):
+def test_the_assistant_manages_people_with_approval(app, db, cfg, folder, new_client, llm, monkeypatch):
     from app.domain import auth
 
+    monkeypatch.setattr(chat, "CONTEXT_TOKENS", 128000)  # room for the people list beside the admin's tools (chat.fit)
     s = Assist(app, db, cfg, folder, new_client)
     c, h = s.cl["admin"]
     llm.tool_script = [

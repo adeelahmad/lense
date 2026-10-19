@@ -131,7 +131,7 @@ def queue_step(step: str, acl: Acl, user: Writer, db: Db, cfg: Cfg) -> StepQueue
 
         def scan() -> None:
             try:
-                ingest.scan(db, cfg, log=log.info)
+                ingest.scan(db, cfg, log=log.info, by=user.email)
                 jobs.enqueue_pending(db, by=user.email)
             except Exception:  # noqa: BLE001 - background thread; report and carry on
                 log.exception("scan failed")

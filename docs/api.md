@@ -1046,6 +1046,9 @@ POST   /api/v1/import
 POST   /api/v1/import/preview
 POST   /api/v1/import/web
 POST   /api/v1/import/web/links
+GET    /api/v1/import/runs
+GET    /api/v1/import/runs/{id}
+POST   /api/v1/import/runs/{id}/undo
 ```
 
 `POST /import` queues the namespace's pipeline after the import, or the saved pipeline named by `pipeline` (any of
@@ -1068,7 +1071,33 @@ pipeline, or `pipeline`; transcripts are imported. A PDF, Word, text or Markdown
 `documents_as` is `transcript` (its text only), or the server can't make a PDF of it. Each path gets a result: `queued` (with `recording` and `job`), `already` (the namespace has it from this
 source, or, for a folder on this machine, has the same file from anywhere: another folder, an upload or a scan, by
 what's in it, so it isn't read twice; with that `recording`), `skipped` (a folder, or not audio, video, a document, an image or a transcript) or `error`. Choosing a file
-whose asset was deleted brings it back. Audited as `import.source`.
+whose asset was deleted brings it back. The files queued are one [import run](#import-runs) (`import_run`). Audited
+as `import.source`.
+
+### Import runs
+
+A bulk import is one import run, so a mistaken one is undone whole rather than asset by asset: a folder scan that
+finds new files (`scan`), a zip or tar archive whose files become resources of their own (`archive`: the archive and
+those resources), a list of links or a bookmarks file (`links`, `POST /import/web/links`) and chosen files of a source
+(`source`, `POST /import/source`). Every asset a run made carries its id as `import_run` (`GET /recordings/{id}`), and
+the import's answer names it (`import_run`). Any other upload, a pasted transcript or one web page makes no run,
+and assets imported before runs existed have none.
+
+`GET /api/v1/import/runs?limit=` lists recent runs, newest first: the ones you started and those in namespaces where
+you may delete assets (everyone's, for admins), each with `kind`, `namespace`, `source` (what it read: the folders,
+the archive, the links' file, the source and how many files), `created_by`, `created_at`, `assets` (how many it made),
+`left` (how many are still here) and `status` (`imported`, `partly undone` or `undone`). `GET /import/runs/{id}` reads
+one (404 when it isn't one you'd see listed).
+
+`POST /api/v1/import/runs/{id}/undo` deletes every asset the run made that is still here, each exactly as
+`DELETE /recordings/{id}` deletes one (the media files stay where they are, and scans and watched folders don't import
+them again). It needs the rights a delete needs on each one (the remove permission in its namespace, owners, or admin
+of its collection): when any is one you may not delete, it answers 403 and nothing is deleted. An asset a job is
+working on is left (`busy`) and its job asked to stop; undoing the run again takes the rest. It answers `{run,
+deleted, busy}`. Lens keeps no recently deleted list of assets, so an undo can't itself be undone: importing the files
+again brings them back. Audited as `recording.delete` for each asset (with the run) and `import.undo` for the run. The
+Import screen lists recent runs with Undo on each, and the toast after a bulk import has Undo for the whole run; the
+assistant has `import_runs` and `undo_import`, which waits for your approval.
 
 ### Web pages
 
@@ -1098,7 +1127,8 @@ name until it's captured, and tagged with the bookmark folders it was in (the in
 own: Bookmarks bar, Other bookmarks), unless `folders_as_tags` is false. At most 500 links at once (400 beyond); links
 are taken in order, without repeats. It answers with each link's `status`: `queued` (with its `recording` and `job`),
 `already` (a page captured from that address is in the namespace: its `recording`) or `skipped` (`detail` says why,
-as the checks above would). Audited as `import.web` once, with how many were queued.
+as the checks above would). The pages queued are one [import run](#import-runs) (`import_run`). Audited as
+`import.web` once, with how many were queued.
 
 ### Videos and podcasts
 

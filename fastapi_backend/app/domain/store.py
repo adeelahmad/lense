@@ -1810,6 +1810,10 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS saved_collection_owner ON saved_collection FIELDS account",
     "DEFINE TABLE IF NOT EXISTS batch SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS job_batch ON job FIELDS batch",
+    # one bulk import (a folder scan, an archive's files, a list of links, a source's files), undone whole (import_runs.py)
+    "DEFINE TABLE IF NOT EXISTS import_run SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS import_run_created ON import_run FIELDS created_at",
+    "DEFINE INDEX IF NOT EXISTS recording_import_run ON recording FIELDS import_run",
     "DEFINE TABLE IF NOT EXISTS approval SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS approval_chat ON approval FIELDS chat",
     # the inbox (approvals.py): a person's waiting approvals, an automation's (capped), and the expiry sweep

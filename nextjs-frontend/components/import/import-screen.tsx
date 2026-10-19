@@ -13,6 +13,7 @@ import {
 } from "@/components/import/files";
 import { ImportQueue } from "@/components/import/import-queue";
 import { PasteTab } from "@/components/import/paste-tab";
+import { RecentImports } from "@/components/import/recent-imports";
 import { chooseFiles, defaultImportNamespace, isFileDrag, takeFiles } from "@/components/import/pending";
 import { SourceTab } from "@/components/import/source-tab";
 import { WebTab } from "@/components/import/web-tab";
@@ -498,6 +499,7 @@ export function ImportScreen() {
                 </div>
               </>
             ))}
+          {tab !== "upload" || items.length === 0 ? <RecentImports /> : null}
         </>
       )}
     </div>

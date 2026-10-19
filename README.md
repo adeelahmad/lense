@@ -151,9 +151,11 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   file or a page is as it comes in (a podcast, an interview, a scan), in Import, by API or to the assistant, and its
   content type's pipeline runs from the start. A file, page or video the namespace already has links to the one there
   instead of being imported again. Media browsers can't play, such as an AVI or HEVC from a phone, can get a copy they
-  can (off by default).
+  can (off by default). A bulk import (a folder scan, an archive's files, a link list, a source's files) is one run:
+  the toast after it, and the Import screen's list of recent runs, undo it whole.
   ([Sensors](docs/sensors.md), [processing](docs/processing.md), [Apache Tika](docs/configuration.md#apache-tika),
-  [import webhooks](docs/api.md#import-webhooks), [playable copies](docs/video.md#playable-copies);
+  [import webhooks](docs/api.md#import-webhooks), [playable copies](docs/video.md#playable-copies),
+  [import runs](docs/api.md#import-runs);
   [checks](docs/requirements.md#bring-in-everything))
 - **Clip from the browser.** The Lens web clipper for Chrome, Edge, Firefox and Safari turns a page, a selection or a
   part you pick into Markdown, lets you look it over, and sends it to a namespace. It signs in to Lens with nothing to

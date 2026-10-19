@@ -740,6 +740,15 @@ entry_points:
         obligation_id: admin-is-trusted
         caller_must_enforce: "admin is trusted; audited (lens.sandbox); refused when preflight finds the machine can't run the gateway; reaches the machine only as an inbox request (action=services, profile=sandbox) the agent checks again; off deletes every sandbox first"
         provenance: {kind: documented, source: 'docs/assistant.md "The gateway"'}
+  - id: "import runs"
+    component: authz
+    parameters:
+      - name: "GET /api/v1/import/runs, POST /api/v1/import/runs/{id}/undo; assistant import_runs, undo_import: a run id"
+        attacker_controllable: true
+        x-condition: "whoever started the run, owners of its namespace, admins; indirectly through content the model reads"
+        control_kinds: [data, x-prompt-injection]
+        caller_must_enforce: "none — a run is seen only by those (404 otherwise); undo deletes each asset through deletion.delete and needs the remove permission (or a collection admin role) on every one, else nothing is deleted (403); the assistant's undo always waits for the person's approval; audited per asset (recording.delete) and for the run (import.undo)"
+        provenance: {kind: documented, source: 'docs/api.md "Import runs"'}
   - id: "entity and topic curation tools"
     component: authz
     parameters:

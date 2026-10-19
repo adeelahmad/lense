@@ -375,6 +375,7 @@ class Recording(ResponseModel):
     attached_to: AttachedTo | None = Field(None, description="an email's attachment made a resource of its own: that email")
     converted_from: ConvertedFrom | None = Field(None, description="made by a convert step: the asset it was made from")
     web: WebPage | None = Field(None, description="a web page captured as a document")
+    import_run: int | None = Field(None, description="the bulk import that made it (GET /import/runs/{id}), which undoes it whole")
     enrichment: Enrichment | None = Field(None, description="the places and dates anytopdf found (analysis.anytopdf)")
     recorded_at: str | None = Field(
         None,

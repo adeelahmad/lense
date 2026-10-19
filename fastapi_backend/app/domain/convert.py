@@ -890,7 +890,8 @@ def keep_attachments(db, cfg, rid, attachments, say, archive=False):
     """An email's attachments (or an archive's files) kept as its files (once: a file it has already isn't added
     again), and those Lens can read made resources of their own beside it (documents.attachment_resources), queued for
     the namespace's pipeline. A resource made from an attachment says which email and file it came from (attached_to).
-    A chat export or JSON among them becomes a chat, records or a transcript; an archive in an archive stays a file."""
+    A chat export or JSON among them becomes a chat, records or a transcript; an archive in an archive stays a file.
+    An archive and the resources made of its files are one import run (import_runs.archive)."""
     from . import archives, documents, files
 
     rec = db.one("SELECT space, collection, recorded_at FROM $r", r=R("recording", rid)) or {}
@@ -928,6 +929,12 @@ def keep_attachments(db, cfg, rid, attachments, say, archive=False):
         say(f"only its first {MAX_ATTACHMENTS} {what}s were kept")
     if attachments:
         say(f"{len(attachments)} {what}(s): {kept} kept now, {made} made resource(s) of their own")
+    if archive:  # the archive and the resources made of its files are one import run, undone whole
+        from . import import_runs
+
+        run = import_runs.archive(db, rid)
+        if run and made:
+            say(f"import run {run}: undoing it deletes the archive and the resources made of its files")
 
 
 def _held(name, data):

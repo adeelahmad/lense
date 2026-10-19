@@ -13,7 +13,7 @@ import json
 import re
 from html.parser import HTMLParser
 
-from . import content_types, jobs, library, webcapture
+from . import content_types, import_runs, jobs, library, webcapture
 
 MAX = 500  # links in one import, at most
 URL = re.compile(r"https?://[^\s<>\"']+", re.I)
@@ -106,11 +106,13 @@ def tags(folders, most=5, width=40):
     return [" ".join(f.split())[:width].strip() for f in folders[-most:] if f.strip()]
 
 
-def queue(db, cfg, sid, found, by, collection=None, pipeline=None, folders_as_tags=True, content_type=None):
+def queue(db, cfg, sid, found, by, collection=None, pipeline=None, folders_as_tags=True, content_type=None, source=None):
     """Capture each of `found` (from `read`) in namespace `sid` as a web page document (of `content_type`, a text one,
-    when it's chosen): [{url, status, recording, job, detail}], status queued, already (captured in the namespace
-    before) or skipped (detail says why). The caller checks the person may add to the namespace and the collection is
-    one of its own."""
+    when it's chosen): [{url, status, recording, job, import_run, detail}], status queued, already (captured in the
+    namespace before) or skipped (detail says why). The pages queued are one import run (import_runs.py; `source` says
+    what the links came from), which undoes them whole. The caller checks the person may add to the namespace and the
+    collection is one of its own."""
+    since = import_runs.mark(db)
     have = {
         (r.get("web") or {}).get("url"): r["id"]
         for r in db.rows("SELECT record::id(id) AS id, web FROM recording WHERE space = $s AND web != NONE", s=sid)
@@ -136,4 +138,6 @@ def queue(db, cfg, sid, found, by, collection=None, pipeline=None, folders_as_ta
             content_types.choose(db, rid, content_type)
         job = jobs.enqueue(db, rid, None, by=by, pipeline=pipeline)
         out.append({"url": url, "status": "queued", "recording": rid, "job": job})
-    return out
+    made = [r["recording"] for r in out if r["status"] == "queued"]
+    run = import_runs.record(db, "links", sid, made, by, source or f"{len(found)} link(s)", since)
+    return [{**r, "import_run": run} if r["status"] == "queued" else r for r in out]

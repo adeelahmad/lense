@@ -11516,6 +11516,91 @@ export type ImportResult = {
 };
 
 /**
+ * ImportRun
+ *
+ * One bulk import: a folder scan, an archive's files, a list of links or bookmarks, or chosen files of a source.
+ */
+export type ImportRun = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Kind
+   *
+   * what made it: scan, archive, links or source
+   */
+  kind: "scan" | "archive" | "links" | "source";
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Source
+   *
+   * what it read: the folders, the archive, the links' file, the source
+   */
+  source?: string | null;
+  /**
+   * Created By
+   *
+   * who started it (none: a scan from the command line)
+   */
+  created_by?: string | null;
+  /**
+   * Created At
+   */
+  created_at: string;
+  /**
+   * Assets
+   *
+   * how many assets it made
+   */
+  assets?: number;
+  /**
+   * Left
+   *
+   * how many of them are still here
+   */
+  left?: number;
+  /**
+   * Status
+   *
+   * imported; partly undone (some assets were busy: undo it again for the rest); undone
+   */
+  status: "imported" | "partly undone" | "undone";
+  /**
+   * Undone At
+   */
+  undone_at?: string | null;
+  /**
+   * Undone By
+   */
+  undone_by?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ImportRunUndone
+ */
+export type ImportRunUndone = {
+  run: ImportRun;
+  /**
+   * Deleted
+   *
+   * the assets deleted
+   */
+  deleted: Array<number>;
+  /**
+   * Busy
+   *
+   * assets a job is working on, left for now: their jobs were asked to stop
+   */
+  busy: Array<number>;
+  [key: string]: unknown;
+};
+
+/**
  * ImportTarget
  *
  * Where pushes with a token go (GET /hooks/import).
@@ -12368,6 +12453,12 @@ export type LinkImportResult = {
    */
   job?: number | null;
   /**
+   * Import Run
+   *
+   * the import run it is part of, which undoes the whole import
+   */
+  import_run?: number | null;
+  /**
    * Detail
    */
   detail?: string | null;
@@ -12382,6 +12473,12 @@ export type LinksImport = {
    * Results
    */
   results: Array<LinkImportResult>;
+  /**
+   * Import Run
+   *
+   * the import run of the pages queued (POST /import/runs/{id}/undo undoes it)
+   */
+  import_run?: number | null;
   [key: string]: unknown;
 };
 
@@ -20802,6 +20899,12 @@ export type Recording = {
    */
   web?: WebPage | null;
   /**
+   * Import Run
+   *
+   * the bulk import that made it (GET /import/runs/{id}), which undoes it whole
+   */
+  import_run?: number | null;
+  /**
    * the places and dates anytopdf found (analysis.anytopdf)
    */
   enrichment?: Enrichment | null;
@@ -26235,6 +26338,12 @@ export type SourceImport = {
    * Results
    */
   results: Array<SourceImportResult>;
+  /**
+   * Import Run
+   *
+   * the import run of the files queued (POST /import/runs/{id}/undo undoes it)
+   */
+  import_run?: number | null;
   [key: string]: unknown;
 };
 
@@ -26296,6 +26405,12 @@ export type SourceImportResult = {
    * Job
    */
   job?: number | null;
+  /**
+   * Import Run
+   *
+   * the import run it is part of, which undoes the whole import
+   */
+  import_run?: number | null;
   /**
    * Detail
    */
@@ -40600,6 +40715,98 @@ export type ImportFromSourceResponses = {
 };
 
 export type ImportFromSourceResponse = ImportFromSourceResponses[keyof ImportFromSourceResponses];
+
+export type ListImportRunsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/import/runs";
+};
+
+export type ListImportRunsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListImportRunsError = ListImportRunsErrors[keyof ListImportRunsErrors];
+
+export type ListImportRunsResponses = {
+  /**
+   * Response Imports-List Import Runs
+   *
+   * Successful Response
+   */
+  200: Array<ImportRun>;
+};
+
+export type ListImportRunsResponse = ListImportRunsResponses[keyof ListImportRunsResponses];
+
+export type GetImportRunData = {
+  body?: never;
+  path: {
+    /**
+     * Run Id
+     */
+    run_id: number;
+  };
+  query?: never;
+  url: "/api/v1/import/runs/{run_id}";
+};
+
+export type GetImportRunErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetImportRunError = GetImportRunErrors[keyof GetImportRunErrors];
+
+export type GetImportRunResponses = {
+  /**
+   * Successful Response
+   */
+  200: ImportRun;
+};
+
+export type GetImportRunResponse = GetImportRunResponses[keyof GetImportRunResponses];
+
+export type UndoImportRunData = {
+  body?: never;
+  path: {
+    /**
+     * Run Id
+     */
+    run_id: number;
+  };
+  query?: never;
+  url: "/api/v1/import/runs/{run_id}/undo";
+};
+
+export type UndoImportRunErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UndoImportRunError = UndoImportRunErrors[keyof UndoImportRunErrors];
+
+export type UndoImportRunResponses = {
+  /**
+   * Successful Response
+   */
+  200: ImportRunUndone;
+};
+
+export type UndoImportRunResponse = UndoImportRunResponses[keyof UndoImportRunResponses];
 
 export type UploadLimitsData = {
   body?: never;
