@@ -49,6 +49,8 @@ class ResourceFiles(ResponseModel):
     files: list[ResourceFile] = Field(description="by role, then the earliest added first")
     max_mb: int = Field(description="the largest file that can be added (server.max_upload_mb)")
     can_change: bool = Field(description="you may add, change and delete its files (editors)")
+    downloads: bool = Field(True, description="whether its downloads are on (docs/access.md#downloads)")
+    can_save: bool = Field(True, description="you may download its files: downloads are on, or you're an owner")
 
 
 class FileUpdate(RequestModel):

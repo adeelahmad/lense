@@ -365,6 +365,8 @@ class Recording(ResponseModel):
     open: list[AccessPart] = Field(default_factory=list, description="the parts anyone may use when it is public")
     featured: bool = False
     access_inherited: bool = Field(True, description="the access comes from the namespace's default")
+    downloads: bool = Field(True, description="whether its downloads are on (docs/access.md#downloads)")
+    can_save: bool = Field(True, description="you may download its files: downloads are on, or you're an owner")
     tags: list[str] = Field(default_factory=list)
     email: EmailInfo | None = Field(None, description="an email: its subject, sender, recipients and date")
     rendition: Rendition | None = Field(None, description="a document that isn't a PDF: how the PDF it's read from was made")
@@ -471,6 +473,11 @@ class RecordingAccess(ResponseModel):
     featured: bool
     inherited: bool = Field(description="access and open come from the namespace's default")
     default: NamespaceAccess = Field(description="the namespace's default")
+    downloads: bool = Field(
+        True,
+        description="people below its owners may save its files (its own file, the PDF made of it, supplementary files); "
+        "off, they still play it, see its pages and read its text (docs/access.md#downloads)",
+    )
 
 
 class RecordingAccessUpdate(RequestModel):
@@ -479,6 +486,7 @@ class RecordingAccessUpdate(RequestModel):
     access: AccessLevel | None = None
     open: list[AccessPart] | None = None
     featured: bool | None = None
+    downloads: bool | None = Field(None, description="false: only its owners save its files; true: everyone who sees them")
 
 
 class Permission(GrantState):

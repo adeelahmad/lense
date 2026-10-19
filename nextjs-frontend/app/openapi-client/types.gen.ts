@@ -20006,6 +20006,12 @@ export type PublicRecording = {
    */
   files_closed?: number;
   /**
+   * Downloads
+   *
+   * this visitor may save its files; false when its owners turned downloads off (it still plays and reads here, and its files aren't listed)
+   */
+  downloads?: boolean;
+  /**
    * Can Request
    *
    * signed in without permission, with something closed: they may ask for access
@@ -20752,6 +20758,18 @@ export type Recording = {
    */
   access_inherited?: boolean;
   /**
+   * Downloads
+   *
+   * whether its downloads are on (docs/access.md#downloads)
+   */
+  downloads?: boolean;
+  /**
+   * Can Save
+   *
+   * you may download its files: downloads are on, or you're an owner
+   */
+  can_save?: boolean;
+  /**
    * Tags
    */
   tags?: Array<string>;
@@ -20842,6 +20860,12 @@ export type RecordingAccess = {
    * the namespace's default
    */
   default: NamespaceAccess;
+  /**
+   * Downloads
+   *
+   * people below its owners may save its files (its own file, the PDF made of it, supplementary files); off, they still play it, see its pages and read its text (docs/access.md#downloads)
+   */
+  downloads?: boolean;
   [key: string]: unknown;
 };
 
@@ -20863,6 +20887,12 @@ export type RecordingAccessUpdate = {
    * Featured
    */
   featured?: boolean | null;
+  /**
+   * Downloads
+   *
+   * false: only its owners save its files; true: everyone who sees them
+   */
+  downloads?: boolean | null;
 };
 
 /**
@@ -22446,6 +22476,18 @@ export type ResourceFiles = {
    * you may add, change and delete its files (editors)
    */
   can_change: boolean;
+  /**
+   * Downloads
+   *
+   * whether its downloads are on (docs/access.md#downloads)
+   */
+  downloads?: boolean;
+  /**
+   * Can Save
+   *
+   * you may download its files: downloads are on, or you're an owner
+   */
+  can_save?: boolean;
   [key: string]: unknown;
 };
 

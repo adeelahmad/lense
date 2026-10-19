@@ -6144,10 +6144,12 @@ export class Resources {
   /**
    * Update Recording Access
    *
-   * Make an asset public, restricted or private, choose what a public one opens, feature it (owners).
+   * Make an asset public, restricted or private, choose what a public one opens, feature it, turn its downloads off
+   * or on (owners).
    *
    * access or open set to null follow the namespace's default again. The change is kept in the metadata history, and
-   * IIIF harvesters hear when the asset is published, changed or withdrawn.
+   * IIIF harvesters hear when the asset is published, changed or withdrawn. `downloads: false` keeps its files for its
+   * owners: everyone else still plays it, sees its pages and reads its text (docs/access.md#downloads).
    */
   public static updateRecordingAccess<ThrowOnError extends boolean = false>(
     options: Options<UpdateRecordingAccessData, ThrowOnError>,
@@ -7251,7 +7253,8 @@ export class Files {
    * List Files
    *
    * The resource's primary file (its audio or video, if it has one) and its supplementary files, with signed links to
-   * download them.
+   * download them; `downloads` and `can_save` say whether its owners turned downloads off and whether you may save
+   * them anyway (owners do).
    */
   public static listFiles<ThrowOnError extends boolean = false>(
     options: Options<ListFilesData, ThrowOnError>,
@@ -7320,7 +7323,8 @@ export class Files {
   /**
    * Download File
    *
-   * The file as it was added, to save. Accepts a bearer token or a signed link (from the list).
+   * The file as it was added, to save. Accepts a bearer token or a signed link (from the list). With the asset's
+   * downloads off, 403 for anyone below its owners.
    */
   public static downloadFile<ThrowOnError extends boolean = false>(
     options: Options<DownloadFileData, ThrowOnError>,
@@ -9357,7 +9361,8 @@ export class Video {
    * Get Media
    *
    * The video or audio file, with byte ranges; a document's or an image's file, to save. Accepts a bearer token, a
-   * share link (``?s=``) or a signed link.
+   * share link (``?s=``) or a signed link. With the asset's downloads off, 403 for anyone below its owners (players
+   * stream /recordings/{rid}/audio, which stays open).
    */
   public static getMedia<ThrowOnError extends boolean = false>(
     options: Options<GetMediaData, ThrowOnError>,

@@ -32,6 +32,7 @@ def test_access_endpoint_and_defaults(client, db, cfg, folder):
         "featured": False,
         "inherited": True,
         "default": {"access": "private", "open": ["media", "transcript", "index"]},
+        "downloads": True,
     }
     # members read it; publishing is for owners, whichever way it's asked for
     assert client.put(url, headers=hv, json={"access": "public"}).status_code == 403

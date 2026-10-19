@@ -312,7 +312,8 @@ def manifest(db, cfg, rid, base):
             if not (paged and k in ("vtt", "srt"))  # a document's text has no times
         ]
     )
-    if paged and (rec.get("remote") or rec.get("path")):  # the document or image itself, to save
+    saving = acc.downloads(rec)  # downloads off: its files aren't offered to save (docs/access.md#downloads)
+    if saving and paged and (rec.get("remote") or rec.get("path")):  # the document or image itself, to save
         name = pathlib.PurePosixPath((rec.get("remote") or {}).get("path") or rec.get("path") or "").name
         made = rec["source"] == "document" and convert.needs(name) and convert.rendition_path(cfg, rid).is_file()
         what = "image" if rec["source"] == "image" else convert.word(name) if convert.needs(name) else "PDF"
@@ -330,7 +331,7 @@ def manifest(db, cfg, rid, base):
             if audio_locked:
                 r["service"] = [probe_service(cfg, base, rid, "audio", "Sign in to see this")]
         renderings[:0] = own
-    for f in kept:  # every supplementary file, to download; the ones that need permission behind sign-in
+    for f in kept if saving else []:  # every supplementary file, to download; the ones that need permission behind sign-in
         r = _prune(
             {
                 "id": f"{m}/files/{f['id']}",

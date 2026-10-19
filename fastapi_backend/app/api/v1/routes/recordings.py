@@ -321,6 +321,8 @@ def get_recording(rid: int, acl: Acl, db: Db, cfg: Cfg) -> Recording:
         summary=r.get("summary"),
         stats=render.recording_stats(db, rid),
         role=acl.role_in(r["space"], r.get("collection")),
+        downloads=acc.downloads(r),
+        can_save=acl.saves(r),
     )
     steps = hierarchy.path(db, r["collection"]) if r.get("collection") is not None else []
     seen = acl.visible(r["space"]) if acl.user and acl.rank_in(r["space"], r.get("collection")) else None
@@ -449,9 +451,11 @@ def move_recording(
 
 def _access(db: DB, rid: int) -> RecordingAccess:
     a = acc.of(db, rid)
-    space = (db.one("SELECT space FROM $r", r=R("recording", rid)) or {}).get("space")
+    row = db.one("SELECT space, downloads FROM $r", r=R("recording", rid)) or {}
+    space = row.get("space")
     level, open_ = acc.namespace_defaults(db, [space]).get(space, ("private", list(acc.PARTS)))
-    return RecordingAccess.model_validate({**a, "default": NamespaceAccess.model_validate({"access": level, "open": open_})})
+    default = NamespaceAccess.model_validate({"access": level, "open": open_})
+    return RecordingAccess.model_validate({**a, "default": default, "downloads": acc.downloads(row)})
 
 
 @router.get("/{rid}/access")
@@ -463,19 +467,27 @@ def get_recording_access(rid: int, acl: Acl, user: CurrentUser, db: Db) -> Recor
 
 @router.put("/{rid}/access")
 def update_recording_access(rid: int, body: RecordingAccessUpdate, acl: Acl, user: Writer, db: Db, cfg: Cfg) -> RecordingAccess:
-    """Make an asset public, restricted or private, choose what a public one opens, feature it (owners).
+    """Make an asset public, restricted or private, choose what a public one opens, feature it, turn its downloads off
+    or on (owners).
 
     access or open set to null follow the namespace's default again. The change is kept in the metadata history, and
-    IIIF harvesters hear when the asset is published, changed or withdrawn."""
+    IIIF harvesters hear when the asset is published, changed or withdrawn. `downloads: false` keeps its files for its
+    owners: everyone else still plays it, sees its pages and reads its text (docs/access.md#downloads)."""
     acl.recording(rid, "publish")
-    sent = body.model_fields_set
+    sent = set(body.model_fields_set)
     if not sent:
-        raise HTTPException(400, "send access, open or featured")
+        raise HTTPException(400, "send access, open, featured or downloads")
+    if "downloads" in sent:
+        sent.discard("downloads")
+        if body.downloads is None:
+            raise HTTPException(400, "downloads is true or false")
+        acc.set_downloads(db, rid, body.downloads)
     patch = {k: getattr(body, k) for k in sent if getattr(body, k) is not None}
     reset = [k for k in sent if getattr(body, k) is None]
-    with domain_errors():
-        md.save(db, cfg, rid, patch, reset, user.email)
-    auth.audit(db, user.as_audit(), "recording.access", f"recording:{rid}", {k: getattr(body, k) for k in sorted(sent)})
+    if patch or reset:
+        with domain_errors():
+            md.save(db, cfg, rid, patch, reset, user.email)
+    auth.audit(db, user.as_audit(), "recording.access", f"recording:{rid}", {k: getattr(body, k) for k in sorted(body.model_fields_set)})
     return _access(db, rid)
 
 

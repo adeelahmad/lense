@@ -1184,6 +1184,14 @@
       "source": "docs/access.md \"After its end a grant opens nothing\""
     },
     {
+      "property": "P-SAVE-OFF",
+      "violation_symptom": "info-leak",
+      "severity_tier": "security",
+      "conditions": "with an asset's downloads off, its own file (/media, the file tree), the PDF made of it and its supplementary files (the API's and IIIF's) answer 403 to anyone below its owners, whatever else lets them see it (a role, a collection role, permission, an IP group, a share link, a signed link), and IIIF manifests stop offering them; a link signed for an owner carries save=1, signed with the rest; only owners change the switch",
+      "provenance": "documented",
+      "source": "docs/access.md \"saving a copy of the asset's files is for its owners\""
+    },
+    {
       "property": "P-FEEDS",
       "violation_symptom": "info-leak",
       "severity_tier": "security",
@@ -1742,10 +1750,17 @@
     },
     {
       "property": "N-SIGNED-BEARER",
-      "reason": "identity binding or early revocation for signed links; a link opens its path for whoever holds it until it expires (6 h; IIIF 1 h); path, expiry and full are bound, extra query parameters are not; which fields get signed is P-MEDIA-LINK",
+      "reason": "identity binding or early revocation for signed links; a link opens its path for whoever holds it until it expires (6 h; IIIF 1 h); path, expiry, full and save are bound, extra query parameters are not; which fields get signed is P-MEDIA-LINK",
       "false_friend": true,
       "provenance": "documented",
       "source": "core/security.py sign_path docstring \"grants read access to exactly this path until it expires\""
+    },
+    {
+      "property": "N-SAVE-CAPTURE",
+      "reason": "copy protection for assets with downloads off; the player streams the file it plays, and pages, captions and text stay readable; the switch takes away the ways to save a copy (P-SAVE-OFF); someone who may play an asset can still record it",
+      "false_friend": true,
+      "provenance": "documented",
+      "source": "docs/access.md \"it isn't copy protection\""
     },
     {
       "property": "N-LINK-AFTER-ROLE",

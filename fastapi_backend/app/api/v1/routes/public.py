@@ -81,7 +81,7 @@ def get_public_recording(rid: int, acl: Acl, db: Db, cfg: Cfg) -> PublicRecordin
     Anyone sees a public asset's page, description and open parts; a signed-in person sees a restricted one's title
     with a lock; people with a role in its namespace, given permission on the asset, or on the network of an IP
     group that opens it, see all of it. Everything else answers 404, as an asset that doesn't exist would."""
-    rec = db.one("SELECT space FROM $r", r=R("recording", rid))
+    rec = db.one("SELECT space, collection, downloads FROM $r", r=R("recording", rid))
     if not rec:
         raise HTTPException(404, "not found")
     a = acc.of(db, rid)
@@ -93,17 +93,23 @@ def get_public_recording(rid: int, acl: Acl, db: Db, cfg: Cfg) -> PublicRecordin
     if seen is None:
         raise HTTPException(404, "not found")
     d = public.recording(db, cfg, rid, seen, a, member, granted and not member, network)
+    owner = acl.owns(rec)
+    d["downloads"] = acc.saves(rec, owner)
+    if not d["downloads"]:  # its owners turned downloads off: it plays and reads here, its files stay with them
+        d["files"], d["files_closed"] = [], 0
+        if d["media"]:
+            d["media"]["pdf"] = None
     if who.signed_in and not permitted:
         d["can_request"] = seen == "locked" or bool(d["closed"]) or d["files_closed"] > 0
         d["request"] = acc.request_of(db, rid, acl.user.id if acl.user else None)
     if d["media"]:  # only the media this visitor may play (or a document's pages they may see) is signed
-        d["media"]["url"] = sign_url(d["media"]["url"])
+        d["media"]["url"] = sign_url(d["media"]["url"], save=owner)
         d["media"]["poster"] = sign_url(d["media"]["poster"], member)  # pictures as they are for members only
-        d["media"]["pdf"] = sign_url(d["media"].get("pdf"))
+        d["media"]["pdf"] = sign_url(d["media"].get("pdf"), save=owner)
         for p in d["media"].get("pages") or []:
             p["image"], p["thumb"] = sign_url(p["image"], member), sign_url(p["thumb"], member)
     for f in d["files"]:  # and only the files they may download
-        f["url"] = sign_url(f["url"])
+        f["url"] = sign_url(f["url"], save=owner)
     return PublicRecording.model_validate(d)
 
 

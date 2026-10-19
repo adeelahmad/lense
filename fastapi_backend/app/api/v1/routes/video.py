@@ -51,8 +51,10 @@ FRAME_RX = re.compile(r"[\w.-]+\.jpg")
 )
 def get_media(rid: int, request: Request, acl: Acl, db: Db, cfg: Cfg, s: str = "") -> Response:
     """The video or audio file, with byte ranges; a document's or an image's file, to save. Accepts a bearer token, a
-    share link (``?s=``) or a signed link."""
+    share link (``?s=``) or a signed link. With the asset's downloads off, 403 for anyone below its owners (players
+    stream /recordings/{rid}/audio, which stays open)."""
     rec = acl.recording(rid, share=s)
+    acl.may_save(rec)  # this is the file to save; players stream /audio (docs/access.md#downloads)
     if rec.get("source") in documents.KINDS:
         return serve_document(db, cfg, rec, request)
     return serve_audio(db, cfg, rec, rid, request)
@@ -77,6 +79,7 @@ def get_pdf(rid: int, request: Request, acl: Acl, db: Db, cfg: Cfg, s: str = "")
     path = convert.rendition_path(cfg, rid)
     if rec.get("source") != "document" or not path.is_file():
         raise HTTPException(404, "not found")
+    acl.may_save(rec)
     name = pathlib.PurePosixPath(str((rec.get("remote") or {}).get("path") or rec.get("path") or "document")).stem or "document"
     return stored_file(db, cfg, path, request, "application/pdf", f"{name}.pdf", files.HEADERS)
 

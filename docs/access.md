@@ -11,6 +11,7 @@ closed. Who may open what depends on who is asking.
 | `access` | `public`, `restricted` or `private` | the namespace's default access, else `private` |
 | `open` | the parts of a public asset anyone may use: `media` (audio or video, frames; a document's or an image's pages and its file), `transcript` (the asset's text or transcript, its search and downloads) and `index` (chapters, or a document's sections) | the namespace's default parts, else all three |
 | `featured` | shown on the home page when public | no |
+| `downloads` | whether people below its owners may save its files ([Downloads](#downloads)) | on |
 
 An asset's **description** (its descriptive metadata: title, date, summary, people, subjects, rights) is never a
 closed part: whoever may see the asset's page sees it, as IIIF manifests always have.
@@ -21,6 +22,27 @@ profile. To change many at once, select them in the Library and pick Visibility 
 its toast's Undo puts each back as it was (agents: `POST /api/v1/metadata/bulk` with `set: {access}`). Editors edit the rest of the metadata. Every change is kept in the metadata history and can be reverted.
 Moving an asset to another namespace doesn't change who sees it: the access it had from its old namespace is pinned
 on it.
+
+## Downloads
+
+Owners can turn an asset's **downloads** off, in its Access dialog (the Downloads switch) or with `PUT
+/api/v1/resources/<id>/access {"downloads": false}` ([API](api.md#resources)). It is on for every asset until someone
+turns it off, so nothing changes by itself. With downloads off, saving a copy of the asset's files is for its owners
+(the publish permission in its namespace, or admin of its collection); everyone else who sees it still plays it, sees
+its pages and reads its text, as its access allows:
+
+| Still works for everyone who sees it | Only owners, with downloads off |
+|---|---|
+| the player: `/resources/<id>/audio` (audio and video, in the workspace, on the pages visitors see, in embeds and share links) | its own file: `/resources/<id>/media`, the Download buttons, the file tree (S3, WebDAV, SMB, NFS and `/tree`) |
+| its frames and pages, and IIIF's audio and video, pages, thumbnails and captions | the PDF made of a document (`/resources/<id>/pdf`, IIIF's) |
+| its text: the transcript, search, the text exports and IIIF's transcript downloads, the evidence PDF | its supplementary files (`/resources/<id>/files/<id>/download`, IIIF's), which IIIF manifests stop offering |
+
+Anyone else gets 403 with the reason ("Downloads are turned off for this asset"), and the web app disables its download
+buttons and says why; `GET /resources/<id>` and its files list say `downloads` and `can_save`. Links the API signs for
+an owner carry `save=1`, signed with the rest, so their download buttons keep working; through IIIF, owners save with
+their token or the IIIF access cookie. The player streams what it plays, so someone determined can still record it:
+the switch takes away the ways to save a copy, it isn't copy protection. Turning downloads off or on is audited as
+`recording.access`.
 
 ## Files
 

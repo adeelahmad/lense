@@ -33,6 +33,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
+from . import access as acc
 from . import auth, convert, documents, entity_setup, hierarchy, keyring, metadata, render, store, video
 
 R = store.R
@@ -44,7 +45,7 @@ TOPIC_DEPTH = 32  # topics can't loop (topics._would_loop), but a path stops her
 UNSAFE = re.compile(r'[\x00-\x1f\x7f/\\:*?"<>|]')
 REC_FIELDS = (
     "record::id(id) AS id, space, collection, title, path, source, remote, size, media, status, duration_ms, created_at, "
-    "updated_at, analyzed_at, recorded_at, meta_json, access, access_parts, featured, fields"
+    "updated_at, analyzed_at, recorded_at, meta_json, access, access_parts, featured, fields, downloads"
 )
 
 
@@ -77,6 +78,17 @@ class Viewer:
         perms = auth.permissions(db, account)
         roles = {sid: rl.rank(p) for sid, p in perms.items()}  # as auth.roles
         return cls(admin, roles, {} if admin else hierarchy.roles_of(db, account["id"]), account.get("id"), perms)
+
+    def owns(self, rec: dict[str, Any]) -> bool:
+        """Whether they act as the asset's owner (the publish permission or the owner's rank in its namespace, or admin
+        of its collection): they save its files even with downloads off (access.saves)."""
+        sid = rec.get("space")
+        return (
+            self.admin
+            or self.roles.get(sid) == "owner"
+            or "publish" in self.perms.get(sid, frozenset())
+            or self.collections.get(sid, {}).get(rec.get("collection")) == "admin"
+        )
 
     def spaces(self, db) -> dict[int, set[int] | None]:
         """{namespace: None (all of it) or the collections seen}."""
@@ -541,7 +553,8 @@ class Tree:
         for rec in sorted(rows, key=lambda r: r["id"]):
             rid, when = rec["id"], _when(rec)
             base = f"{clean(rec.get('title') or 'Untitled')[: NAME_MAX - 20]} [{rid}]"
-            own, own_name = self._primary(rec), None
+            saves = acc.saves(rec, self.viewer.owns(rec))  # downloads off: no own file or PDF below owners
+            own, own_name = self._primary(rec) if saves else None, None
             files = []
             if own:
                 ext = pathlib.PurePosixPath(own.name).suffix.lower()
@@ -552,7 +565,7 @@ class Tree:
             if text is not None:
                 files.append(Entry(f"{base}.txt", False, len(text), when, "text/plain; charset=utf-8", data=text))
             pdf = convert.rendition_path(self.cfg, rid)
-            if rec.get("source") == "document" and pdf.is_file() and not (own and own.name.endswith(".pdf")):
+            if saves and rec.get("source") == "document" and pdf.is_file() and not (own and own.name.endswith(".pdf")):
                 enc = keyring.is_encrypted(pdf)
                 try:
                     size = keyring.plain_size(self.db, self.cfg, pdf) if enc else pdf.stat().st_size

@@ -119,6 +119,11 @@ class PublicRecording(ResponseModel):
     closed: list[AccessPart] = Field(description="parts the asset has that this visitor can't use")
     files: list[PublicFile] = Field(default_factory=list, description="its supplementary files this visitor may download")
     files_closed: int = Field(0, description="how many of its files this visitor can't download")
+    downloads: bool = Field(
+        True,
+        description="this visitor may save its files; false when its owners turned downloads off (it still plays and "
+        "reads here, and its files aren't listed)",
+    )
     can_request: bool = Field(False, description="signed in without permission, with something closed: they may ask for access")
     request: PublicRequest | None = Field(None, description="their latest request for access, if they made one")
 

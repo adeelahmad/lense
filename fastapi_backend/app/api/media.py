@@ -34,21 +34,22 @@ MEDIA_IN_HTML = re.compile(
 )
 
 
-def sign_url(url: str | None, full: bool = False) -> str | None:
+def sign_url(url: str | None, full: bool = False, save: bool = False) -> str | None:
     """`full` for a link handed to a member of the recording's namespace: pictures as they are, where the namespace
-    pixelates faces for visitors (docs/video.md)."""
+    pixelates faces for visitors (docs/video.md). `save` for one handed to an owner of the asset: its files save even
+    with its downloads off (docs/access.md#downloads)."""
     if not url:
         return url
     path, _, query = url.partition("?")
     if not (MEDIA_RX.match(path) or NS_MEDIA_RX.match(path) or REPORT_RX.match(path)):
         return url
     params = dict(urllib.parse.parse_qsl(query))
-    for k in ("exp", "sig", "full"):
+    for k in ("exp", "sig", "full", "save"):
         params.pop(k, None)
-    return sign_path(path, full=full, **cast(dict[str, Any], params))
+    return sign_path(path, full=full, save=save, **cast(dict[str, Any], params))
 
 
-def sign_urls[T](obj: T, full: bool = False) -> T:
+def sign_urls[T](obj: T, full: bool = False, save: bool = False) -> T:
     """Sign the media links in a JSON-like structure (in place for dicts and lists; returns it): the values of the
     LINK_KEYS fields, at any depth. Other strings are left alone, however much they look like a link. `full` as in
     sign_url: for a response to someone with a role in every recording's namespace (the API's own responses are)."""
@@ -56,13 +57,13 @@ def sign_urls[T](obj: T, full: bool = False) -> T:
         for k, v in obj.items():
             if isinstance(v, str):
                 if k in LINK_KEYS:
-                    obj[k] = sign_url(v, full)
+                    obj[k] = sign_url(v, full, save)
             elif isinstance(v, (dict, list)):
-                sign_urls(v, full)
+                sign_urls(v, full, save)
     elif isinstance(obj, list):
         for v in obj:
             if isinstance(v, (dict, list)):
-                sign_urls(v, full)
+                sign_urls(v, full, save)
     return obj
 
 

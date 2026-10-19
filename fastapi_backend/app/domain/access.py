@@ -79,6 +79,28 @@ def many(db, rows):
     return {r["id"]: effective(r, defaults) for r in rows}
 
 
+# ---------- downloads ----------
+# An owner can turn downloads off for an asset (`downloads = false` on the recording; missing means on). Then only its
+# owners save copies of its files: its own file (/media, the file tree), the PDF made of it and its supplementary
+# files. Playing, viewing its pages and reading its text stay as its access allows. See docs/access.md#downloads.
+DOWNLOADS_OFF = "Downloads are turned off for this asset: you can play and read it here, but only its owners can save its files."
+
+
+def downloads(rec):
+    """Whether the asset's downloads are on (a recording row with `downloads`)."""
+    return (rec or {}).get("downloads") is not False
+
+
+def saves(rec, owner):
+    """Whether someone may save the asset's files: downloads are on, or they act as its owner."""
+    return bool(owner) or downloads(rec)
+
+
+def set_downloads(db, rid, on):
+    """Turn an asset's downloads on (the default) or off."""
+    db.q("UPDATE $r SET downloads = " + ("NONE" if on else "false"), r=R("recording", rid))
+
+
 def published(a):
     """IIIF publishes public recordings; restricted and private ones need permission."""
     return a["access"] == "public"
