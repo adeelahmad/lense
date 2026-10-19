@@ -15,10 +15,11 @@ from __future__ import annotations
 
 import hashlib
 
-from . import events, store
+from . import events, events_content, store
 
 R = store.R
 EMOJIS = ("👍", "❤️", "🎉", "👀", "😂", "😮", "😢", "🙏")
+WHO = 5  # how many of the others who gave a reaction are named on it
 LABELS = {
     "👍": "thumbs up",
     "❤️": "heart",
@@ -84,33 +85,52 @@ def check(emoji):
     return emoji
 
 
-def _tally(rows, account):
-    """{activity: [{emoji, count, mine}]} from rows of (activity, account, emojis), each list in the palette's order."""
+def _tally(db, rows, account):
+    """{activity: [{emoji, count, mine, who}]} from rows of (activity, account, emojis, at), each list in the palette's
+    order; `who` names up to WHO of the others who gave it, earliest first (then by account, for the same moment);
+    `mine` says the person asking did."""
     counts: dict[str, dict[str, int]] = {}
     mine: dict[str, set[str]] = {}
-    for r in rows:
+    gave: dict[str, dict[str, list]] = {}
+    for r in sorted(rows, key=lambda r: (str(r.get("at") or ""), r["account"] if isinstance(r.get("account"), int) else 0)):
         for e in r.get("emojis") or []:
             if e not in EMOJIS:
                 continue
             counts.setdefault(r["activity"], {})[e] = counts.get(r["activity"], {}).get(e, 0) + 1
             if account is not None and r.get("account") == account:
                 mine.setdefault(r["activity"], set()).add(e)
-    return {aid: [{"emoji": e, "count": n[e], "mine": e in mine.get(aid, set())} for e in EMOJIS if e in n] for aid, n in counts.items()}
+            else:
+                gave.setdefault(r["activity"], {}).setdefault(e, []).append(r.get("account"))
+    names = events_content.actors(db, [(a, None) for g in gave.values() for ids in g.values() for a in ids[:WHO]])
+    return {
+        aid: [
+            {
+                "emoji": e,
+                "count": n[e],
+                "mine": e in mine.get(aid, set()),
+                "who": [names[(a, None)]["name"] for a in gave.get(aid, {}).get(e, [])[:WHO]],
+            }
+            for e in EMOJIS
+            if e in n
+        ]
+        for aid, n in counts.items()
+    }
 
 
 def of(db, account, ids):
-    """{activity id: [{emoji, count, mine}]} of everyone's reactions on these activities, in one query; an activity
-    with none isn't in it. `mine`: the person asking gave that one."""
+    """{activity id: [{emoji, count, mine, who}]} of everyone's reactions on these activities, in one query (and one
+    for the names); an activity with none isn't in it. `mine`: the person asking gave that one; `who`: up to WHO
+    names of the others who did, earliest first."""
     ids = sorted({i for i in ids if isinstance(i, str)})
     if not ids:
         return {}
-    rows = db.rows("SELECT activity, account, emojis FROM event_reaction WHERE activity IN $ids", ids=ids)
-    return _tally(rows, account)
+    rows = db.rows("SELECT activity, account, emojis, at FROM event_reaction WHERE activity IN $ids", ids=ids)
+    return _tally(db, rows, account)
 
 
 def react(db, account, activity, emoji, on=True):
     """Give the emoji to the activity (or take it back with `on` false), for `account`; the reactions on it after,
-    [{emoji, count, mine}]. Whether anything changed is the second value, so the caller logs it only then."""
+    [{emoji, count, mine, who}]. Whether anything changed is the second value, so the caller logs it only then."""
     emoji = check(emoji)
     row = db.one("SELECT emojis FROM $r", r=_ref(account, activity))
     have = [e for e in (row or {}).get("emojis") or [] if e in EMOJIS]

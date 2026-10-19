@@ -71111,6 +71111,14 @@
             "type": "boolean",
             "title": "Mine",
             "default": false
+          },
+          "who": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Who",
+            "description": "up to five of the others who gave it, by name, earliest first"
           }
         },
         "additionalProperties": true,
@@ -71120,7 +71128,7 @@
           "count"
         ],
         "title": "Reaction",
-        "description": "One emoji on an activity: how many people gave it, and whether you did."
+        "description": "One emoji on an activity: how many people gave it, whether you did, and who else did."
       },
       "ReactionsOut": {
         "properties": {
