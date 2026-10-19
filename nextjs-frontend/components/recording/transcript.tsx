@@ -298,6 +298,7 @@ function TranscriptInner({ compact, slim, className }: { compact?: boolean; slim
               }
               entityNames={entityNames}
               unsure={t.speaker ? (unsure.get(t.speaker) ?? null) : null}
+              unsureBelow={model.unsureBelow}
               onScreen={Boolean(t.speaker && onScreen.has(t.speaker))}
               notes={noteCounts.get(t.key)}
               onNotes={openNotes}

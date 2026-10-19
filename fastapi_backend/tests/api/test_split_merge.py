@@ -7,7 +7,7 @@ import json
 
 import pytest
 
-from app.domain import ingest, search, store, transcript
+from app.domain import ingest, search, settings, store, transcript
 from tests.helpers import drain, login, make_user, seed
 
 R = store.R
@@ -182,6 +182,50 @@ def test_words_keep_their_timings(client, env, db, cfg):
     client.post(f"/api/v1/recordings/{rid}/segments/0/merge", headers=he)
     m = _lines(client, rid, he)[0]
     assert m["text"] == "Hello there, this is Lense speaking." and [x[2] for x in m["w"]] == [0, 500, 1600, 1900, 2700]
+
+
+def test_words_keep_how_sure_transcription_was(client, env, db, cfg):
+    """A word's fifth in `w` is how sure the engine was of it; the player says below what to mark it, and a split or a
+    merge keeps it with the word. A correction of the word itself takes the mark away."""
+    rid = ingest.import_text(db, cfg, "pods", json.dumps(TIMED), title="Timed")
+    he = env["he"]
+    sure = [["Hello", 0, 400, 0.99], ["there,", 500, 900, 0.95], ["this", 1600, 1800], ["is", 1900, 2000, 0.9],
+            ["Lens", 2100, 2600, 0.42], ["speaking.", 2700, 3600, 0.8]]  # fmt: skip
+    db.q("UPDATE $s SET words = $w", s=R("segment", rid * store.SEG), w=json.dumps(sure))
+    player = client.get(f"/api/v1/recordings/{rid}/player", headers=he).json()
+    assert player["unsure_below"] == 0.6
+    w = player["segments"][0]["w"]
+    assert w[2] == [13, 17, 1600, 1800] and w[4] == [21, 25, 2100, 2600, 0.42]  # "this" was kept without one
+    r = client.post(f"/api/v1/recordings/{rid}/segments/0/split", headers=he, json={"at": player["segments"][0]["text"].index("this")})
+    assert r.status_code == 200, r.text
+    assert _lines(client, rid, he)[1]["w"] == [
+        [0, 4, 1600, 1800],
+        [5, 7, 1900, 2000, 0.9],
+        [8, 12, 2100, 2600, 0.42],
+        [13, 22, 2700, 3600, 0.8],
+    ]
+    client.post(f"/api/v1/recordings/{rid}/segments/0/merge", headers=he)
+    line = _lines(client, rid, he)[0]
+    assert [x[4] if len(x) > 4 else None for x in line["w"]] == [0.99, 0.95, None, 0.9, 0.42, 0.8]
+    client.patch(f"/api/v1/recordings/{rid}/segments/0", headers=he, json={"text": line["text"].replace("Lens", "Lense")})
+    assert all(x[2] != 2100 for x in _lines(client, rid, he)[0]["w"])  # corrected: no longer the word it wasn't sure of
+    settings.save(db, cfg, "transcribe", {"confidence_highlight": 0}, "t")
+    assert client.get(f"/api/v1/recordings/{rid}/player", headers=he).json()["unsure_below"] is None
+    for bad in (1, -0.1, "0.5", True):
+        with pytest.raises(ValueError):
+            settings.save(db, cfg, "transcribe", {"confidence_highlight": bad}, "t")
+
+
+def test_words_from_before_how_sure_was_kept_still_load():
+    """Lines transcribed before Lens kept how sure the engine was have three-part words; both shapes load, side by side."""
+    raw = json.dumps([["Hello", 0, 400], ["world.", 500, 900, 0.31], ["again", 950, 990, "very"], ["x", 1, 2, 1.5]])
+    ws = transcript.words({"words": raw})
+    assert ws == [("Hello", 0, 400), ("world.", 500, 900, 0.31), ("again", 950, 990), ("x", 1, 2)]
+    assert transcript.align("Hello world. again x", ws)[:2] == [[0, 5, 0, 400], [6, 12, 500, 900, 0.31]]
+    assert transcript.unsure("Hello world. again x", ws, 0.6) == [("world.", 0.31)]
+    assert transcript.unsure("Hello world.", ws, 0) == [] and transcript.unsure("Hello world.", ws, None) == []
+    assert transcript.unsure("Hello world.", ws, 0.3) == []
+    assert json.loads(transcript._dump(ws)) == [["Hello", 0, 400], ["world.", 500, 900, 0.31], ["again", 950, 990], ["x", 1, 2]]
 
 
 def test_alignment_and_joining():

@@ -16,7 +16,7 @@ from difflib import SequenceMatcher
 
 import numpy as np
 
-from . import speech, store, vocabulary
+from . import speech, store, transcript, vocabulary
 
 TAG_RX = re.compile(r"<\|([^|]*)\|>")
 SR = 16000
@@ -396,7 +396,8 @@ class SenseVoice:
 
 
 class Whisper:
-    """faster-whisper (CUDA or CPU) or mlx-whisper (Apple Silicon), with word timestamps."""
+    """faster-whisper (CUDA or CPU) or mlx-whisper (Apple Silicon), with word timestamps and how sure it was of each
+    word."""
 
     def __init__(self, cfg, mlx=False):
         t = cfg["transcribe"]
@@ -425,11 +426,16 @@ class Whisper:
         if self.mlx:
             got = self.m.transcribe(audio, path_or_hf_repo=self.repo, word_timestamps=True, language=self.lang, **hint)
             heard, segs = got.get("language"), got["segments"]
-            rows = [(s["start"], s["end"], s["text"], [(w["word"], w["start"], w["end"]) for w in s.get("words") or []]) for s in segs]
+            rows = [
+                (s["start"], s["end"], s["text"], [(w["word"], w["start"], w["end"], w.get("probability")) for w in s.get("words") or []])
+                for s in segs
+            ]
         else:
             segs, info = self.m.transcribe(audio, vad_filter=True, word_timestamps=True, language=self.lang, **hint)
             heard = getattr(info, "language", None)
-            rows = [(s.start, s.end, s.text, [(w.word, w.start, w.end) for w in (s.words or [])]) for s in segs]
+            rows = [
+                (s.start, s.end, s.text, [(w.word, w.start, w.end, getattr(w, "probability", None)) for w in (s.words or [])]) for s in segs
+            ]
         lang = self.lang or (str(heard).lower() if heard else None)
         return [
             {
@@ -440,7 +446,7 @@ class Whisper:
                 "emotion": None,
                 "event": None,
                 "lang": lang,
-                "words": json.dumps([[w.strip(), int(p * 1000), int(q * 1000)] for w, p, q in ws]),
+                "words": json.dumps([transcript.stored(w.strip(), int(p * 1000), int(q * 1000), sure) for w, p, q, sure in ws]),
             }
             for a, b, x, ws in rows
             if x.strip()

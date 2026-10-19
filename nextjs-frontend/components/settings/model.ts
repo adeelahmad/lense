@@ -754,6 +754,15 @@ export const FIELDS: FieldSpec[] = [
     kind: "switch",
     hint: "Each recording is transcribed knowing its namespace's named people, defined entities, custom vocabulary and the names you fixed in its transcripts, so the same mistakes stop coming back (Whisper, OpenAI-compatible, Deepgram and AssemblyAI; SenseVoice and ElevenLabs take no hints)",
   },
+  {
+    section: "transcribe",
+    key: "confidence_highlight",
+    label: "Mark words it was less sure of than",
+    kind: "number",
+    min: 0,
+    max: 0.99,
+    hint: "From 0 to 0.99; 0 marks none. Each gets a dotted gold underline in the transcript, to check and correct",
+  },
   // Speaker separation
   {
     section: "diarize",

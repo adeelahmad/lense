@@ -18525,11 +18525,17 @@ export type Player = {
   /**
    * Segments
    *
-   * the lines: t0, t1 (ms), s (person key), text, e (emotion), v (event), and w, the timed words as [c0, c1, t0, t1] (a character range of text, ms) when transcription gave them; a document's or an image's blocks of text have p, their page (from 0), and b, where they are on it ([x, y, w, h] as fractions of the page), and times that are only a reading pace
+   * the lines: t0, t1 (ms), s (person key), text, e (emotion), v (event), and w, the timed words as [c0, c1, t0, t1] (a character range of text, ms) when transcription gave them, with a fifth, how sure the engine was of the word (0 to 1), when it said; a document's or an image's blocks of text have p, their page (from 0), and b, where they are on it ([x, y, w, h] as fractions of the page), and times that are only a reading pace
    */
   segments?: Array<{
     [key: string]: unknown;
   }>;
+  /**
+   * Unsure Below
+   *
+   * words the engine was less sure of than this (the fifth of a word in w) are marked to check (transcribe.confidence_highlight); null: none are
+   */
+  unsure_below?: number | null;
   /**
    * Sections
    */

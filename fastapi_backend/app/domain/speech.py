@@ -22,6 +22,10 @@ separation step uses those labels (diarize.engine provider, or auto), and voice 
 Each provider takes so much audio in one request ({p}_max_minutes and {p}_max_mb in the speech settings, defaulting to
 its published limits): a longer recording is cut into pieces at pauses, each piece is transcribed on its own, and their
 transcripts are joined back on the recording's timeline.
+
+How sure a provider was of each word (Deepgram's and AssemblyAI's confidence, ElevenLabs' log probability, the
+`probability` an OpenAI-compatible server may give) is kept with the word's timing, for the transcript to mark the ones
+it wasn't sure of (transcript.py).
 """
 
 from __future__ import annotations
@@ -31,6 +35,7 @@ import contextlib
 import io
 import json
 import logging
+import math
 import pathlib
 import re
 import shutil
@@ -46,7 +51,7 @@ import wave
 
 import numpy as np
 
-from . import kokoro, llm, store, vocabulary
+from . import kokoro, llm, store, transcript, vocabulary
 
 log = logging.getLogger("lens")
 SR = 16000
@@ -251,8 +256,8 @@ def _event(text):
 
 
 def group_words(words, lang=None):
-    """Timed words [{text, t0, t1, speaker}] (ms) into segments: a new one when the speaker changes, after a pause, or
-    at the end of a sentence once it's long enough."""
+    """Timed words [{text, t0, t1, speaker, p?}] (ms; p: how sure the provider was of it, 0 to 1) into segments: a new
+    one when the speaker changes, after a pause, or at the end of a sentence once it's long enough."""
     out, cur = [], []
 
     def flush():
@@ -268,7 +273,9 @@ def group_words(words, lang=None):
                         "emotion": None,
                         "event": next((w["event"] for w in cur if w.get("event")), None),
                         "lang": lang,
-                        "words": json.dumps([[w["text"], w["t0"], w["t1"]] for w in cur if not w.get("event")]),
+                        "words": json.dumps(
+                            [transcript.stored(w["text"], w["t0"], w["t1"], w.get("p")) for w in cur if not w.get("event")]
+                        ),
                         "provider_speaker": cur[0].get("speaker"),
                     }
                 )
@@ -295,6 +302,13 @@ def add_sentiment(segs, spans):
         if lab:
             s["emotion"] = SENTIMENT.get(str(lab).lower())
     return segs
+
+
+def _from_log(v):
+    """A log probability as a probability (0 to 1), or None."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or v > 0:
+        return None
+    return math.exp(v)
 
 
 def _label(v):
@@ -326,7 +340,11 @@ def _openai(cfg, clip, seconds, terms=()):
     out = []
     for s in segs:
         t0, t1 = int(float(s.get("start") or 0) * 1000), int(float(s.get("end") or 0) * 1000)
-        ws = [[w["word"].strip(), int(w["start"] * 1000), int(w["end"] * 1000)] for w in words if t0 <= w["start"] * 1000 < t1]
+        ws = [
+            transcript.stored(w["word"].strip(), int(w["start"] * 1000), int(w["end"] * 1000), w.get("probability"))
+            for w in words
+            if t0 <= w["start"] * 1000 < t1
+        ]
         text = (s.get("text") or "").strip()
         if any(ch.isalnum() for ch in text):
             out.append(
@@ -382,7 +400,7 @@ def _elevenlabs(cfg, clip, seconds, terms=()):  # Scribe takes no hints (vocabul
         if w.get("type") == "audio_event" and words and not ev:
             continue
         words.append({"text": text, "t0": int(float(w.get("start") or 0) * 1000), "t1": int(float(w.get("end") or 0) * 1000),
-                      "speaker": _label(w.get("speaker_id")), "event": ev})  # fmt: skip
+                      "speaker": _label(w.get("speaker_id")), "event": ev, "p": _from_log(w.get("logprob"))})  # fmt: skip
     return group_words(words, _short(j.get("language_code")))
 
 
@@ -422,7 +440,7 @@ def _assemblyai(cfg, clip, seconds, terms=()):
         raise ProviderError(f"AssemblyAI: {job.get('error') or 'the transcript failed'}")
     lang = _short(job.get("language_code"))
     words = [
-        {"text": w["text"], "t0": int(w["start"]), "t1": int(w["end"]), "speaker": _label(w.get("speaker"))}
+        {"text": w["text"], "t0": int(w["start"]), "t1": int(w["end"]), "speaker": _label(w.get("speaker")), "p": w.get("confidence")}
         for w in job.get("words") or []
         if (w.get("text") or "").strip()
     ]
@@ -458,6 +476,7 @@ def _deepgram(cfg, clip, seconds, terms=()):
             "t0": int(w["start"] * 1000),
             "t1": int(w["end"] * 1000),
             "speaker": _label(w.get("speaker")),
+            "p": w.get("confidence"),
         }  # fmt: skip
         for w in alt.get("words") or []
     ]
@@ -527,7 +546,7 @@ def _shift(segs, ms, piece):
     for s in segs:
         s["t0"], s["t1"] = s["t0"] + ms, s["t1"] + ms
         if ms and s.get("words"):
-            s["words"] = json.dumps([[w, a + ms, b + ms] for w, a, b in json.loads(s["words"])])
+            s["words"] = json.dumps([[w[0], w[1] + ms, w[2] + ms, *w[3:]] for w in json.loads(s["words"])])
         if piece is not None and s.get("provider_speaker"):
             s["provider_speaker"] = f"c{piece}:{s['provider_speaker']}"
     return segs

@@ -29,14 +29,17 @@ export type Segment = {
   text: string;
   emotion: string | null;
   event: string | null;
-  /** Timed words, when transcription gave them: [c0, c1, t0, t1], a character range of `text` and when it was said. */
+  /**
+   * Timed words, when transcription gave them: [c0, c1, t0, t1], a character range of `text` and when it was said, with
+   * how sure the engine was of the word (0..1) as a fifth when it said.
+   */
   words?: Word[];
   /** A document's or an image's block of text: its page (from 0) and where it is on it. */
   page?: number;
   box?: Box | null;
 };
 
-export type Word = [c0: number, c1: number, t0: number, t1: number];
+export type Word = [c0: number, c1: number, t0: number, t1: number, sure?: number];
 
 export type Chapter = {
   idx: number;
@@ -167,6 +170,8 @@ export type PlayerModel = {
   objects: ObjectTrack[];
   descriptions: Description[];
   poster: string | null;
+  /** Words transcription was less sure of than this (0..1) are marked to check; null: none are (Settings → Transcription). */
+  unsureBelow: number | null;
 };
 
 const num = (v: unknown, d = 0): number =>
@@ -383,6 +388,7 @@ export function normalizePlayer(raw: Player): PlayerModel {
       })
       .filter((d) => d.text),
     poster: str(r.poster),
+    unsureBelow: unsureThreshold(r.unsure_below),
   };
 }
 
@@ -438,18 +444,53 @@ export function indexAt<T extends { t0: number }>(items: T[], t: number): number
 }
 
 /** The segment being spoken at `t`, or the last one before it (so a pause keeps the line lit). */
-/** A line's timed words from the API, kept only when they fit its text: `{ words }`, or nothing. */
+/**
+ * A line's timed words from the API, kept only when they fit its text: `{ words }`, or nothing. A word has how sure
+ * transcription was of it as a fifth when the engine said (lines transcribed before then have four); one that isn't
+ * 0..1 is dropped, keeping the word.
+ */
 function wordsOf(raw: unknown, len: number): { words?: Word[] } {
-  const words = arr(raw).filter(
-    (w): w is Word =>
-      Array.isArray(w) &&
-      w.length === 4 &&
-      w.every((x) => typeof x === "number" && Number.isFinite(x)) &&
-      w[0] >= 0 &&
-      w[0] < w[1] &&
-      w[1] <= len,
-  );
+  const words = arr(raw)
+    .filter(
+      (w): w is number[] =>
+        Array.isArray(w) &&
+        (w.length === 4 || w.length === 5) &&
+        w.slice(0, 4).every((x) => typeof x === "number" && Number.isFinite(x)) &&
+        w[0] >= 0 &&
+        w[0] < w[1] &&
+        w[1] <= len,
+    )
+    .map((w): Word => {
+      const sure = w[4];
+      return typeof sure === "number" && sure >= 0 && sure <= 1
+        ? [w[0], w[1], w[2], w[3], sure]
+        : [w[0], w[1], w[2], w[3]];
+    });
   return words.length ? { words } : {};
+}
+
+/** The threshold for marking words from the player's `unsure_below`: a number above 0 and below 1, else null (off). */
+export function unsureThreshold(v: unknown): number | null {
+  return typeof v === "number" && v > 0 && v < 1 ? v : null;
+}
+
+const UNSURE = "unsure:";
+
+/**
+ * The words of a line transcription was less sure of than `below`, as ranges of its text for the dotted underline:
+ * their kind carries how sure, as a whole percentage (`unsure:62`). None when it's off or the line's words don't say.
+ */
+export function unsureRanges(seg: Segment, below: number | null): { start: number; end: number; kind: string }[] {
+  if (below == null || !seg.words) return [];
+  return seg.words
+    .filter((w) => w[4] != null && w[4] < below)
+    .map((w) => ({ start: w[0], end: w[1], kind: `${UNSURE}${Math.round((w[4] ?? 0) * 100)}` }));
+}
+
+/** The tooltip of a run marked by `unsureRanges`, or null for any other kind of run. */
+export function unsureTitle(kind: string | null): string | null {
+  if (!kind?.startsWith(UNSURE)) return null;
+  return `Transcription wasn't sure of this word (${kind.slice(UNSURE.length)}%)`;
 }
 
 /** The word being said at `ms`: the last one to have started (-1 before the first). */

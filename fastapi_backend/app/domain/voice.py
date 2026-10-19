@@ -34,7 +34,9 @@ def _talk(cfg):
 
 
 def _key(cfg):
-    return json.dumps([cfg["transcribe"], cfg.get("speech")], sort_keys=True, default=str)
+    """What the loaded engine depends on: the transcription settings, except how the transcript marks unsure words."""
+    t = {k: v for k, v in cfg["transcribe"].items() if k != "confidence_highlight"}
+    return json.dumps([t, cfg.get("speech")], sort_keys=True, default=str)
 
 
 def can_transcribe(cfg):

@@ -1,6 +1,16 @@
 import type { Player } from "@/app/openapi-client/types.gen";
 import { describeEdit, revertPatch } from "@/components/recording/edits";
-import { joinedAt, normalizePlayer, splitPoint, textRange, wordAt, type Word } from "@/components/recording/model";
+import {
+  joinedAt,
+  normalizePlayer,
+  splitPoint,
+  textRange,
+  unsureRanges,
+  unsureThreshold,
+  unsureTitle,
+  wordAt,
+  type Word,
+} from "@/components/recording/model";
 
 const name = (id: number | null) => (id == null ? "nobody" : `Speaker ${id}`);
 
@@ -24,6 +34,60 @@ describe("timed words", () => {
       [6, 12, 500, 900],
     ]);
     expect("words" in m.segments[1]).toBe(false);
+  });
+
+  it("keeps how sure transcription was of each word, and words from before it was kept", () => {
+    const m = normalizePlayer({
+      id: 1,
+      unsure_below: 0.6,
+      segments: [
+        {
+          t0: 0,
+          t1: 3000,
+          s: "s1",
+          text: "Hello there, Lens.",
+          w: [
+            [0, 5, 0, 400, 0.97],
+            [6, 12, 500, 900],
+            [13, 18, 1000, 2000, 7],
+            [13, 18, 1000, 2000, 0.5, 1],
+          ],
+        },
+      ],
+    } as unknown as Player);
+    expect(m.unsureBelow).toBe(0.6);
+    expect(m.segments[0].words).toEqual([
+      [0, 5, 0, 400, 0.97],
+      [6, 12, 500, 900],
+      [13, 18, 1000, 2000], // not 0..1: the word stays, without it
+    ]);
+    expect(normalizePlayer({ id: 1 } as unknown as Player).unsureBelow).toBeNull();
+  });
+
+  it("marks the words below the threshold, and none when it's off", () => {
+    const seg = {
+      idx: 0,
+      t0: 0,
+      t1: 3000,
+      speaker: null,
+      text: "Book a call Friday.",
+      emotion: null,
+      event: null,
+      words: [
+        [0, 4, 0, 300, 0.95],
+        [5, 6, 300, 400],
+        [7, 11, 500, 900, 0.62],
+        [12, 19, 1000, 1900, 0.123],
+      ] as Word[],
+    };
+    expect(unsureRanges(seg, 0.6)).toEqual([{ start: 12, end: 19, kind: "unsure:12" }]);
+    expect(unsureRanges(seg, 0.7).map((r) => seg.text.slice(r.start, r.end))).toEqual(["call", "Friday."]);
+    expect(unsureRanges(seg, null)).toEqual([]);
+    expect(unsureRanges({ ...seg, words: undefined }, 0.6)).toEqual([]);
+    expect(unsureTitle("unsure:62")).toBe("Transcription wasn't sure of this word (62%)");
+    expect(unsureTitle("entity")).toBeNull();
+    expect(unsureTitle(null)).toBeNull();
+    expect([0.6, 0, 1, -0.2, "0.6", null].map(unsureThreshold)).toEqual([0.6, null, null, null, null, null]);
   });
 
   it("finds the word being said", () => {
