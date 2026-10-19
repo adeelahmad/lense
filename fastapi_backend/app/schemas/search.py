@@ -14,6 +14,7 @@ class SearchHit(ResponseModel):
     t0: int | None = Field(description="ms; None for a line of a file that doesn't say when its lines are")
     t1: int | None
     emotion: str | None = None
+    event: str | None = Field(None, description="the sound heard with it (Laughter, Applause, BGM for music …), if any")
     speaker_id: int | None = None
     speaker: str | None = None
     title: str | None = None
@@ -67,14 +68,16 @@ class ObjectFacet(ResponseModel):
 
 
 class SearchFacets(ResponseModel):
-    """How many of all the matching moments are in each namespace, person, emotion and asset (up to 50 of each,
-    most first), and the kinds of object seen in the assets they're in. Text on screen has no person or emotion."""
+    """How many of all the matching moments are in each namespace, person, emotion, sound and asset (up to 50 of
+    each, most first), and the kinds of object seen in the assets they're in. Text on screen has no person, emotion or
+    sound."""
 
     moments: int = Field(description="the matching moments counted: all of them, unless `partial`")
     partial: bool = Field(description="more than 20,000 moments match; the counts cover 20,000 of them")
     namespaces: list[FacetCount] = Field(default_factory=list)
     speakers: list[SpeakerFacet] = Field(default_factory=list)
     emotions: list[FacetCount] = Field(default_factory=list)
+    events: list[FacetCount] = Field(default_factory=list, description="sounds heard (Laughter, Applause, BGM …); plain speech isn't one")
     recordings: list[RecordingFacet] = Field(default_factory=list)
     objects: list[ObjectFacet] = Field(default_factory=list)
 

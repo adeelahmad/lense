@@ -1,17 +1,19 @@
 /**
  * The search box: free words plus typed filters (`speaker:"Host B"`, `namespace:podcasts`, `emotion:surprise`,
- * `recording:"Episode 12"`, `object:car`). Typed filters become chips; the chip and the facet are one filter. The backend's rules:
+ * `event:laughter`, `recording:"Episode 12"`, `object:car`). Typed filters become chips; the chip and the facet are one filter. The backend's rules:
  * every word must appear (English stemming), "quoted phrases" as written, OR between alternatives, NOT or -word to
  * leave lines out, no prefix search.
  */
 
-export type FilterKey = "namespace" | "speaker" | "emotion" | "recording" | "object";
+export type FilterKey = "namespace" | "speaker" | "emotion" | "event" | "recording" | "object";
 
-/** Filters as the URL holds them: speaker and recording are ids, namespace a name, emotion a label. */
+/** Filters as the URL holds them: speaker and recording are ids, namespace a name, emotion and event labels. */
 export type SearchFilters = {
   namespace?: string;
   speaker?: number;
   emotion?: string;
+  /** A sound heard (Laughter, Applause, BGM …). */
+  event?: string;
   recording?: number;
   /** A kind of object the recordings have (person, car …). */
   object?: string;
@@ -25,10 +27,11 @@ const KEYS: Record<string, FilterKey> = {
   ns: "namespace",
   speaker: "speaker",
   emotion: "emotion",
+  event: "event",
   recording: "recording",
   object: "object",
 };
-const FILTER_RX = /(?:^|\s)(namespace|ns|speaker|emotion|recording|object):(?:"([^"]*)"?|(\S+))/gi;
+const FILTER_RX = /(?:^|\s)(namespace|ns|speaker|emotion|event|recording|object):(?:"([^"]*)"?|(\S+))/gi;
 
 /** Split what was typed into the words to search for and the typed filters. */
 export function parseQuery(input: string): {
@@ -56,6 +59,17 @@ export function filterToken(key: FilterKey, value: string): string {
 export function normalizeEmotion(value: string): string {
   const v = value.trim().toLowerCase();
   return v ? v[0].toUpperCase() + v.slice(1) : v;
+}
+
+/** Sounds are stored capitalised (Laughter, Applause) and music as BGM; people type them any way. */
+export function normalizeEvent(value: string): string {
+  const v = normalizeEmotion(value);
+  return v === "Music" || v === "Bgm" ? "BGM" : v;
+}
+
+/** How a sound reads: BGM is music. */
+export function eventName(event: string): string {
+  return event === "BGM" ? "Music" : event;
 }
 
 /** Words typed with a trailing * (prefix search isn't supported; the backend drops the *). */
@@ -136,6 +150,7 @@ export function fromParams(p: URLSearchParams): {
       namespace: p.get("ns") || undefined,
       speaker: int(p.get("speaker")),
       emotion: p.get("emotion") || undefined,
+      event: p.get("event") || undefined,
       recording: int(p.get("recording")),
       object: p.get("object") || undefined,
     },
@@ -149,6 +164,7 @@ export function toParams(q: string, f: SearchFilters, mode: SearchMode = "auto")
   if (f.namespace) p.set("ns", f.namespace);
   if (f.speaker != null) p.set("speaker", String(f.speaker));
   if (f.emotion) p.set("emotion", f.emotion);
+  if (f.event) p.set("event", f.event);
   if (f.recording != null) p.set("recording", String(f.recording));
   if (f.object) p.set("object", f.object);
   if (mode !== "auto") p.set("by", mode === "keyword" ? "words" : "meaning");
@@ -156,7 +172,8 @@ export function toParams(q: string, f: SearchFilters, mode: SearchMode = "auto")
 }
 
 export function activeFilterCount(f: SearchFilters): number {
-  return [f.namespace, f.speaker, f.emotion, f.recording, f.object].filter((v) => v != null && v !== "").length;
+  return [f.namespace, f.speaker, f.emotion, f.event, f.recording, f.object].filter((v) => v != null && v !== "")
+    .length;
 }
 
 type Saved = {
@@ -165,6 +182,7 @@ type Saved = {
   speaker?: number | null;
   speaker_name?: string | null;
   emotion?: string | null;
+  event?: string | null;
   recording?: number | null;
   recording_title?: string | null;
   object?: string | null;
@@ -176,17 +194,19 @@ export function savedSearchHref(s: Saved): string {
     namespace: s.namespace ?? undefined,
     speaker: s.speaker ?? undefined,
     emotion: s.emotion ?? undefined,
+    event: s.event ?? undefined,
     recording: s.recording ?? undefined,
     object: s.object ?? undefined,
   })}`;
 }
 
-/** "podcasts · Alice · Happy · Episode 12": a saved search's filters, by name where it has them. */
+/** "podcasts · Alice · Happy · Laughter · Episode 12": a saved search's filters, by name where it has them. */
 export function savedSearchFilters(s: Saved): string {
   return [
     s.namespace,
     s.speaker != null ? (s.speaker_name ?? `Person #${s.speaker}`) : null,
     s.emotion,
+    s.event ? eventName(s.event) : null,
     s.recording != null ? (s.recording_title ?? `Asset #${s.recording}`) : null,
     s.object ? `with ${s.object}` : null,
   ]

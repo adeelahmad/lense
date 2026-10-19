@@ -87,6 +87,16 @@ def test_search_by_meaning_finds_other_words(client, db, cfg, folder, llm):
     assert search.search(db, "finances", cfg=cfg, mode="semantic", recording=ep1)["total"] == 0
 
 
+def test_search_by_meaning_keeps_to_a_sound(db, cfg, folder, llm):
+    *_, money = _archive(db, cfg, folder)
+    semantic.index_pending(db, cfg, log=quiet)
+    db.q("UPDATE segment SET event = 'Laughter' WHERE recording = $r AND idx = 1", r=money)
+    # passages don't record their sounds: the passage is shown at its line with that sound, or not at all
+    hits = search.search(db, "worried about our finances", cfg=cfg, mode="semantic", event="laughter")["hits"]
+    assert [(h["recording_id"], h["idx"], h["event"]) for h in hits] == [(money, 1, "Laughter")]
+    assert search.search(db, "worried about our finances", cfg=cfg, mode="semantic", event="Applause")["total"] == 0
+
+
 def test_search_api_by_meaning_keeps_to_readable(client, db, cfg, folder, llm):
     _ep1, _ep2, call, money = _archive(db, cfg, folder)
     semantic.index_pending(db, cfg, log=quiet)

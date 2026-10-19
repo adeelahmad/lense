@@ -9,6 +9,7 @@ export const SYNTAX: [string, string][] = [
   ["budget -draft", "budget, leaving out lines with draft (or NOT draft)"],
   ['speaker:"Host B"', "only what Host B said"],
   ["emotion:surprise", "segments tagged Surprise"],
+  ["event:laughter", "segments where laughter is heard (or applause, music …)"],
   ["namespace:podcasts", "one namespace"],
   ['recording:"Episode 12"', "one asset"],
 ];

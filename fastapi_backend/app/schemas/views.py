@@ -75,6 +75,7 @@ class SearchState(RequestModel):
     q: str = Field(min_length=1, max_length=500, description='words, "phrases", OR between alternatives, NOT or -word to leave out')
     speaker: int | None = None
     emotion: str | None = Field(None, max_length=40)
+    event: str | None = Field(None, max_length=40, description="a sound heard (laughter, applause, music …)")
     recording: int | None = None
     object: str | None = Field(None, max_length=60, description="a kind of object the assets have (person, car …)")
 
@@ -88,6 +89,7 @@ class SavedSearch(ResponseModel):
     speaker: int | None = None
     speaker_name: str | None = Field(None, description="the person's name, when you can read their namespace")
     emotion: str | None = None
+    event: str | None = None
     recording: int | None = None
     recording_title: str | None = Field(None, description="the asset's title, when you can read it")
     object: str | None = Field(None, description="a kind of object the assets have")

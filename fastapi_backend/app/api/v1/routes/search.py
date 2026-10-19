@@ -28,13 +28,14 @@ def search_transcripts(
     ns: str | None = None,
     speaker: int | None = None,
     emotion: str | None = None,
+    event: str | None = Query(None, max_length=40, description="only lines with this sound (laughter, applause, music …), ignoring case"),
     recording: int | None = None,
     object: str | None = Query(None, max_length=60, description="only assets this kind of object is seen in (person, car …)"),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     facets: bool = Query(
         False,
-        description="also count all the matching moments by namespace, person, emotion and asset, and list their kinds of object",
+        description="also count all the matching moments by namespace, person, emotion, sound and asset, and list their kinds of object",
     ),
     mode: Literal["auto", "keyword", "semantic", "hybrid"] = Query(
         "auto",
@@ -46,8 +47,8 @@ def search_transcripts(
     """Moments where the words appear (said in audio or video, shown on screen in a video, written in a document or in
     a resource's supplementary transcripts, captions, translations and indexes, or the kinds of object seen in videos,
     documents and images),
-    best first, in the namespaces you can read and the collections you were given a role on. A person or emotion
-    filter keeps to their lines. By meaning, a moment is a passage about what was asked, though its words may differ."""
+    best first, in the namespaces you can read and the collections you were given a role on. A person, emotion or
+    sound filter keeps to their lines. By meaning, a moment is a passage about what was asked, though its words may differ."""
     if ns:
         acl.scope(ns)  # 404 unless they see some of it
     also = acl.partial_recordings()
@@ -69,6 +70,7 @@ def search_transcripts(
         described=True,
         cfg=cfg,
         mode=mode,
+        event=event,
     )
     blur = nsfw.blurred(db, cfg, [h.get("recording_id") for h in res.get("hits") or []])
     for h in res.get("hits") or []:

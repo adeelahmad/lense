@@ -6,7 +6,9 @@ import {
   filterToken,
   fromParams,
   hasTerms,
+  eventName,
   normalizeEmotion,
+  normalizeEvent,
   parseQuery,
   phrases,
   prefixWords,
@@ -31,6 +33,28 @@ describe("parseQuery", () => {
         recording: "Episode 12",
       },
     });
+  });
+
+  it("reads sound events typed any way", () => {
+    expect(parseQuery("event:Laughter capsid")).toEqual({ text: "capsid", typed: { event: "Laughter" } });
+    expect(parseQuery('EVENT:"applause" ns:podcasts')).toEqual({
+      text: "",
+      typed: { event: "applause", namespace: "podcasts" },
+    });
+    expect(normalizeEvent("laughter")).toBe("Laughter");
+    expect(normalizeEvent(" APPLAUSE ")).toBe("Applause");
+    expect(normalizeEvent("music")).toBe("BGM");
+    expect(normalizeEvent("bgm")).toBe("BGM");
+    expect(eventName("BGM")).toBe("Music");
+    // in the URL, the facets and saved searches like the other filters
+    const qs = toParams("capsid", { event: "Laughter" });
+    expect(qs).toBe("q=capsid&event=Laughter");
+    expect(fromParams(new URLSearchParams(qs)).filters.event).toBe("Laughter");
+    expect(activeFilterCount({ event: "BGM" })).toBe(1);
+    const f = fromServer({ moments: 2, partial: false, events: [{ name: "BGM", count: 2 }] });
+    expect(f.events).toEqual([{ key: "BGM", label: "Music", count: 2 }]);
+    expect(savedSearchFilters({ q: "capsid", emotion: "Happy", event: "BGM" })).toBe("Happy · Music");
+    expect(savedSearchHref({ q: "capsid", event: "Laughter" })).toBe("/search?q=capsid&event=Laughter");
   });
 
   it("leaves words with colons that aren't filters alone", () => {
@@ -183,6 +207,7 @@ describe("facets and groups", () => {
       namespaces: [],
       speakers: [],
       emotions: [],
+      events: [],
       recordings: [],
       objects: [],
     });

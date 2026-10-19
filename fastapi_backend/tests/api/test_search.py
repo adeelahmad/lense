@@ -101,6 +101,34 @@ def test_facets_count_every_match(client, db, cfg, folder, monkeypatch):
     assert (capped["moments"], capped["partial"]) == (2, True)
 
 
+def test_sound_events_filter_and_count(client, db, cfg, folder):
+    from tests.api.test_mcp import _bearer, _grant, tool
+
+    seed(db, cfg, folder)
+    make_user(db, "vi@x.io", "viewer password 1", roles={"pods": "viewer"})
+    hv = login(client, "vi@x.io", "viewer password 1")
+    pods = store.ns_id(db, "pods")
+    lines = db.rows("SELECT record::id(id) AS id, idx, recording, text FROM segment WHERE space = $s ORDER BY recording, idx", s=pods)
+    capsid = [store.R("segment", s["id"]) for s in lines if "capsid" in s["text"].lower()]
+    assert len(capsid) >= 3
+    db.q("UPDATE $ids SET event = 'Laughter'", ids=capsid[:2])
+    db.q("UPDATE $id SET event = 'Speech'", id=capsid[2])  # plain speech isn't a sound to count
+
+    # typed any way; only the lines with that sound, each saying which
+    found = client.get("/api/v1/search", params={"q": "capsid", "event": "laughter", "facets": True}, headers=hv).json()
+    assert found["total"] == 2 and {h["event"] for h in found["hits"]} == {"Laughter"}
+    assert found["facets"]["events"] == [{"name": "Laughter", "count": 2}]
+    every = client.get("/api/v1/search", params={"q": "capsid", "facets": True}, headers=hv).json()
+    assert every["total"] > 2 and every["facets"]["events"] == [{"name": "Laughter", "count": 2}]
+    assert client.get("/api/v1/search", params={"q": "capsid", "event": "music"}, headers=hv).json()["total"] == 0
+    # a saved search keeps it, and an agent can filter by it too
+    saved = client.post("/api/v1/searches", headers=hv, json={"name": "Laughs", "q": "capsid", "event": "Laughter"})
+    assert saved.status_code == 200 and saved.json()["event"] == "Laughter"
+    _, tokens = _grant(client, hv, scope="read")
+    res = tool(client, _bearer(tokens), "search", query="capsid", event="Laughter")["results"]
+    assert len(res) == 2 and {r["event"] for r in res} == {"Laughter"}
+
+
 def test_word_suggestions_for_a_prefix(client, db, cfg, folder):
     seed(db, cfg, folder)
     make_user(db, "vi@x.io", "viewer password 1", roles={"pods": "viewer"})

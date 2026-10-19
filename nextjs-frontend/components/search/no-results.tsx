@@ -147,6 +147,19 @@ export function NoResults({
         </>
       ),
     });
+  if (filters.event)
+    hints.push({
+      key: "evt",
+      node: (
+        <>
+          The filter <b>event: {labels.event ?? filters.event}</b> keeps only segments where it’s heard.{" "}
+          <button type="button" className={LINK} onClick={() => onClearFilter("event")}>
+            Any sound
+          </button>
+          .
+        </>
+      ),
+    });
   if (filters.recording != null)
     hints.push({
       key: "rec",
