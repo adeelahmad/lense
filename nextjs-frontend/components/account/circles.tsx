@@ -9,7 +9,7 @@ import type { Circle, Person } from "@/app/openapi-client/types.gen";
 import { addable, personLabel } from "@/components/circles/model";
 import { Banner } from "@/components/ui/banner";
 import { Button, IconButton } from "@/components/ui/button";
-import { Input, Select } from "@/components/ui/field";
+import { Input, Select, Switch } from "@/components/ui/field";
 import { Panel } from "@/components/ui/panel";
 import { RenameTitle } from "@/components/ui/rename-title";
 import { Skeleton } from "@/components/ui/states";
@@ -106,7 +106,7 @@ function CircleRow({ circle, people, onDelete }: { circle: Circle; people: Perso
   const client = useApiClient();
   const qc = useQueryClient();
   const update = useMutation({
-    mutationFn: (body: { name?: string; add?: number[]; remove?: number[] }) =>
+    mutationFn: (body: { name?: string; add?: number[]; remove?: number[]; lets?: "free_busy"[] }) =>
       data(Circles.updateCircle({ client, path: { cid: circle.id }, body })),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["circles"] }),
   });
@@ -157,6 +157,12 @@ function CircleRow({ circle, people, onDelete }: { circle: Circle; people: Perso
           className="w-[240px]"
         />
       )}
+      <Switch
+        checked={circle.lets?.includes("free_busy") ?? false}
+        onCheckedChange={(on) => update.mutate({ lets: on ? ["free_busy"] : [] })}
+        label="They can see when you’re free (never what)"
+        className="text-[13px]"
+      />
       {update.isError && <Banner tone="error">{update.error.message}</Banner>}
     </div>
   );

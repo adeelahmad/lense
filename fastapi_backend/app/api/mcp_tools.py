@@ -4519,13 +4519,15 @@ def list_circles(ctx: Context, shares: str | None, limit: int) -> dict[str, Any]
     "save_circle",
     "Make or change a circle",
     "Make a circle of trust (name and members), or change one of yours (circle_id): rename it, set its members, add "
-    "or take people out. Members are people on this Lens, by account id or email, from list_circles' people. "
-    "delete: true deletes it (what was shared with it stays shared). Needs a token with the write scope.",
+    "or take people out, or set what they may ask your agent (lets: free_busy lets them see when you're free). Members "
+    "are people on this Lens, by account id or email, from list_circles' people. delete: true deletes it (what was "
+    "shared with it stays shared). Needs a token with the write scope.",
     Arg("circle_id", "integer", "the circle to change; leave out to make one"),
     Arg("name", "string", "its name, like Immediate family", max_length=80),
     Arg("members", "string[]", "everyone in it, by account id or email (replaces who was)"),
     Arg("add", "string[]", "people to add"),
     Arg("remove", "string[]", "people to take out"),
+    Arg("lets", "string[]", "what its people may ask your agent: free_busy (when you're free); replaces what they could"),
     Arg("delete", "boolean", "delete the circle", default=False),
     writes=True,
     personal=True,
@@ -4537,6 +4539,7 @@ def save_circle(
     members: list[str] | None,
     add: list[str] | None,
     remove: list[str] | None,
+    lets: list[str] | None,
     delete: bool,
 ) -> dict[str, Any]:
     from app.domain import circles
@@ -4548,14 +4551,14 @@ def save_circle(
             raise ToolError("name the circle to delete with circle_id")
         if not name:
             raise ToolError("a new circle needs a name")
-        cid = circles.create(ctx.db, me, name, list(members or []) + list(add or []))
+        cid = circles.create(ctx.db, me, name, list(members or []) + list(add or []), lets or ())
         auth.audit(ctx.db, ctx.user.as_audit(), "circle.create", f"circle:{cid}", {"via": "mcp"})
         return {"circle": circles.get(ctx.db, cid, me["id"])}
     if delete:
         circles.delete(ctx.db, me, circle_id)
         auth.audit(ctx.db, ctx.user.as_audit(), "circle.delete", f"circle:{circle_id}", {"via": "mcp"})
         return {"deleted": circle_id}
-    out = circles.update(ctx.db, me, circle_id, name, members, add or (), remove or ())
+    out = circles.update(ctx.db, me, circle_id, name, members, add or (), remove or (), lets)
     auth.audit(ctx.db, ctx.user.as_audit(), "circle.update", f"circle:{circle_id}", {"via": "mcp"})
     return {"circle": out}
 
@@ -4625,6 +4628,30 @@ def undo_share(ctx: Context, share_id: int) -> dict[str, Any]:
     out = circles.undo(ctx.db, _me(ctx), share_id)
     auth.audit(ctx.db, ctx.user.as_audit(), "circle.unshare", f"circle_share:{share_id}", {"via": "mcp"})
     return out
+
+
+@tool(
+    "when_free",
+    "When people in your circles are free",
+    "When people in your circles are busy between start and end, for those who let you see it, and when you and all of "
+    "them are free for at least minutes, within day_start..day_end o'clock each day in tz: to find a time for a call "
+    "or a trip. Only when, never what, where or with whom. People who haven't let you see come back refused. Each "
+    "person asked sees that you asked in their own timeline.",
+    Arg("people", "string[]", "people by account id or email", required=True),
+    Arg("start", "string", "the window's start, an ISO time like 2026-10-20T09:00 (in tz)", required=True, max_length=40),
+    Arg("end", "string", "the window's end, at most 31 days later", required=True, max_length=40),
+    Arg("tz", "string", "the time zone, like Europe/London", default="UTC", max_length=60),
+    Arg("minutes", "integer", "how long a free stretch must be", default=30, minimum=5, maximum=1440),
+    Arg("day_start", "integer", "the hour each day starts", default=9, minimum=0, maximum=23),
+    Arg("day_end", "integer", "the hour each day ends", default=18, minimum=1, maximum=24),
+    personal=True,
+)
+def when_free(ctx: Context, people: list[str], start: str, end: str, tz: str, minutes: int, day_start: int, day_end: int) -> dict[str, Any]:
+    from app.domain import circles_ask
+
+    return circles_ask.find_time(
+        ctx.db, _me(ctx), people, start, end, minutes=minutes, tz=tz, day_start=day_start, day_end=day_end, via="mcp"
+    )
 
 
 # ---------- schedules ----------

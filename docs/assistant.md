@@ -259,7 +259,8 @@ When the configured model supports function calling, chat becomes an agent.
   or marking reviewed waits for their yes; marking important, lifting a mute or bringing things back acts at once.
 - **The person's circles:** `circles` reads their [circles of trust](circles.md) and, when asked, what was shared
   with them or by them. `share_with_circle` tells people in a circle about an activity or an asset with a note in the
-  person's words; it always waits for their yes, since telling other people is their pick.
+  person's words; it always waits for their yes, since telling other people is their pick. `when_free` finds when
+  people in their circles who let them see it are free, to suggest a time for a call or a trip (only when, never what).
 - **The person's approvals:** `approvals` lists what waits for their pick, or what one timeline activity caused
   (`activity`) ([Approvals](automations.md#approvals)):
   automations' actions about the namespaces the conversation reads, and its own proposals in this conversation.

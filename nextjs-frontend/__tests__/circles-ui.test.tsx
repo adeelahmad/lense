@@ -97,6 +97,16 @@ describe("circles under Profile", () => {
     );
   });
 
+  it("lets a circle see when you're free in one click", async () => {
+    show(<CirclesPanel />);
+    fireEvent.click(await screen.findByRole("switch"));
+    await waitFor(() =>
+      expect(mockApi.updateCircle).toHaveBeenCalledWith(
+        expect.objectContaining({ path: { cid: 1 }, body: { lets: ["free_busy"] } }),
+      ),
+    );
+  });
+
   it("deletes a circle with Undo instead of a confirm", async () => {
     show(<CirclesPanel />);
     fireEvent.click(await screen.findByRole("button", { name: "Delete Immediate family" }));

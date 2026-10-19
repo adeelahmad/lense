@@ -231,6 +231,24 @@ TOOLS = [
         True,
     ),
     (
+        "when_free",
+        "When people in the person's circles are busy between start and end (ISO times, in tz), for those who let the "
+        "person see it, and when the person and all of them are free for at least minutes, within day_start..day_end "
+        "o'clock: to find a time for a call or a trip. Only when, never what. Those who haven't let them see come back "
+        "refused; each person asked sees that in their own timeline.",
+        {
+            "people": {"type": "array", "items": _S},
+            "start": _S,
+            "end": _S,
+            "tz": _S,
+            "minutes": _I,
+            "day_start": _I,
+            "day_end": _I,
+        },
+        ["people", "start", "end"],
+        False,
+    ),
+    (
         "approvals",
         "What waits for the person's pick, newest first: automations' actions that ask first and your own proposals in "
         "this conversation, each with what it would do, why (the activity that caused it), when it expires and where "
@@ -766,6 +784,7 @@ GROUPS = {
             "mute_activities",
             "circles",
             "share_with_circle",
+            "when_free",
             "approvals",
             "decline_approval",
             "automations",
@@ -1799,6 +1818,24 @@ class Toolbox(ops_tools.OpsTools, connection_tools.ConnectionTools):
             out["shares"] = circles.shares(self.db, me, shares, min(int(limit or 20), 50))
         n = len(out["circles"])
         return out, f"Read {n} circle{'' if n == 1 else 's'}" + (f" and the shares {shares}" if out.get("shares") is not None else "")
+
+    def t_when_free(self, people, start, end, tz="UTC", minutes=30, day_start=9, day_end=18):
+        from . import circles_ask
+
+        out = circles_ask.find_time(
+            self.db,
+            self._me(),
+            [str(p) for p in people or []],
+            start,
+            end,
+            minutes=int(minutes or 30),
+            tz=tz or "UTC",
+            day_start=int(9 if day_start is None else day_start),
+            day_end=int(18 if day_end is None else day_end),
+            via="assistant",
+        )
+        n = len(out["free"])
+        return out, f"Found {n} free time{'' if n == 1 else 's'} for {len(out['people'])} people"
 
     def t_share_with_circle(self, activity=None, recording_id=None, circles=None, people=None, note=None, with_item=False):
         from . import circles as circlemod

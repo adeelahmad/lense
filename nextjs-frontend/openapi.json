@@ -36300,6 +36300,48 @@
         }
       }
     },
+    "/api/v1/circles/when-free": {
+      "post": {
+        "tags": [
+          "circles"
+        ],
+        "summary": "When Free",
+        "description": "When people in your circles are busy in a window, for those who let you see it (a circle of theirs with\n`lets: free_busy`), and when you and all of them are free: only when, never what. Each person asked sees it in\ntheir own timeline (agent.asked).",
+        "operationId": "when_free",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WhenFreeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhenFree"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/circles/{cid}": {
       "get": {
         "tags": [
@@ -36346,7 +36388,7 @@
           "circles"
         ],
         "summary": "Update Circle",
-        "description": "Rename a circle of yours, set who is in it, or add and take people out.",
+        "description": "Rename a circle of yours, set who is in it, add and take people out, or set what they may ask your agent\n(`lets`: free_busy lets them see when you're free).",
         "operationId": "update_circle",
         "parameters": [
           {
@@ -43990,6 +44032,15 @@
             "type": "array",
             "title": "Members"
           },
+          "lets": {
+            "items": {
+              "type": "string",
+              "const": "free_busy"
+            },
+            "type": "array",
+            "title": "Lets",
+            "description": "what its people may ask your agent: free_busy, when you're free"
+          },
           "created_at": {
             "anyOf": [
               {
@@ -44045,6 +44096,15 @@
             "maxItems": 200,
             "title": "Members",
             "description": "people by account id or email"
+          },
+          "lets": {
+            "items": {
+              "type": "string",
+              "const": "free_busy"
+            },
+            "type": "array",
+            "title": "Lets",
+            "description": "what its people may ask your agent: free_busy, when you're free"
           }
         },
         "additionalProperties": false,
@@ -44237,6 +44297,22 @@
             "maxItems": 200,
             "title": "Remove",
             "description": "people to take out"
+          },
+          "lets": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "const": "free_busy"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lets",
+            "description": "what its people may ask your agent, replacing what they could"
           }
         },
         "additionalProperties": false,
@@ -81270,6 +81346,25 @@
         ],
         "title": "SourceUpdated"
       },
+      "Span": {
+        "properties": {
+          "start": {
+            "type": "string",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "title": "End"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "start",
+          "end"
+        ],
+        "title": "Span"
+      },
       "SparqlQuery": {
         "properties": {
           "query": {
@@ -84066,6 +84161,73 @@
         "type": "object",
         "title": "TimelineViewUpdate",
         "description": "Only what you send changes."
+      },
+      "Times": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "busy": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Span"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Busy",
+            "description": "when they're busy; never what, where or with whom"
+          },
+          "person": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Person",
+            "description": "who was asked about, when they haven't let you see"
+          },
+          "refused": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refused"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "Times"
       },
       "TokenLimits": {
         "properties": {
@@ -88001,6 +88163,119 @@
         ],
         "title": "WebPage",
         "description": "A web page captured as a document: where it was, and when."
+      },
+      "WhenFree": {
+        "properties": {
+          "start": {
+            "type": "string",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "title": "End"
+          },
+          "tz": {
+            "type": "string",
+            "title": "Tz"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/Times"
+            },
+            "type": "array",
+            "title": "People"
+          },
+          "free": {
+            "items": {
+              "$ref": "#/components/schemas/Span"
+            },
+            "type": "array",
+            "title": "Free",
+            "description": "when everyone who let you see, and you, are free, within the hours of the day asked for"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "start",
+          "end",
+          "tz",
+          "people",
+          "free"
+        ],
+        "title": "WhenFree"
+      },
+      "WhenFreeIn": {
+        "properties": {
+          "people": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "type": "array",
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "People",
+            "description": "people by account id or email; you are counted too"
+          },
+          "start": {
+            "type": "string",
+            "maxLength": 40,
+            "title": "Start",
+            "description": "the window's start, an ISO time (without an offset, in tz)"
+          },
+          "end": {
+            "type": "string",
+            "maxLength": 40,
+            "title": "End",
+            "description": "the window's end, at most 31 days after its start"
+          },
+          "tz": {
+            "type": "string",
+            "maxLength": 60,
+            "title": "Tz",
+            "description": "the time zone times are given and answered in, like Europe/London",
+            "default": "UTC"
+          },
+          "minutes": {
+            "type": "integer",
+            "maximum": 1440.0,
+            "minimum": 5.0,
+            "title": "Minutes",
+            "description": "how long the free stretches must be",
+            "default": 30
+          },
+          "day_start": {
+            "type": "integer",
+            "maximum": 23.0,
+            "minimum": 0.0,
+            "title": "Day Start",
+            "description": "the hour each day starts, in tz",
+            "default": 9
+          },
+          "day_end": {
+            "type": "integer",
+            "maximum": 24.0,
+            "minimum": 1.0,
+            "title": "Day End",
+            "description": "the hour each day ends, in tz",
+            "default": 18
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "people",
+          "start",
+          "end"
+        ],
+        "title": "WhenFreeIn"
       },
       "WikiPage": {
         "properties": {

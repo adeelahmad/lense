@@ -267,6 +267,7 @@ POST   /api/v1/circles
 GET    /api/v1/circles/people
 GET    /api/v1/circles/shares
 POST   /api/v1/circles/shares
+POST   /api/v1/circles/when-free
 DELETE /api/v1/circles/shares/{share_id}
 GET    /api/v1/circles/{circle_id}
 PATCH  /api/v1/circles/{circle_id}
@@ -279,7 +280,10 @@ Your [circles of trust](circles.md) and what you share with them; yours alone. `
 `circles` and `people` in them, with a `note`; `with_item` also gives those who can't open the resource permission on
 it (needs `publish` there). Each person gets `share.received` in their timeline and you get `share.sent`.
 `GET /circles/shares?direction=received|sent` lists them newest first; `DELETE /circles/shares/{id}` takes one back,
-with the permissions it gave.
+with the permissions it gave. A circle's `lets` says what its people may ask your agent: `free_busy` lets them see when
+you're free. `POST /circles/when-free` takes `people`, a window (`start`, `end`, at most 31 days, in `tz`), `minutes`,
+`day_start` and `day_end`, and answers each person's busy times (only when, never what) or why not, and the free
+stretches when you and all of them are free; each person asked gets `agent.asked` in their timeline.
 
 ## automations
 

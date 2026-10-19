@@ -2130,6 +2130,9 @@ import type {
   VaultOptionsResponses,
   VoiceInfoData,
   VoiceInfoResponses,
+  WhenFreeData,
+  WhenFreeErrors,
+  WhenFreeResponses,
   WithdrawMeshTokenData,
   WithdrawMeshTokenErrors,
   WithdrawMeshTokenResponses,
@@ -14239,6 +14242,26 @@ export class Circles {
   }
 
   /**
+   * When Free
+   *
+   * When people in your circles are busy in a window, for those who let you see it (a circle of theirs with
+   * `lets: free_busy`), and when you and all of them are free: only when, never what. Each person asked sees it in
+   * their own timeline (agent.asked).
+   */
+  public static whenFree<ThrowOnError extends boolean = false>(
+    options: Options<WhenFreeData, ThrowOnError>,
+  ): RequestResult<WhenFreeResponses, WhenFreeErrors, ThrowOnError> {
+    return (options.client ?? client).post<WhenFreeResponses, WhenFreeErrors, ThrowOnError>({
+      url: "/api/v1/circles/when-free",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * Delete Circle
    *
    * Delete a circle of yours. What you shared with it stays shared; take a share back with DELETE /circles/shares/{id}.
@@ -14267,7 +14290,8 @@ export class Circles {
   /**
    * Update Circle
    *
-   * Rename a circle of yours, set who is in it, or add and take people out.
+   * Rename a circle of yours, set who is in it, add and take people out, or set what they may ask your agent
+   * (`lets`: free_busy lets them see when you're free).
    */
   public static updateCircle<ThrowOnError extends boolean = false>(
     options: Options<UpdateCircleData, ThrowOnError>,

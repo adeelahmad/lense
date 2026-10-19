@@ -1631,6 +1631,10 @@ SCHEMA = [
     # a reply drafted to an email (app/domain/responder.py): email_reply:<recording id>
     "DEFINE TABLE IF NOT EXISTS email_reply SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS email_reply_space ON email_reply FIELDS space",
+    # what someone's agent asked of another's (app/domain/circles_ask.py): agent_ask:<n> (by, to, what, start, end, at)
+    "DEFINE TABLE IF NOT EXISTS agent_ask SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS agent_ask_to ON agent_ask FIELDS to",
+    "DEFINE INDEX IF NOT EXISTS agent_ask_at ON agent_ask FIELDS at",
     "DEFINE TABLE IF NOT EXISTS output SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS output_rec ON output FIELDS recording",
     "DEFINE TABLE IF NOT EXISTS chat SCHEMALESS",

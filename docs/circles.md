@@ -12,7 +12,8 @@ Status: in progress. Circles are built in steps; only what is merged is called b
 | Circles of people on the same Lens, sharing an activity or a resource with them and a note, with the item or without, undo; API, MCP and the assistant | built |
 | Circles under Profile in the web app, and a Share action on timeline items and resource pages | built |
 | Rules: an automation shares what you pick (by kind, sender, entity or the decision model) with a circle, asking you first or on its own | built |
-| Asking someone's agent (when are they free, what does the trip need), answered only from what they let that circle see, with citations | planned |
+| When they're free: a circle can see when you're free (never what), and agents find a time that suits everyone | built |
+| Asking someone's agent a question (what does the trip need), answered only from what they let that circle see, with citations | planned |
 | Circles across Lens servers over ActivityPub: a signed inbox, an outbox and WebFinger handles like `sam@lens.example` | planned |
 
 ## Circles
@@ -66,6 +67,18 @@ you say yes. Let its node run on its own (only you can, signed in) and it shares
 shares as you, only what you can see in the automation's namespaces, never from a vault, and is audited as by the
 automation; its share says `via: automation`.
 
+## When they're free
+
+Turn on *They can see when you're free* on a circle (`lets: ["free_busy"]`), and its people, or their agents, can
+ask when you're busy in a window of up to 31 days. They get only when: each event's start and end, never what it is,
+where, or with whom. Nothing is shared until you turn it on, and each ask shows in your timeline as `agent.asked`
+("Sam's agent asked when you're free, Mon 20 Oct – Fri 24 Oct").
+
+Your events are the calendar events you can read that you organise or are invited to by your account's email, and
+every event in a namespace you alone belong to (your own calendar). Nothing in a vault counts. The answer also gives
+the free stretches, at least so many minutes long and within the hours of the day asked for, when the person asking
+and everyone who let them see are free, to suggest a time for a call or a trip. No model is called.
+
 ## For agents
 
 Everything here works for agents as it does for people.
@@ -76,10 +89,12 @@ Everything here works for agents as it does for people.
   (`activity` or `recording`, `circles`, `people`, `note`, `with_item`), list with
   `GET /api/v1/circles/shares?direction=received|sent`, and take one back with `DELETE /api/v1/circles/shares/{id}`.
   Audited as `circle.create`, `circle.update`, `circle.delete`, `circle.share` and `circle.unshare`.
-- **MCP:** `list_circles` (with `shares`: received or sent), `save_circle`, `share_with_circle` and `undo_share`. They
-  are about the person, so a namespace's own MCP server doesn't offer them.
-- **The assistant:** `circles` reads them, and `share_with_circle` asks the person first: telling other people is
-  always their pick.
+  `POST /api/v1/circles/when-free` (`people`, `start`, `end`, `tz`, `minutes`, `day_start`, `day_end`) answers when
+  they're busy and when everyone is free; a circle's `lets` turns it on.
+- **MCP:** `list_circles` (with `shares`: received or sent), `save_circle`, `share_with_circle`, `undo_share` and
+  `when_free`. They are about the person, so a namespace's own MCP server doesn't offer them.
+- **The assistant:** `circles` reads them, `share_with_circle` asks the person first (telling other people is always
+  their pick), and `when_free` finds a time.
 - **Automations:** the `share_with_circle` action ([Rules](#rules)), which agents can add with the automation tools.
 
 ## What keeps it safe
@@ -94,6 +109,8 @@ Everything here works for agents as it does for people.
   name.
 
 ## Refine later
+
+- Count every time a repeating event happens, not only its first, for when someone is free.
 
 - Show a received share's sender why they can or can't open it, and let a recipient ask for the item.
 - Send a share to the person's chat app (Telegram, Slack, Matterbridge) when they linked one, beside the timeline.

@@ -288,3 +288,76 @@ def test_rules_share_on_their_own_only_when_let(client, db, cfg, env):
     assert actions.perform(db, cfg, {**intent, "params": {"circles": ["Immediate family"], "activity": one}}, None, dry=True)["would"] == (
         "share “Trip on Friday” with Immediate family"
     )
+
+
+def test_when_people_are_free(client, db, cfg, env):
+    from app.domain import ingest
+
+    ids = env["ids"]
+    fam = _family(client, env)
+    own = store.ns_id(db, "adeel-own")
+    auth.set_role(db, ids["adeel"], own, "owner")
+
+    def event(ns, start, end, organizer=None, attendees=None):
+        rid = ingest.import_text(db, cfg, ns, f"Event at {start}.", title="Dentist")
+        db.q(
+            "UPDATE $r SET event = $e",
+            r=R("recording", rid),
+            e={"startTime": start, "endTime": end, "organizer": organizer, "attendees": attendees or []},
+        )
+
+    event("pods", "2026-10-20T10:00:00+00:00", "2026-10-20T11:00:00+00:00", organizer="adeel@x.io")
+    event("pods", "2026-10-20T12:00:00+00:00", "2026-10-20T13:00:00+00:00", organizer="ed@x.io")  # not his
+    event("adeel-own", "2026-10-20T14:00:00", "2026-10-20T15:00:00")  # his own calendar, a floating time
+    ask = {"people": ["adeel@x.io"], "start": "2026-10-20T09:00", "end": "2026-10-20T18:00", "minutes": 60}
+    # nothing until he lets the circle see
+    got = client.post(f"{URL}/when-free", headers=env["sam"], json=ask).json()
+    assert [{k: v for k, v in p.items() if v is not None} for p in got["people"]] == [
+        {"id": ids["sam"], "name": "Sam", "busy": []},
+        {"person": "adeel@x.io", "refused": "adeel@x.io hasn't let you see when they're free"},
+    ]
+    r = client.patch(f"{URL}/{fam['id']}", headers=env["adeel"], json={"lets": ["free_busy"]})
+    assert r.json()["lets"] == ["free_busy"]
+    got = client.post(f"{URL}/when-free", headers=env["sam"], json=ask).json()
+    adeel = next({k: v for k, v in p.items() if v is not None} for p in got["people"] if p.get("id") == ids["adeel"])
+    assert adeel == {
+        "id": ids["adeel"],
+        "name": "Adeel",
+        "busy": [
+            {"start": "2026-10-20T10:00+00:00", "end": "2026-10-20T11:00+00:00"},
+            {"start": "2026-10-20T14:00+00:00", "end": "2026-10-20T15:00+00:00"},
+        ],
+    }
+    assert got["free"] == [
+        {"start": "2026-10-20T09:00+00:00", "end": "2026-10-20T10:00+00:00"},
+        {"start": "2026-10-20T11:00+00:00", "end": "2026-10-20T14:00+00:00"},
+        {"start": "2026-10-20T15:00+00:00", "end": "2026-10-20T18:00+00:00"},
+    ]
+    # in another time zone, the same times
+    got = client.post(
+        f"{URL}/when-free", headers=env["sam"], json={**ask, "tz": "Europe/London", "start": "2026-10-20T11:00", "end": "2026-10-20T12:00"}
+    ).json()
+    assert next(p for p in got["people"] if p.get("id") == ids["adeel"])["busy"] == [
+        {"start": "2026-10-20T11:00+01:00", "end": "2026-10-20T12:00+01:00"}
+    ]
+    # he sees each ask in his own timeline; nobody else does
+    asked = _feed(client, env["adeel"], "agent.asked")
+    assert [a["summary"] for a in asked] == ["Sam asked when you're free, Tue 20 Oct – Tue 20 Oct"] * 2
+    assert _feed(client, env["sam"], "agent.asked") == []
+    # a stranger, someone he hasn't let see, and an agent over MCP
+    assert client.post(f"{URL}/when-free", headers=env["stranger"], json=ask).json()["people"][1]["refused"]
+    assert client.post(f"{URL}/when-free", headers=env["ed"], json=ask).json()["people"][1]["refused"]
+    out = tool(client, env["sara"], "when_free", people=["adeel@x.io"], start="2026-10-20T09:00", end="2026-10-20T12:00")
+    assert out["free"] == [
+        {"start": "2026-10-20T09:00+00:00", "end": "2026-10-20T10:00+00:00"},
+        {"start": "2026-10-20T11:00+00:00", "end": "2026-10-20T12:00+00:00"},
+    ]
+    assert _feed(client, env["adeel"], "agent.asked")[0]["summary"].startswith("sara's agent asked when you're free")
+    assert client.post(f"{URL}/when-free", headers=env["sam"], json={**ask, "end": "2026-12-20T09:00"}).status_code == 400
+    assert client.post(f"{URL}/when-free", headers=env["sam"], json={**ask, "tz": "Mars/Base"}).status_code == 400
+    # the assistant asks too, without an approval: it only reads when
+    box = ai_tools.Toolbox(db, cfg, {"id": ids["sam"], "email": "sam@x.io", "name": "Sam"}, set(), set(), None, None)
+    res = json.loads(
+        box.call("when_free", {"people": ["adeel@x.io"], "start": "2026-10-20T09:00", "end": "2026-10-20T18:00", "minutes": 60})[0]
+    )
+    assert len(res["free"]) == 3 and _feed(client, env["adeel"], "agent.asked")[0]["summary"].startswith("Sam's agent asked")

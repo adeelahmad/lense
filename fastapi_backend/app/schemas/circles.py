@@ -9,6 +9,7 @@ from pydantic import Field
 from app.schemas.common import RequestModel, ResponseModel
 
 Member = int | str
+Let = Literal["free_busy"]
 
 
 class Person(ResponseModel):
@@ -21,6 +22,7 @@ class Circle(ResponseModel):
     id: int
     name: str
     members: list[Person]
+    lets: list[Let] = Field(default_factory=list, description="what its people may ask your agent: free_busy, when you're free")
     created_at: str | None = None
     updated_at: str | None = None
 
@@ -33,6 +35,7 @@ class CircleList(ResponseModel):
 class CircleCreate(RequestModel):
     name: str = Field(min_length=1, max_length=80)
     members: list[Member] = Field(default_factory=list, max_length=200, description="people by account id or email")
+    lets: list[Let] = Field(default_factory=list, description="what its people may ask your agent: free_busy, when you're free")
 
 
 class CircleUpdate(RequestModel):
@@ -40,6 +43,7 @@ class CircleUpdate(RequestModel):
     members: list[Member] | None = Field(None, max_length=200, description="everyone in it, replacing who was")
     add: list[Member] = Field(default_factory=list, max_length=200, description="people to add")
     remove: list[Member] = Field(default_factory=list, max_length=200, description="people to take out")
+    lets: list[Let] | None = Field(None, description="what its people may ask your agent, replacing what they could")
 
 
 class ShareIn(RequestModel):
@@ -81,3 +85,34 @@ class ShareUndone(ResponseModel):
 
 
 Direction = Literal["received", "sent"]
+
+
+class WhenFreeIn(RequestModel):
+    people: list[Member] = Field(min_length=1, max_length=20, description="people by account id or email; you are counted too")
+    start: str = Field(max_length=40, description="the window's start, an ISO time (without an offset, in tz)")
+    end: str = Field(max_length=40, description="the window's end, at most 31 days after its start")
+    tz: str = Field("UTC", max_length=60, description="the time zone times are given and answered in, like Europe/London")
+    minutes: int = Field(30, ge=5, le=1440, description="how long the free stretches must be")
+    day_start: int = Field(9, ge=0, le=23, description="the hour each day starts, in tz")
+    day_end: int = Field(18, ge=1, le=24, description="the hour each day ends, in tz")
+
+
+class Span(ResponseModel):
+    start: str
+    end: str
+
+
+class Times(ResponseModel):
+    id: int | None = None
+    name: str | None = None
+    busy: list[Span] | None = Field(None, description="when they're busy; never what, where or with whom")
+    person: str | None = Field(None, description="who was asked about, when they haven't let you see")
+    refused: str | None = None
+
+
+class WhenFree(ResponseModel):
+    start: str
+    end: str
+    tz: str
+    people: list[Times]
+    free: list[Span] = Field(description="when everyone who let you see, and you, are free, within the hours of the day asked for")

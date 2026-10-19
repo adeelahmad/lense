@@ -8,7 +8,7 @@ project: lens
 prose_version: "threat-model.md@same-commit"
 model_status: under-review
 triage_policy: strict
-confidence: {documented: 215, maintainer: 46, inferred: 91, assumption: 8}
+confidence: {documented: 216, maintainer: 46, inferred: 91, assumption: 8}
 
 generation:
   model: "Claude Opus 5.5 (claude-opus-5-5)"
@@ -521,6 +521,16 @@ entry_points:
         obligation_id: share-only-with-circles
         caller_must_enforce: "members must be people the sharer may add; Lens checks the sharer can read the item, refuses vaults, caps the note, and needs publish to give the item; the assistant asks first"
         provenance: {kind: documented, source: 'docs/circles.md "What keeps it safe"'}
+  - id: "POST /circles/when-free, MCP when_free, the assistant's when_free (when people in your circles are free)"
+    component: authz
+    parameters:
+      - name: "people, a window, a time zone, minutes, the hours of the day"
+        attacker_controllable: true
+        x-condition: "anyone signed in"
+        control_kinds: [resource-name, size]
+        obligation_id: free-busy-only-when-let
+        caller_must_enforce: "the person asked must have let a circle with the asker see; Lens answers only start and end times, caps the window and the people, and records each ask in the asked person's timeline"
+        provenance: {kind: documented, source: 'docs/circles.md "When they''re free"'}
   - id: "automations' params and prompts, POST /automations/preview and /automations/variables"
     component: optional
     parameters:
@@ -1065,6 +1075,15 @@ outputs:
       - {id: inv-share-only-to-circles, statement: "a share reaches only people in the sharer's circles and carries only what the sharer can read, never a vault's", property_id: P-CIRCLES, provenance: {kind: documented, source: 'docs/circles.md "What keeps it safe"'}}
     downstream_must_not_assume:
       - {id: dmna-share-snapshot-current, statement: "that the snapshot still matches the item, or that the note is not text steering an agent", provenance: {kind: documented, source: 'docs/circles.md "What keeps it safe"'}}
+  - component: authz
+    channel: "Busy times (POST /circles/when-free; domain/circles_ask.py)"
+    taint: same-as-input
+    x-taint-note: "each person's busy spans and the free stretches, only start and end times, for those who let the asker see"
+    taint_provenance: {kind: documented, source: 'docs/circles.md "When they''re free"'}
+    invariants:
+      - {id: inv-free-busy-only-when-let, statement: "busy times reach only people in a circle that lets free_busy, and only when, never what", property_id: P-FREE-BUSY, provenance: {kind: documented, source: 'docs/circles.md "When they''re free"'}}
+    downstream_must_not_assume:
+      - {id: dmna-free-means-available, statement: "that a free stretch means the person will take a meeting then, or that every event of theirs is in Lens", provenance: {kind: documented, source: 'docs/circles.md "When they''re free"'}}
 
 # ---------------------------------------------------------------- §1.10
 adversaries:
@@ -1656,6 +1675,14 @@ properties_claimed:
     violation_symptoms: [integrity-bypass]
     x-voided-by: "an admin's web session approves, and an admin is trusted; a yes on the Approvals page to the assistant's proposal approves the terms that proposal names; within the terms agents may raise the desired count up to max, spending up to the budget; costs are estimates from list prices (domain/scaling.py accrue), not bills, so a provider can charge more than the budget counts; a cloud unit's user-data holds a join token for that unit, usable once within an hour, which anyone with the cloud account or a process on that machine reading its metadata can see until it is spent (domain/scaling_drivers.py user_data); a cloud provider's API token can do whatever its account can, and Lens calls only the provider's fixed API host with it (domain/scaling_clouds.py); a Lambda unit carries an SSH key of the account's, so whoever holds that key's private half can sign in to the instance (domain/scaling_clouds.py Lambda); a Proxmox provider's address is the admin's to give, and turning `verify_tls` off trusts any server answering there with the API token; a Proxmox unit's first-boot script, with its join token, is passed to the clone through the guest agent (`domain/scaling_proxmox.py`); a RunPod unit's vLLM API key and the provider's Hugging Face token are in the pod's environment, which anyone with the RunPod account can read, and the unit's model server is reachable from the internet through RunPod's proxy behind that key (`domain/scaling_models.py`); a Hugging Face unit is a public Inference Endpoint behind its own vLLM key, which Hugging Face keeps as an encrypted endpoint secret, and the provider's Hugging Face token can manage every endpoint of its account (`domain/scaling_models.py` `HuggingFace`); a SageMaker unit's model calls are signed with the provider's AWS key, which is kept sealed on the unit and, while the unit serves, as the LLM provider's key, so whoever can read Lens's sealed settings can do with it whatever those keys can; the provider's Hugging Face token is in the SageMaker model's environment, which anyone who may describe the account's models can read (`domain/scaling_sagemaker.py`, `domain/llm.py` `chat_request`); an AWS key given by hand as the LLM provider's key, for a SageMaker endpoint or Amazon Bedrock, only signs calls to that runtime and is never sent, but can do whatever its IAM policy allows, so it should allow only invoking the model (`domain/llm.py`, `domain/bedrock.py`); a Bedrock unit's provisioned throughput is billed by the hour with no commitment until Lens deletes it, at the price the admin gives, and its model calls are signed with the provider's AWS key, kept sealed on the unit and, while it serves, as the LLM provider's key (`domain/scaling_bedrock.py`); while a RunPod, Hugging Face, SageMaker or Bedrock unit serves model calls, they go, with the text they carry, to that rented GPU through the host's address (`domain/scaling.py` `_serve`); an SSH provider's host keys are trusted on first use, when an admin saves or checks it, and held to after (a host that answered first with another key is trusted until taken off), and its private key signs in as the given users on the given hosts (`domain/scaling_ssh.py`)"
     provenance: {kind: documented, source: 'docs/scaling.md "The person approves"'}
+  - id: P-FREE-BUSY
+    kind: confidentiality
+    components: [authz, assistant]
+    tier: security-critical
+    conditions: "a person's busy times reach only themselves and people in a circle of theirs that lets free_busy, which nothing turns on but them; only each event's start and end, never what, where or with whom; never from a vault; a window is at most 31 days; every ask shows in the asked person's own timeline as agent.asked"
+    violation_symptoms: [info-leak]
+    x-voided-by: "an event they organise or are invited to by their account's email counts wherever it is held, if they can read it; asks repeated over time show the shape of their days to those they let see; a repeating event counts by its first time only (domain/circles_ask.py)"
+    provenance: {kind: documented, source: 'docs/circles.md "When they''re free"'}
   - id: P-AUTH-REQ
     kind: authentication
     components: [web, identity]
