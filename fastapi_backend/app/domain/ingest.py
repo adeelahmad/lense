@@ -733,6 +733,8 @@ def _generic(s):
 
 PIPE = re.compile(r"^([^|]{1,40})\|([^|]{0,24})\|(.+)$")
 SPK = re.compile(r"^(?:\[?((?:\d{1,2}:)?\d{1,2}:\d{2})\]?\s+)?([A-Z][\w .'’-]{0,30}?)\s*:\s+(\S.*)$")
+# a WebVTT voice span's start tag: <v Name>, or <v.loud Name> with classes after the v
+VOICE = re.compile(r"<v(?:\.[^\s>]*)?(?:\s+([^>]*))?>")
 VTT_TIME = re.compile(r"((?:\d+:)?\d{1,2}:\d{2}[.,]\d{1,3})\s*-->\s*((?:\d+:)?\d{1,2}:\d{2}[.,]\d{1,3})")
 
 
@@ -743,18 +745,52 @@ def _clock(s):
 
 def _cues(raw):
     segs = []
-    for block in re.split(r"\n\s*\n", raw.replace("\r", "")):
+    raw = re.sub(r"(-->[^\n]*\n)[ \t]+\n", r"\1", raw.replace("\r", ""))  # YouTube's cues start with a line of one space
+    for block in re.split(r"\n\s*\n", raw):
         lines = [l for l in block.strip().split("\n") if l.strip()]
         for i, l in enumerate(lines):
             m = VTT_TIME.search(l)
             if m:
+                t0, t1 = _clock(m.group(1)), _clock(m.group(2))
+                voices = _voices("\n".join(lines[i + 1 :]))
+                if voices:
+                    segs += _voiced(t0, t1, voices)
+                    break
                 text = " ".join(lines[i + 1 :]).strip()
-                sm = SPK.match(text) or re.match(r"^<v\s+([^>]+)>(.*)$", text)
-                spk, text = (sm.group(sm.lastindex - 1).strip(), sm.group(sm.lastindex).strip()) if sm else (None, text)
+                sm = SPK.match(text)
+                spk, text = (sm.group(2).strip(), sm.group(3).strip()) if sm else (None, text)
                 if text:
-                    segs.append({"t0": _clock(m.group(1)), "t1": _clock(m.group(2)), "text": re.sub(r"<[^>]+>", "", text), "speaker": spk})
+                    segs.append({"t0": t0, "t1": t1, "text": re.sub(r"<[^>]+>", "", text), "speaker": spk})
                 break
     return segs
+
+
+def _voices(body):
+    """A cue's WebVTT voice spans (<v Name>, <v.loud Name>, closed by </v> or the next one) as [(speaker, text)], one
+    per change of voice; None when it names no voice."""
+    parts = VOICE.split(body)
+    if len(parts) == 1:
+        return None
+    runs = []
+    for name, text in [(None, parts[0]), *zip(parts[1::2], parts[2::2])]:
+        text = " ".join(re.sub(r"<[^>]+>", "", text).split())
+        spk = (html.unescape(name).strip() or None) if name else None
+        if not text:
+            continue
+        if runs and runs[-1][0] == spk:
+            runs[-1] = (spk, runs[-1][1] + " " + text)
+        else:
+            runs.append((spk, text))
+    return runs or None
+
+
+def _voiced(t0, t1, runs):
+    """One line per voice in a cue, sharing its time by how many words each says."""
+    n, w, out = sum(len(x.split()) for _, x in runs), 0, []
+    for spk, text in runs:
+        start, w = t0 + (t1 - t0) * w // n, w + len(text.split())
+        out.append({"t0": start, "t1": t0 + (t1 - t0) * w // n, "text": text, "speaker": spk})
+    return out
 
 
 HEADER = re.compile(r"^([A-Z][\w .'’-]{0,40}?)\s*[\(\[]?((?:\d{1,2}:)?\d{1,2}:\d{2})(?:\.\d+)?[\)\]]?\s*:?\s*$")

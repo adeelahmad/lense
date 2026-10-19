@@ -205,7 +205,10 @@ and faces (video only), analyze and report. The asset takes the file's fingerpri
 same file find it, unless another asset in the namespace has it already.
 
 Speakers are recognised from `Name: text`, `[12:30] Name: text`, `Name (12:30): text`, Otter/Zoom/Teams exports (a
-`Name  12:30` line, then what they said), `speaker|emotion|text` lines, and the speakers in SRT/VTT and JSON. Anything
+`Name  12:30` line, then what they said), `speaker|emotion|text` lines, and the speakers in SRT/VTT and JSON. In
+WebVTT, a cue's voice span names its speaker: `<v Name>`, or `<v.loud Name>` with classes after the `v`, closed by
+`</v>` or not. The tags are left out of the text, and a cue with two voices becomes two lines that share its time by
+how many words each says; a cue without a voice takes its speaker from a `Name: text` line, or has none. Anything
 else becomes paragraphs split into segments of about 40 words with estimated times. Markdown and MDX are reduced to text
 first: front matter or the first heading becomes the title; imports, exports, JSX and code blocks are dropped. A PDF
 imported as a transcript needs a text layer; import a scan as a document instead, and its pages are read by OCR. Named speakers are matched to the namespace's people by name; generic labels (SPEAKER_00, S1, CH0)

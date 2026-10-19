@@ -127,6 +127,75 @@ def test_paste_and_chunk_stitching(db, cfg):
         assert naive * 0.6 < stitched < naive * 0.9
 
 
+YOUTUBE_VTT = """WEBVTT
+Kind: captions
+Language: en
+
+00:00:00.160 --> 00:00:02.869 align:start position:0%
+\x20
+welcome<00:00:00.480><c> back</c><00:00:00.880><c> to</c><00:00:01.040><c> the</c><00:00:01.280><c> channel</c>
+
+00:00:02.869 --> 00:00:05.000 align:start position:0%
+today<00:00:03.200><c> we're</c><00:00:03.440><c> looking</c><00:00:03.760><c> at</c><00:00:04.000><c> tides</c>
+"""
+
+MEETING_VTT = """WEBVTT
+
+1b2c4d5e-2a7f-4b1c-9d3e-0f6a8b7c5d4e/12-0
+00:00:03.120 --> 00:00:06.480
+<v Priya Natarajan>Can everyone hear me okay?</v>
+
+1b2c4d5e-2a7f-4b1c-9d3e-0f6a8b7c5d4e/13-0
+00:00:06.900 --> 00:00:09.300
+<v Tom O'Brien>Yes, loud and clear.</v>
+
+1b2c4d5e-2a7f-4b1c-9d3e-0f6a8b7c5d4e/14-0
+00:00:09.300 --> 00:00:12.000
+<v Priya Natarajan>Great, let's start with the
+budget review.</v>
+"""
+
+CLASSED_VTT = """WEBVTT
+
+00:00:00.000 --> 00:00:02.000
+<v.loud Esme>It's a blue apple tree!
+
+00:00:02.000 --> 00:00:04.000
+<v Mary>No way!
+<v.first.loud Esme>Oh <i>yes</i>!
+
+00:00:04.000 --> 00:00:05.000
+Nobody named here.
+"""
+
+
+def test_webvtt_voice_spans_name_each_line(db, cfg):
+    yt = ingest.read_text_transcript(YOUTUBE_VTT, "auto")["segments"]  # no voices: as before, the inline timings dropped
+    assert [(s["speaker"], s["text"], s["t0"], s["t1"]) for s in yt] == [
+        (None, "welcome back to the channel", 160, 2869),
+        (None, "today we're looking at tides", 2869, 5000),
+    ]
+    meeting = ingest.read_text_transcript(MEETING_VTT, "vtt")["segments"]  # Teams and Zoom: <v Name>...</v>
+    assert [(s["speaker"], s["text"]) for s in meeting] == [
+        ("Priya Natarajan", "Can everyone hear me okay?"),
+        ("Tom O'Brien", "Yes, loud and clear."),
+        ("Priya Natarajan", "Great, let's start with the budget review."),
+    ]
+    classed = ingest.read_text_transcript(CLASSED_VTT, "vtt")["segments"]  # classes after the v; two voices in one cue
+    assert [(s["speaker"], s["text"], s["t0"], s["t1"]) for s in classed] == [
+        ("Esme", "It's a blue apple tree!", 0, 2000),
+        ("Mary", "No way!", 2000, 3000),
+        ("Esme", "Oh yes!", 3000, 4000),
+        (None, "Nobody named here.", 4000, 5000),
+    ]
+    srt = "1\n00:00:01,000 --> 00:00:02,500\nAlice: <i>still</i> read from the line\n"  # a cue without a voice: unchanged
+    assert [(s["speaker"], s["text"]) for s in ingest.read_text_transcript(srt, "srt")["segments"]] == [
+        ("Alice", "still read from the line")
+    ]
+    ingest.import_text(db, cfg, "pods", MEETING_VTT, title="Standup")  # the voices become the namespace's people
+    assert speaker_names(db, "pods") == {"Priya Natarajan", "Tom O'Brien"}
+
+
 def test_an_engine_that_isnt_installed_falls_back_to_one_that_is(monkeypatch):
     """faster-whisper is there (EXTRAS=whisper), SenseVoice (the default engine) not yet: imports are transcribed anyway."""
     made = []
