@@ -7,7 +7,7 @@ from typing import Any, Literal
 from pydantic import Field
 
 from app.schemas.common import AccessLevel, AccessPart, RequestModel, ResponseModel
-from app.schemas.recordings import MediaKind
+from app.schemas.recordings import CaptionTrack, MediaKind
 
 View = Literal["full", "public", "locked"]
 RequestStatus = Literal["pending", "approved", "declined"]
@@ -119,6 +119,11 @@ class PublicRecording(ResponseModel):
     closed: list[AccessPart] = Field(description="parts the asset has that this visitor can't use")
     files: list[PublicFile] = Field(default_factory=list, description="its supplementary files this visitor may download")
     files_closed: int = Field(0, description="how many of its files this visitor can't download")
+    captions: list[CaptionTrack] = Field(
+        default_factory=list,
+        description="with media this visitor may play: the text they may read as WebVTT tracks for the <video>, the "
+        "transcript first, then supplementary transcripts, captions and translations that say when their lines are",
+    )
     downloads: bool = Field(
         True,
         description="this visitor may save its files; false when its owners turned downloads off (it still plays and "

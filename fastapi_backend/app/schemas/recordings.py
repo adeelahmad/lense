@@ -401,6 +401,16 @@ class Page(ResponseModel):
     label: str | None = Field(None, description="the PDF's own name for it (iv, A-1, …) when it isn't its number")
 
 
+class CaptionTrack(ResponseModel):
+    """A WebVTT track for the player's <video> (docs/video.md#captions): the transcript, or a supplementary transcript,
+    captions or translation that says when its lines are."""
+
+    kind: Literal["captions", "subtitles"] = Field(description="the <track> kind: subtitles for a translation")
+    label: str = Field(description="its name in the browser's captions menu")
+    language: str | None = Field(None, description="its language (BCP 47), when known")
+    url: str = Field(description="a signed link to it as WebVTT, through IIIF (relative to Lens's address)")
+
+
 class Player(ResponseModel):
     """Everything the player shows: text, people, sections, entities and, for videos, shots and faces; for
     documents and images, their pages."""
@@ -443,6 +453,11 @@ class Player(ResponseModel):
     faces_mode: str = Field("off", description="the namespace's face mode: off, detect or recognize")
     faces_pixelate: bool = Field(False, description="the namespace pixelates faces in the pictures visitors see")
     nsfw: NsfwState | None = Field(None, description="NSFW classification, where it's on in its namespace and it was classified")
+    captions: list[CaptionTrack] = Field(
+        default_factory=list,
+        description="its text as WebVTT tracks, the transcript first (not a document's or an image's); supplementary "
+        "ones only for members of its namespace",
+    )
 
 
 class RecordingUpdate(RequestModel):

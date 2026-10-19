@@ -14,6 +14,7 @@ import {
 import { useCallback, useRef, useState } from "react";
 
 import { RevealCover, useBlur } from "@/components/nsfw/nsfw";
+import { CaptionTracks } from "@/components/player/captions";
 import { usePlayerApi, usePlayerState, usePlayerTick } from "@/components/player/media";
 import { PlayButton, SpeedMenu } from "@/components/player/transport";
 import { useRec } from "@/components/recording/context";
@@ -31,7 +32,8 @@ export type VideoLayoutMode = "side" | "stacked" | "theatre";
 /**
  * The video with its overlays (VR1): faces (blue, labelled boxes), text on screen (dashed gold boxes), the kind of
  * object chosen in the Objects tab (green boxes) and captions from the transcript. Overlays redraw a few times a
- * second from the player clock, not per frame.
+ * second from the player clock, not per frame. The text also comes as WebVTT tracks, which the browser draws only
+ * where the overlay can't be seen (full screen, picture in picture), so captions never show twice.
  */
 export function VideoStage({
   overlays,
@@ -81,7 +83,9 @@ export function VideoStage({
             onClick={() => api.toggle()}
             className={cn("absolute inset-0 size-full cursor-pointer bg-black object-contain", blur)}
             aria-label={`Video: ${model.title}`}
-          />
+          >
+            <CaptionTracks tracks={model.captions} on={overlays.captions} overlay />
+          </video>
         ) : (
           <div className="absolute inset-0 grid place-items-center text-[13px] text-white/60">
             The video file isn&apos;t available.

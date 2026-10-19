@@ -51,7 +51,8 @@ and translations are open when its text is, indexes when its index is, and thumb
 attachments (release forms, notes, anything else) always need permission. Decided with the project owner. People with
 permission download all of them; the public page lists the files a visitor may download and says how many more need
 permission, which signed-in visitors may ask for. IIIF lists every file, the closed ones behind the Authorization
-Flow.
+Flow. A video's player offers the ones it may read that say when their lines are as caption tracks, beside the
+transcript's ([Captions](video.md#captions)); with downloads off they still play, as the transcript does.
 
 ## Who is asking
 

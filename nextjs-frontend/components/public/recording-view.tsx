@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpRight, ChevronDown, ChevronUp, Clock3, Download, FileText, Lock } from "lucide-react";
+import { ArrowUpRight, Captions, ChevronDown, ChevronUp, Clock3, Download, FileText, Lock } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -10,6 +10,7 @@ import { Public } from "@/app/openapi-client";
 import type { PublicRecording } from "@/app/openapi-client/types.gen";
 import { AccessBadge } from "@/components/access/access-fields";
 import { first, type Meta } from "@/components/iiif/metadata-model";
+import { CaptionTracks } from "@/components/player/captions";
 import { PlayerProvider, usePlayerApi, usePlayerState } from "@/components/player/media";
 import { PlayButton, SkipButton, SpeedMenu, TimeReadout, VolumeControl } from "@/components/player/transport";
 import { useMediaQuery } from "@/components/player/use-media-query";
@@ -244,6 +245,9 @@ function MemberNote({ rec }: { rec: Rec }) {
 function MediaCard({ rec, duration, signedIn }: { rec: Rec; duration: number; signedIn: boolean }) {
   const api = usePlayerApi();
   const phone = useMediaQuery("(max-width: 639px)");
+  // the browser draws the captions over the video (there is no overlay here); off until the visitor turns them on, as
+  // the page was before it had tracks
+  const [captions, setCaptions] = useState(false);
   const closed = rec.closed.includes("media");
   if (!rec.media && !closed) return null; // nothing to play: a transcript on its own
   const m = rec.media;
@@ -256,6 +260,7 @@ function MediaCard({ rec, duration, signedIn }: { rec: Rec; duration: number; si
     );
   }
   const t = rec.transcript;
+  const tracks = m.kind === "video" ? (rec.captions ?? []) : [];
   const lanes: WaveLane[] = t?.speakers.length
     ? t.speakers.map((s) => ({ key: s.key, name: s.name, color: s.color }))
     : [{ key: "all", name: title, color: "var(--fg-muted)" }];
@@ -280,7 +285,9 @@ function MediaCard({ rec, duration, signedIn }: { rec: Rec; duration: number; si
           className="aspect-video w-full cursor-pointer rounded-sm bg-black object-contain"
           onClick={() => api.toggle()}
           aria-label={`Video: ${rec.title ?? "asset"}`}
-        />
+        >
+          <CaptionTracks tracks={tracks} on={captions} />
+        </video>
       ) : (
         <audio ref={api.attach} src={m.url} preload="metadata" className="hidden" />
       )}
@@ -303,6 +310,11 @@ function MediaCard({ rec, duration, signedIn }: { rec: Rec; duration: number; si
         <SkipButton dir={1} />
         <TimeReadout className="ml-1" />
         <span className="flex-1" />
+        {tracks.length > 0 && (
+          <IconButton label="Captions" active={captions} onClick={() => setCaptions((c) => !c)}>
+            <Captions />
+          </IconButton>
+        )}
         <SpeedMenu />
         <span className="max-sm:hidden">
           <VolumeControl />

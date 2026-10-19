@@ -186,6 +186,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   beside the asset as a translation whose lines keep their times, found by search like an uploaded one.
   A date said ("let's meet next Tuesday at 3") becomes a calendar event in one click,
   prefilled from the line and added only once you approve it ([propose an event](docs/processing.md#propose-an-event)).
+  Videos play their transcript, and timed captions and translations added beside them, as captions the browser
+  itself shows (its captions menu, full screen, picture in picture), in the workspace and on public pages.
   ([Graph](docs/graph.md), [entity pages](docs/notes.md#entity-pages),
   [similar content](docs/processing.md#similar-content), [graph history](docs/graph-history.md),
   [topics](docs/topics.md), [video](docs/video.md), [NSFW classification](docs/nsfw.md),
@@ -194,7 +196,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [your own names](docs/processing.md#your-own-names-in-transcription),
   [cleaning up transcripts](docs/processing.md#cleaning-up-transcripts), [dates](docs/processing.md#dates),
   [unsure words](docs/processing.md#unsure-words),
-  [translations](docs/api.md#translating-a-transcript); [checks](docs/requirements.md#understand-it))
+  [translations](docs/api.md#translating-a-transcript), [captions](docs/video.md#captions);
+  [checks](docs/requirements.md#understand-it))
 - **Learn from it.** Make a two-host podcast episode about what you pick, every claim cited and checked against its
   source, read aloud in two voices, by Kokoro on this machine or a speech provider. Turn a voice session or a meeting into a technical spec, in a note linked to it,
   that keeps every decision, every no and every constraint in the speaker's own words, linked to when they said them,

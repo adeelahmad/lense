@@ -15,16 +15,18 @@ from fastapi.responses import Response
 
 from app.api import evidence as evidence_api
 from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Writer, domain_errors
-from app.api.media import sign_url, sign_urls
+from app.api.media import sign_tracks, sign_url, sign_urls
 from app.api.streaming import LOCKED, file_response, range_response
 from app.domain import access as acc
 from app.domain import (
     analyze,
     auth,
     deletion,
+    documents,
     enhance,
     events_content,
     hierarchy,
+    iiif,
     ipgroups,
     jobs,
     keyring,
@@ -39,6 +41,7 @@ from app.domain import (
     video,
 )
 from app.domain import fields as fieldmod
+from app.domain import files as filemod
 from app.domain import metadata as md
 from app.domain.store import API, DB
 from app.schemas.common import AccessLevel, Ok
@@ -622,7 +625,12 @@ def get_player(rid: int, acl: Acl, db: Db, cfg: Cfg, s: str = "") -> Player:
     data = render.player_data(db, rid, audio_link(db, cfg, rid, s))
     data["nsfw"] = _nsfw(db, cfg, rec, rid)
     data["unsure_below"] = cfg["transcribe"].get("confidence_highlight") or None
-    return sign_urls(data, full=acl.member(rec))
+    member = acl.member(rec)
+    # its text as WebVTT tracks for the <video>: a document's has no times; a share link doesn't open its files
+    timed = rec.get("source") not in documents.KINDS
+    files = filemod.of(db, rid) if member and timed else []
+    data["captions"] = sign_tracks(cfg, iiif.caption_tracks(rid, rec.get("language"), files, timed and bool(data["segments"])))
+    return sign_urls(data, full=member)
 
 
 @router.get("/{rid}/embed-link")

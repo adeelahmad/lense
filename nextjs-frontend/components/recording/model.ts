@@ -3,7 +3,7 @@
  * types, plus the pure helpers the page, the player and the transcript share (turns, lookups, lanes, ticks, find).
  * Everything here is free of React so it can be unit tested.
  */
-import type { Player } from "@/app/openapi-client/types.gen";
+import type { CaptionTrack, Player } from "@/app/openapi-client/types.gen";
 import { speakerColor } from "@/components/ui/badge";
 import { tc } from "@/lib/format";
 
@@ -170,6 +170,8 @@ export type PlayerModel = {
   objects: ObjectTrack[];
   descriptions: Description[];
   poster: string | null;
+  /** Its text as WebVTT tracks for the <video>, the transcript first (signed links). */
+  captions: CaptionTrack[];
   /** Words transcription was less sure of than this (0..1) are marked to check; null: none are (Settings → Transcription). */
   unsureBelow: number | null;
 };
@@ -388,6 +390,15 @@ export function normalizePlayer(raw: Player): PlayerModel {
       })
       .filter((d) => d.text),
     poster: str(r.poster),
+    captions: arr(r.captions)
+      .map(rec)
+      .filter((t) => typeof t.url === "string" && t.url)
+      .map((t) => ({
+        kind: t.kind === "subtitles" ? ("subtitles" as const) : ("captions" as const),
+        label: str(t.label) ?? "Captions",
+        language: str(t.language),
+        url: String(t.url),
+      })),
     unsureBelow: unsureThreshold(r.unsure_below),
   };
 }

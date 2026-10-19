@@ -36,7 +36,7 @@ def recording(db, cfg, rid, seen, a, member=False, granted=False, network=None):
 
     `closed` lists the parts the recording has that this visitor can't use; a locked recording closes all of them.
     """
-    rec = db.one("SELECT title, recorded_at, duration_ms, space, source, path, remote, media FROM $r", r=R("recording", rid))
+    rec = db.one("SELECT title, recorded_at, duration_ms, space, source, path, remote, media, language FROM $r", r=R("recording", rid))
     if not rec:
         raise KeyError(rid)
     meta = md.effective(db, cfg, rid)
@@ -70,6 +70,7 @@ def recording(db, cfg, rid, seen, a, member=False, granted=False, network=None):
         "closed": [p for p in acc.PARTS if has[p]],
         "files": [],
         "files_closed": len(filemod.of(db, rid)),
+        "captions": [],
     }
     if seen == "locked":
         return out
@@ -133,6 +134,9 @@ def recording(db, cfg, rid, seen, a, member=False, granted=False, network=None):
             if acc.is_open(a, "transcript")
             else [],
         }
+    if use["media"] and not paged:  # what they may read of it, as tracks for the <video> (the route signs them)
+        tracks = [f for f in kept if filemod.open_to(a, seen, f["role"])]
+        out["captions"] = iiif.caption_tracks(rid, rec.get("language"), tracks, use["transcript"])
     if use["index"]:
         out["chapters"] = [{"t0": s["t0"], "t1": s.get("t1"), "title": s.get("title")} for s in d["sections"]]
     return out
