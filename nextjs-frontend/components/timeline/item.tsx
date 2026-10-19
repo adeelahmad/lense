@@ -2,6 +2,7 @@
 
 import {
   Bell,
+  CalendarClock,
   CalendarDays,
   ChevronDown,
   ChevronRight,
@@ -22,7 +23,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { forwardRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { forwardRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 
 import type { Reaction } from "@/app/openapi-client/types.gen";
 import { askAbout } from "@/components/page-chat/page-chat-model";
@@ -33,9 +34,11 @@ import {
   familyOf,
   fieldLabel,
   groupSummary,
+  localInput,
   objectFields,
   objectHref,
   SNOOZES,
+  tomorrowMorning,
   type Activity,
   type Family,
   type Group,
@@ -47,6 +50,7 @@ import { useOpened } from "@/components/timeline/use-timeline";
 import { sumReactions } from "@/components/timeline/social-model";
 import { Badge } from "@/components/ui/badge";
 import { Button, IconButton } from "@/components/ui/button";
+import { Dialog } from "@/components/ui/dialog";
 import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/ui/menu";
 import { DateTime } from "@/components/ui/states";
 import { cn } from "@/lib/utils";
@@ -209,11 +213,13 @@ export function ActivityDetail({
 }
 
 /** How to mute from an item: its actor (the default) or its kind, for good or for a snooze (an hour, a day, a week). */
-export type MuteOpts = { kind?: boolean; span?: Snooze };
+export type MuteOpts = { kind?: boolean; span?: Snooze; until?: Date };
 const SNOOZE_SPANS = Object.keys(SNOOZES) as Snooze[];
 
-/** Mute the item's actor with one click, and the other ways (a snooze, its kind) behind a small menu beside it. */
+/** Mute the item's actor with one click, and the other ways (a snooze, one to a time you pick, its kind) behind a
+ * small menu beside it. */
 function MuteButton({ name, kind, onMute }: { name: string; kind?: string; onMute: (opts?: MuteOpts) => void }) {
+  const [picking, setPicking] = useState<{ kind: boolean } | null>(null);
   return (
     <span className="inline-flex items-center">
       <Button
@@ -237,6 +243,9 @@ function MuteButton({ name, kind, onMute }: { name: string; kind?: string; onMut
               Mute {name} for {span}
             </MenuItem>
           ))}
+          <MenuItem icon={<CalendarClock />} onSelect={() => setPicking({ kind: false })}>
+            Mute {name} until…
+          </MenuItem>
           {kind && (
             <>
               <MenuItem icon={<VolumeX />} onSelect={() => onMute({ kind: true })}>
@@ -247,11 +256,76 @@ function MuteButton({ name, kind, onMute }: { name: string; kind?: string; onMut
                   Mute {kind} items for {span}
                 </MenuItem>
               ))}
+              <MenuItem icon={<CalendarClock />} onSelect={() => setPicking({ kind: true })}>
+                Mute {kind} items until…
+              </MenuItem>
             </>
           )}
         </MenuContent>
       </Menu>
+      {picking && (
+        <SnoozeUntil
+          what={picking.kind ? `${kind} items` : name}
+          onClose={() => setPicking(null)}
+          onPick={(until) => {
+            onMute({ kind: picking.kind || undefined, until });
+            setPicking(null);
+          }}
+        />
+      )}
     </span>
+  );
+}
+
+/** Pick when a snooze ends: tomorrow at nine to start with, Enter mutes. */
+function SnoozeUntil({ what, onPick, onClose }: { what: string; onPick: (until: Date) => void; onClose: () => void }) {
+  const [value, setValue] = useState(() => localInput(tomorrowMorning()));
+  const [error, setError] = useState("");
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    const until = new Date(value);
+    if (Number.isNaN(until.getTime()) || until.getTime() <= Date.now()) {
+      setError("Pick a time still to come.");
+      return;
+    }
+    onPick(until);
+  };
+  return (
+    <Dialog
+      open
+      onOpenChange={(o) => !o && onClose()}
+      title={`Mute ${what} until`}
+      description="It comes back by itself then; the Muted list ends it sooner."
+      actions={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form="snooze-until" variant="primary">
+            Mute
+          </Button>
+        </>
+      }
+    >
+      <form id="snooze-until" onSubmit={submit} className="flex flex-col gap-1.5">
+        <input
+          type="datetime-local"
+          aria-label="Until"
+          value={value}
+          min={localInput(new Date())}
+          onChange={(e) => {
+            setValue(e.target.value);
+            setError("");
+          }}
+          className="h-9 rounded-md border border-border bg-surface px-2 text-[14px] text-fg"
+        />
+        {error && (
+          <p role="alert" className="text-[12.5px] text-red-dark">
+            {error}
+          </p>
+        )}
+      </form>
+    </Dialog>
   );
 }
 

@@ -13,6 +13,8 @@ import {
   objectFields,
   objectHref,
   snoozeUntil,
+  localInput,
+  tomorrowMorning,
   toParams,
   toQuery,
   unseen,
@@ -193,4 +195,10 @@ test("a snooze ends an hour, a day or a week from now", () => {
   expect(snoozeUntil("an hour", now)).toBe("2026-10-19T10:00:00.000Z");
   expect(snoozeUntil("a day", now)).toBe("2026-10-20T09:00:00.000Z");
   expect(snoozeUntil("a week", now)).toBe("2026-10-26T09:00:00.000Z");
+});
+
+test("a snooze to a time you pick starts at nine tomorrow, in the browser's own time", () => {
+  const d = tomorrowMorning(new Date(2026, 9, 31, 22, 15));
+  expect(localInput(d)).toBe("2026-11-01T09:00");
+  expect(localInput(new Date(2026, 0, 5, 7, 3))).toBe("2026-01-05T07:03");
 });

@@ -176,14 +176,21 @@ export function useMutes() {
     onError: (e) => toast({ tone: "red", title: "Couldn’t save the mute", body: (e as Error).message }),
   });
   const mute = useCallback(
-    (target: { actor: string; name: string } | { kind: string; name: string }, span?: Snooze) => {
+    (target: { actor: string; name: string } | { kind: string; name: string }, when?: Snooze | Date) => {
+      const until = when instanceof Date ? when.toISOString() : when ? snoozeUntil(when) : undefined;
+      const title =
+        when instanceof Date
+          ? `Muted ${target.name} until ${when.toLocaleString()}`
+          : when
+            ? `Muted ${target.name} for ${when}`
+            : `Muted ${target.name}`;
       mutate(
-        { ...target, until: span ? snoozeUntil(span) : undefined, on: true },
+        { ...target, until, on: true },
         {
           onSuccess: () =>
             toast({
               tone: "green",
-              title: span ? `Muted ${target.name} for ${span}` : `Muted ${target.name}`,
+              title,
               body: "Its activities stay, for everyone else and for your automations; hidden=true shows them to you.",
               action: { label: "Undo", onClick: () => mutate({ ...target, on: false }) },
             }),
