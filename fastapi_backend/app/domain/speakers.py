@@ -251,18 +251,50 @@ def _update_centroid(db, sid, emb, weight):
     db.q("UPDATE $r SET embedding = $e, n_obs = $n", r=R("speaker", sid), e=_vec(v / (np.linalg.norm(v) + 1e-9)), n=float(n + weight))
 
 
+def _not_them(db, prints, reg):
+    """{local_label: speakers that voice can't be}. Of two people someone said aren't the same, a voice goes to (or is
+    suggested as) only the one it sounds more like: their voice overall or in any one recording they're in, so a voice
+    split off from a person, or turned down as them, isn't given back to them because it sits near their average."""
+    ids = {sid for sid, _ in reg}
+    no = {p for p in _dismissed(db, ids) if p[0] in ids and p[1] in ids}
+    if not no:
+        return {}
+    who = sorted({x for p in no for x in p})
+    voices = {sid: [v] for sid, v in reg if sid in who}
+    for a in db.rows("SELECT speaker, embedding FROM appearance WHERE speaker IN $w AND embedding != NONE", w=who):
+        voices[a["speaker"]].append(np.asarray(a["embedding"], dtype=np.float64))
+    out = {}
+    for l, (e, _) in prints.items():
+        like = {sid: max((float(np.dot(e, v)) for v in vs if v.shape == e.shape), default=None) for sid, vs in voices.items()}
+        for a, b in no:
+            if like[a] is None or like[b] is None:
+                continue
+            out.setdefault(l, set()).update(x for x, y in ((a, b), (b, a)) if like[x] <= like[y])
+    return out
+
+
 def match(db, cfg, nid, prints):
     """prints: {local_label: (embedding, seconds)} -> {local_label: (speaker_id, score, how)}.
 
     Greedy one-to-one assignment by similarity: two voices in one recording never map to the
-    same speaker. Close-but-unsure matches become new speakers with a suggested merge.
+    same speaker. Close-but-unsure matches become new speakers with a suggested merge. A voice is
+    never given to, or suggested as, someone a person said it isn't (_not_them).
     """
     hi, lo = cfg["speakers"]["match_threshold"], cfg["speakers"]["review_threshold"]
     reg = [
         (r["id"], np.asarray(r["embedding"], dtype=np.float64))
         for r in db.rows("SELECT record::id(id) AS id, embedding FROM speaker WHERE space = $s AND embedding != NONE", s=nid)
     ]
-    pairs = sorted(((float(np.dot(e, v)), l, sid) for l, (e, _) in prints.items() for sid, v in reg if v.shape == e.shape), reverse=True)
+    nope = _not_them(db, prints, reg)
+    pairs = sorted(
+        (
+            (float(np.dot(e, v)), l, sid)
+            for l, (e, _) in prints.items()
+            for sid, v in reg
+            if v.shape == e.shape and sid not in nope.get(l, ())
+        ),
+        reverse=True,
+    )
     out, used = {}, set()
     for sim, l, sid in pairs:
         if sim < hi:
