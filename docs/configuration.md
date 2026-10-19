@@ -208,8 +208,10 @@ makes such endpoints). So do Amazon Bedrock's models: the address is
 `https://bedrock-runtime.<region>.amazonaws.com`, the model a Bedrock model id, inference profile
 (`us.amazon.nova-lite-v1:0`) or provisioned throughput ARN, and the key an AWS access key the same way. Lens sends its
 requests to Bedrock's Converse API, with the system prompt, images, tools and tool results it carries, asks for JSON
-in the system prompt, and gets each answer whole (not streamed yet). Embeddings and speech need a server of their own
-then: they never borrow the AWS key. The keys need `bedrock:InvokeModel` on the model. Picking a provider changes nothing until you save; from then on, what Lens asks its model
+in the system prompt; a chat's answer streams as it is written (ConverseStream). Embeddings and speech need a server
+of their own then: they never borrow the AWS key. The keys need `bedrock:InvokeModel` and
+`bedrock:InvokeModelWithResponseStream` on the model. A SageMaker endpoint's chat answers stream the same way
+(InvokeEndpointWithResponseStream), as the container writes them. Keys allowed only `bedrock:InvokeModel` or `sagemaker:InvokeEndpoint` still work: their answers come whole. Picking a provider changes nothing until you save; from then on, what Lens asks its model
 (summaries, chat, descriptions, with the text they need) goes to that provider.
 
 ## Chat models

@@ -64,19 +64,24 @@ def trying(saved, base_url=None, model=None, api_key=None):
     return l
 
 
-def _post(cfg, payload):
+def _post(cfg, payload, whole=False):
     """The configured server's answer to a chat request (an open HTTP response, or Bedrock's as one); LLMError, or
-    ContextFull, when it refuses."""
+    ContextFull, when it refuses. `whole` asks a SageMaker endpoint for the answer whole, as before it streamed."""
     l = cfg["llm"]
     if not configured(cfg):
         raise LLMError("no language model is configured (Settings → LLM provider)")
     if region := bedrock.region(l.get("base_url")):
         return _bedrock(cfg, payload, region)
-    req = chat_request(cfg, payload)
+    req = chat_request(cfg, payload, whole)
     try:
-        return urllib.request.urlopen(req, timeout=l.get("timeout") or 300)
+        r = urllib.request.urlopen(req, timeout=l.get("timeout") or 300)
+        if "vnd.amazon.eventstream" in (r.headers.get("Content-Type") or ""):
+            return PayloadParts(r)
+        return r
     except urllib.error.HTTPError as e:
         said = e.read().decode("utf-8", "replace")
+        if e.code == 403 and req.full_url.endswith("/invocations-response-stream"):
+            return _post(cfg, payload, whole=True)  # keys that may only InvokeEndpoint, as before answers streamed
         if e.code in (400, 413) and FULL_SAYS.search(said):
             m = WINDOW_SAYS.search(said)
             window = _tokens(next(g for g in m.groups() if g)) if m else None
@@ -125,18 +130,66 @@ def shared(cfg):
     return l.get("base_url"), _key(l)
 
 
-def chat_request(cfg, payload):
+def chat_request(cfg, payload, whole=False):
     """The POST of a chat request to the configured server: `/chat/completions` with the key as a bearer token, or a
-    SageMaker endpoint's `/invocations` signed with the AWS key."""
+    SageMaker endpoint's `/invocations` signed with the AWS key (`/invocations-response-stream` for a streamed
+    answer: InvokeEndpointWithResponseStream, whose parts are the container's own server-sent events)."""
     l = cfg["llm"]
     body = json.dumps(payload).encode()
     region = sagemaker_region(cfg)
     if region is None:
         headers = {"Content-Type": "application/json", **_headers(cfg)}
         return urllib.request.Request(l["base_url"].rstrip("/") + "/chat/completions", data=body, headers=headers, method="POST")
-    url = l["base_url"].strip().rstrip("/") + "/invocations"
-    headers = {"Content-Type": "application/json", "Accept": "application/json, text/event-stream"}
+    if payload.get("stream") and not whole:
+        url = l["base_url"].strip().rstrip("/") + "/invocations-response-stream"
+        headers = {"Content-Type": "application/json", "X-Amzn-SageMaker-Accept": "text/event-stream"}
+    else:
+        url = l["base_url"].strip().rstrip("/") + "/invocations"
+        headers = {"Content-Type": "application/json", "Accept": "application/json, text/event-stream"}
     return urllib.request.Request(url, data=body, headers=_aws_signed(cfg, region, url, body, headers), method="POST")
+
+
+class PayloadParts:
+    """SageMaker's streamed answer (AWS's event stream encoding, read with botocore's own decoder) as the container
+    wrote it: the bytes of each PayloadPart event, in lines. An error event (ModelStreamError, InternalStreamFailure)
+    is an OSError, which `_stream` reports as the server stopping mid-answer."""
+
+    def __init__(self, r):
+        self.r, self.headers = r, {"Content-Type": "text/event-stream"}
+
+    def _parts(self):
+        from botocore.eventstream import EventStreamBuffer, ParserError
+
+        buf = EventStreamBuffer()
+        try:
+            while chunk := self.r.read(65536):
+                buf.add_data(chunk)
+                for m in buf:
+                    h = m.headers
+                    if h.get(":message-type") == "event" and h.get(":event-type") == "PayloadPart":
+                        yield m.payload
+                    elif h.get(":message-type") in ("exception", "error"):
+                        what = h.get(":exception-type") or h.get(":error-code") or "error"
+                        try:
+                            said = json.loads(m.payload or b"{}").get("Message") or h.get(":error-message") or ""
+                        except ValueError:
+                            said = h.get(":error-message") or ""
+                        raise OSError(f"{what}: {said}"[:300])
+        except ParserError as e:
+            raise OSError(f"the answer's event stream broke: {e}") from None
+
+    def __iter__(self):
+        rest = b""
+        for part in self._parts():
+            rest += part
+            *lines, rest = rest.split(b"\n")
+            for line in lines:
+                yield line + b"\n"
+        if rest:
+            yield rest
+
+    def close(self):
+        self.r.close()
 
 
 def _aws_key(cfg, service):
@@ -211,6 +264,12 @@ def _bedrock(cfg, payload, region):
     except ValueError as e:
         raise LLMError(f"400 from the LLM server: {e}") from None
     try:
+        if payload.get("stream"):
+            try:
+                return bedrock.Streamed(client.converse_stream(**params)["stream"], payload["model"])
+            except ClientError as e:  # keys that may only InvokeModel, as before answers streamed: the answer whole
+                if (e.response.get("Error") or {}).get("Code") != "AccessDeniedException":
+                    raise
         out = client.converse(**params)
     except ClientError as e:
         err, status = e.response.get("Error") or {}, (e.response.get("ResponseMetadata") or {}).get("HTTPStatusCode") or 400

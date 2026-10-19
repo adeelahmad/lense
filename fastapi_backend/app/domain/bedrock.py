@@ -7,7 +7,8 @@ access key>` (`:<session token>` after them for temporary keys). Calls go throug
 extra, fetched on first use), which signs them with AWS Signature Version 4, so the key itself is never sent.
 
 Converse takes the parts of a conversation Lens sends: system prompts, text and images, tool definitions, the
-assistant's tool calls and their results. A JSON Schema asked for (`response_format`) goes into the system prompt."""
+assistant's tool calls and their results. A JSON Schema asked for (`response_format`) goes into the system prompt. A
+streamed answer is ConverseStream's, read as an OpenAI-compatible server's server-sent events as it is written."""
 
 from __future__ import annotations
 
@@ -124,6 +125,49 @@ def converse_params(payload):
         choice = {"any": {}} if payload.get("tool_choice") == "required" else {"auto": {}}
         params["toolConfig"] = {"tools": specs, "toolChoice": choice}
     return params
+
+
+class Streamed:
+    """ConverseStream's events as an OpenAI-compatible server's streamed reply: `data:` lines of chat completion
+    chunks, then `data: [DONE]`, for llm.py to read as it reads any server's. An error event mid-answer is an OSError,
+    which llm.py reports as the server stopping mid-answer."""
+
+    headers = {"Content-Type": "text/event-stream"}
+
+    def __init__(self, events, model):
+        self.events, self.model = events, model
+
+    def _line(self, chunk):
+        return b"data: " + json.dumps({"object": "chat.completion.chunk", "model": self.model, **chunk}).encode() + b"\n"
+
+    def __iter__(self):
+        from botocore.exceptions import BotoCoreError, ClientError
+
+        try:
+            for e in self.events:
+                if "contentBlockDelta" in e:
+                    text = ((e["contentBlockDelta"].get("delta") or {}).get("text")) or ""
+                    if text:
+                        yield self._line({"choices": [{"index": 0, "delta": {"content": text}, "finish_reason": None}]})
+                elif "messageStop" in e:
+                    why = STOP.get(e["messageStop"].get("stopReason"), "stop")
+                    yield self._line({"choices": [{"index": 0, "delta": {}, "finish_reason": why}]})
+                elif "metadata" in e:
+                    u = e["metadata"].get("usage") or {}
+                    usage = {
+                        "prompt_tokens": u.get("inputTokens"),
+                        "completion_tokens": u.get("outputTokens"),
+                        "total_tokens": u.get("totalTokens"),
+                    }
+                    yield self._line({"choices": [], "usage": usage})
+        except (ClientError, BotoCoreError) as e:  # an exception event, or the stream cut off
+            raise OSError(str(e)[:300]) from None
+        yield b"data: [DONE]\n"
+
+    def close(self):
+        close = getattr(self.events, "close", None)
+        if close:
+            close()
 
 
 def openai_answer(out, model):

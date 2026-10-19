@@ -5,11 +5,13 @@ with AWS Signature Version 4, and the secret key never leaves Lens."""
 from __future__ import annotations
 
 import io
+import itertools
 import json
 
 import pytest
 
 from app.domain import llm
+from tests import aws_eventstream as eventstream
 
 session = pytest.importorskip("botocore.session")
 RUNTIME = session.Session().get_service_model("sagemaker-runtime")
@@ -31,7 +33,10 @@ def sent(cfg, monkeypatch):
 
     def urlopen(req, timeout=None):
         calls.append(req)
-        return answers.pop(0)
+        a = answers.pop(0)
+        if isinstance(a, Exception):
+            raise a
+        return a
 
     monkeypatch.setattr(llm.urllib.request, "urlopen", urlopen)
     return calls, answers
@@ -55,14 +60,71 @@ def test_a_chat_goes_to_invoke_endpoint_signed_and_never_carries_the_secret(cfg,
     assert not any(KEY.split(":")[1] in v for v in headers.values())  # only a signature made with it
 
 
-def test_a_streamed_answer_reads_as_one_from_any_server(cfg, sent):
-    """InvokeEndpoint hands back the container's whole answer: a streamed one is still server-sent events."""
+class Parts:
+    """InvokeEndpointWithResponseStream's answer: AWS's event stream, read a message at a time as it arrives."""
+
+    headers = {"Content-Type": "application/vnd.amazon.eventstream"}
+
+    def __init__(self, messages):
+        self.messages, self.reads, self.closed = list(messages), 0, False
+
+    def read(self, n=-1):
+        self.reads += 1
+        return self.messages.pop(0) if self.messages else b""
+
+    def close(self):
+        self.closed = True
+
+
+def sse(*pieces, stop="stop"):
+    chunks = [{"choices": [{"delta": {"content": p}, "finish_reason": None}]} for p in pieces]
+    chunks.append({"choices": [{"delta": {}, "finish_reason": stop}]})
+    return ("".join(f"data: {json.dumps(c)}\n\n" for c in chunks) + "data: [DONE]\n\n").encode()
+
+
+def test_a_streamed_answer_comes_as_the_container_writes_it(cfg, sent):
+    """InvokeEndpointWithResponseStream: the container's server-sent events, in PayloadPart events that may split a
+    line anywhere."""
     calls, answers = sent
-    chunks = [{"choices": [{"delta": {"content": p}, "finish_reason": None}]} for p in ("Hel", "lo")]
-    chunks.append({"choices": [{"delta": {}, "finish_reason": "stop"}]})
-    body = "".join(f"data: {json.dumps(c)}\n\n" for c in chunks) + "data: [DONE]\n\n"
-    answers.append(Answer(body.encode(), "text/event-stream"))
+    body = sse("Hel", "lo", " there")
+    cut = [0, 7, 40, 41, len(body) // 2, len(body) - 3, len(body)]
+    parts = Parts(eventstream.event("PayloadPart", body[x:y], "application/octet-stream") for x, y in itertools.pairwise(cut))
+    answers.append(parts)
+    pieces = llm.stream_chat(cfg, [{"role": "user", "content": "hi"}])
+    assert next(pieces) == "Hel" and parts.messages  # the first words come before the rest is read
+    assert "Hel" + "".join(pieces) == "Hello there" and parts.closed
+
+    (req,) = calls
+    op = RUNTIME.operation_model("InvokeEndpointWithResponseStream")
+    assert req.get_method() == op.http["method"]
+    assert req.full_url == URL + op.http["requestUri"].replace("/endpoints/{EndpointName}", "")
+    headers = {k.lower(): v for k, v in req.header_items()}
+    accept = op.input_shape.members["Accept"].serialization["name"].lower()
+    assert headers[accept] == "text/event-stream" and json.loads(req.data)["stream"] is True
+    assert headers["authorization"].startswith("AWS4-HMAC-SHA256 Credential=AKIAEXAMPLE7/")
+    assert set(op.output_shape.members["Body"].members) >= {"PayloadPart", "ModelStreamError"}  # what Parts sends
+
+
+def test_a_model_error_mid_stream_says_so(cfg, sent):
+    _, answers = sent
+    first = eventstream.event("PayloadPart", sse("Hel")[:60], "application/octet-stream")
+    error = eventstream.exception("ModelStreamError", {"Message": "the model stopped", "ErrorCode": "500"})
+    answers.append(Parts([first, error]))
+    with pytest.raises(llm.LLMError, match="stopped mid-answer: ModelStreamError: the model stopped"):
+        "".join(llm.stream_chat(cfg, [{"role": "user", "content": "hi"}]))
+
+
+def test_keys_that_may_only_invoke_get_the_answer_whole(cfg, sent):
+    """An IAM policy made before answers streamed allows InvokeEndpoint only: the stream's 403 asks again for it whole."""
+    calls, answers = sent
+    denied = llm.urllib.error.HTTPError(URL, 403, "Forbidden", {}, io.BytesIO(b'{"message": "not authorized"}'))
+    answers.extend([denied, Answer(sse("Hello"), "text/event-stream")])
     assert "".join(llm.stream_chat(cfg, [{"role": "user", "content": "hi"}])) == "Hello"
+    assert [r.full_url for r in calls] == [URL + "/invocations-response-stream", URL + "/invocations"]
+
+    answers.extend([denied, denied])  # a key refused both ways says so
+    with pytest.raises(llm.LLMError, match="403 from the LLM server"):
+        "".join(llm.stream_chat(cfg, [{"role": "user", "content": "hi"}]))
 
 
 def test_an_endpoint_serves_its_one_model_and_is_never_asked_for_a_list(cfg, sent):

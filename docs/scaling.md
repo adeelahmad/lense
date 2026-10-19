@@ -183,6 +183,7 @@ AWS's vLLM container is published by account `763104351884` in most regions (`vl
 others. The keys need `sagemaker:ListEndpoints`, `sagemaker:DescribeEndpoint`, `sagemaker:CreateModel`,
 `sagemaker:CreateEndpointConfig`, `sagemaker:CreateEndpoint`, `sagemaker:DeleteEndpoint`,
 `sagemaker:DeleteEndpointConfig`, `sagemaker:DeleteModel`, `sagemaker:AddTags`, `sagemaker:InvokeEndpoint`,
+`sagemaker:InvokeEndpointWithResponseStream`,
 `iam:PassRole` on the execution role, and `pricing:GetProducts` for prices you don't give yourself. The execution role
 is one SageMaker may assume (the `AmazonSageMakerFullAccess` managed policy, or one that only pulls from ECR and
 writes logs).
@@ -197,8 +198,8 @@ doesn't list provisioned throughput in the AWS Price List, so the provider's pri
 pricing page, and no unit launches without it. Which models take provisioned throughput, and in which regions, is
 Bedrock's to say; a launch it refuses fails with its message. The keys need
 `bedrock:CreateProvisionedModelThroughput`, `bedrock:GetProvisionedModelThroughput`,
-`bedrock:ListProvisionedModelThroughputs`, `bedrock:DeleteProvisionedModelThroughput`, `bedrock:TagResource` and
-`bedrock:InvokeModel`.
+`bedrock:ListProvisionedModelThroughputs`, `bedrock:DeleteProvisionedModelThroughput`, `bedrock:TagResource`,
+`bedrock:InvokeModel` and `bedrock:InvokeModelWithResponseStream`.
 
 A unit that never comes up, whether it doesn't join within `join_minutes` or its provider reports it failed, counts
 as a failed launch: three in a row pause the group (with the reason in its `paused_why`), and a unit that comes up
@@ -373,9 +374,8 @@ which only that yes in the web app does.
 ## Refine later
 
 Spreading model calls across a group's units, and serving only some kinds of call (chat, decisions); more model
-hosts (Lambda instances serving a model); Bedrock's price per unit-hour from AWS, its streamed answers
-(`ConverseStream`) and Bedrock API keys as the provider's key; SageMaker's streamed invocations (`InvokeEndpointWithResponseStream`), so a SageMaker answer
-streams as it is written; Hugging Face's scale to zero and private endpoints; RunPod network volumes, so a model is downloaded once; Proxmox LXC containers; a live euro rate;
+hosts (Lambda instances serving a model); Bedrock's price per unit-hour from AWS and Bedrock API keys as the
+provider's key; Hugging Face's scale to zero and private endpoints; RunPod network volumes, so a model is downloaded once; Proxmox LXC containers; a live euro rate;
 preemptible and spot instances at clouds other than AWS and RunPod; draining an AWS spot unit on its two-minute notice
 (the node agent reading the instance's metadata) and handing its job back at once; following the spot price as it
 changes; AWS sign-in with an instance role or IAM Identity Center instead of keys; mixed instance types per group;

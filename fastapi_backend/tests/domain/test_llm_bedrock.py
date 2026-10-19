@@ -11,6 +11,7 @@ import json
 import pytest
 
 from app.domain import analyze, llm
+from tests import aws_eventstream as eventstream
 
 pytest.importorskip("botocore.session")
 from botocore.stub import ANY, Stubber  # noqa: E402 - after the skip
@@ -176,8 +177,76 @@ def test_a_summary_goes_to_bedrock_too(cfg, stub):
     assert got["title"] == "T" and got["importance"] == 3
 
 
-def test_a_streamed_answer_comes_whole(cfg, stub):
-    stub.add_response("converse", said("<think>hmm</think>Hello."), {"modelId": MODEL, "messages": ANY, "inferenceConfig": ANY})
+class Wire:
+    """ConverseStream's HTTP answer, in AWS's event stream encoding, for botocore's own parser to read: the request
+    botocore built (validated against Bedrock's model before it gets here) is kept."""
+
+    def __init__(self, client, messages):
+        self.messages, self.sent, self.read = list(messages), [], 0
+        client.meta.events.register("before-send.bedrock-runtime.ConverseStream", self.answer)
+
+    def stream(self, **_):
+        while self.messages:
+            self.read += 1
+            yield self.messages.pop(0)
+
+    def close(self):
+        pass
+
+    def answer(self, request, **_):
+        from botocore.awsrequest import AWSResponse
+
+        self.sent.append(request)
+        return AWSResponse(request.url, 200, {"Content-Type": "application/vnd.amazon.eventstream"}, self)
+
+
+@pytest.fixture
+def bedrock_cfg(cfg):
+    """Lens set to Bedrock, with no Stubber: the answer comes over botocore's own HTTP path (Wire)."""
+    cfg["llm"].update(base_url=URL, model=MODEL, api_key=KEY, api_key_env=None)
+    llm._CLIENTS.clear()
+    yield cfg
+    llm._CLIENTS.clear()
+
+
+def test_a_streamed_answer_is_converse_stream_as_it_is_written(bedrock_cfg):
+    cfg = bedrock_cfg
+    wire = Wire(
+        llm.bedrock_client(cfg, "eu-west-1"),
+        [
+            eventstream.event("messageStart", {"role": "assistant"}),
+            eventstream.event("contentBlockDelta", {"contentBlockIndex": 0, "delta": {"text": "<think>hmm</think>Hel"}}),
+            eventstream.event("contentBlockDelta", {"contentBlockIndex": 0, "delta": {"text": "lo."}}),
+            eventstream.event("contentBlockStop", {"contentBlockIndex": 0}),
+            eventstream.event("messageStop", {"stopReason": "end_turn"}),
+            eventstream.event("metadata", {"usage": {"inputTokens": 5, "outputTokens": 3, "totalTokens": 8}, "metrics": {"latencyMs": 99}}),
+        ],
+    )
+    pieces = llm.stream_chat(cfg, [{"role": "user", "content": "hi"}])
+    assert next(pieces) == "Hel" and wire.messages  # the first words come before the rest arrives
+    assert "Hel" + "".join(pieces) == "Hello."
+    (req,) = wire.sent
+    assert req.url == f"{URL}/model/{MODEL.replace(':', '%3A')}/converse-stream"
+    assert json.loads(req.body)["messages"] == [{"role": "user", "content": [{"text": "hi"}]}]
+
+
+def test_a_model_error_mid_stream_says_so(bedrock_cfg):
+    cfg = bedrock_cfg
+    Wire(
+        llm.bedrock_client(cfg, "eu-west-1"),
+        [
+            eventstream.event("contentBlockDelta", {"contentBlockIndex": 0, "delta": {"text": "Hel"}}),
+            eventstream.exception("modelStreamErrorException", {"message": "the model stopped", "originalStatusCode": 500}),
+        ],
+    )
+    with pytest.raises(llm.LLMError, match="stopped mid-answer: .*the model stopped"):
+        "".join(llm.stream_chat(cfg, [{"role": "user", "content": "hi"}]))
+
+
+def test_keys_that_may_only_invoke_get_the_answer_whole(cfg, stub):
+    """An IAM policy made before answers streamed allows InvokeModel only: ConverseStream's refusal asks Converse."""
+    stub.add_client_error("converse_stream", "AccessDeniedException", "not authorized to InvokeModelWithResponseStream", 403)
+    stub.add_response("converse", said("Hello."), {"modelId": MODEL, "messages": ANY, "inferenceConfig": ANY})
     assert "".join(llm.stream_chat(cfg, [{"role": "user", "content": "hi"}])) == "Hello."
 
 
