@@ -5,7 +5,11 @@ An Amazon SageMaker endpoint whose container takes OpenAI's chat schema (vLLM, L
 `https://runtime.sagemaker.<region>.amazonaws.com/endpoints/<name>` and its key is an AWS access key,
 `<access key id>:<secret access key>` (`:<session token>` after them for temporary keys). Lens posts chat requests to
 the endpoint's `/invocations`, signed with AWS Signature Version 4 (botocore, the `aws` extra, fetched on first use),
-so the key itself is never sent."""
+so the key itself is never sent.
+
+So is Amazon Bedrock: its address is `https://bedrock-runtime.<region>.amazonaws.com`, its model a Bedrock model id,
+inference profile or provisioned throughput ARN, and its key an AWS access key as for SageMaker. Lens's chat requests go
+to Bedrock's Converse API, translated both ways (bedrock.py)."""
 
 from __future__ import annotations
 
@@ -17,7 +21,7 @@ import time
 import urllib.error
 import urllib.request
 
-from . import telemetry
+from . import bedrock, telemetry
 
 
 class LLMError(RuntimeError):
@@ -61,9 +65,13 @@ def trying(saved, base_url=None, model=None, api_key=None):
 
 
 def _post(cfg, payload):
+    """The configured server's answer to a chat request (an open HTTP response, or Bedrock's as one); LLMError, or
+    ContextFull, when it refuses."""
     l = cfg["llm"]
     if not configured(cfg):
         raise LLMError("no language model is configured (Settings → LLM provider)")
+    if region := bedrock.region(l.get("base_url")):
+        return _bedrock(cfg, payload, region)
     req = chat_request(cfg, payload)
     try:
         return urllib.request.urlopen(req, timeout=l.get("timeout") or 300)
@@ -102,12 +110,17 @@ def sagemaker_region(cfg):
     return m.group(1) if m else None
 
 
+def aws(cfg):
+    """True when Lens's model calls go to AWS (SageMaker or Bedrock), signed with the provider's AWS key."""
+    return bool(sagemaker_region(cfg) or bedrock.region((cfg.get("llm") or {}).get("base_url")))
+
+
 def shared(cfg):
     """(base URL, key) of the LLM provider's server for its other OpenAI-compatible calls (embeddings, speech) when
-    they have no server of their own; (None, None) for a SageMaker endpoint, which serves chat only and whose AWS key
-    is only ever used to sign."""
+    they have no server of their own; (None, None) for SageMaker or Bedrock, which Lens calls for chat only and whose
+    AWS key is only ever used to sign."""
     l = cfg.get("llm") or {}
-    if sagemaker_region(cfg):
+    if aws(cfg):
         return None, None
     return l.get("base_url"), _key(l)
 
@@ -126,34 +139,100 @@ def chat_request(cfg, payload):
     return urllib.request.Request(url, data=body, headers=_aws_signed(cfg, region, url, body, headers), method="POST")
 
 
-def _aws_signed(cfg, region, url, body, headers):
-    """The headers with AWS Signature Version 4 for SageMaker's runtime, from the key `<id>:<secret>[:<token>]`."""
+def _aws_key(cfg, service):
+    """(access key id, secret access key, session token or None) from the key `<id>:<secret>[:<token>]`."""
     parts = (_key(cfg["llm"]) or "").split(":", 2)
     if len(parts) < 2 or not all(parts[:2]):
-        raise LLMError("a SageMaker endpoint takes an AWS access key as its key: <access key id>:<secret access key>")
+        raise LLMError(f"{service} takes an AWS access key as the provider's key: <access key id>:<secret access key>")
+    return parts[0], parts[1], parts[2] if len(parts) > 2 else None
+
+
+def _botocore(cfg, service):
+    """botocore, fetched with the `aws` extra the first time Lens calls AWS."""
     try:
-        from botocore.auth import SigV4Auth
+        import botocore.session  # noqa: F401
     except ImportError:
         from . import components
 
         try:
             components.pip_install(cfg, "aws")
-            from botocore.auth import SigV4Auth
+            import botocore.session  # noqa: F401
         except Exception as e:  # noqa: BLE001 - why it couldn't, for the person
-            raise LLMError(f"calling SageMaker needs the aws packages, which couldn't be installed here: {e}") from None
+            raise LLMError(f"calling {service} needs the aws packages, which couldn't be installed here: {e}") from None
+    import botocore
+
+    return botocore
+
+
+def _aws_signed(cfg, region, url, body, headers):
+    """The headers with AWS Signature Version 4 for SageMaker's runtime, from the key `<id>:<secret>[:<token>]`."""
+    key = _aws_key(cfg, "a SageMaker endpoint")
+    _botocore(cfg, "SageMaker")
+    from botocore.auth import SigV4Auth
     from botocore.awsrequest import AWSRequest
     from botocore.credentials import Credentials
 
     req = AWSRequest(method="POST", url=url, data=body, headers=headers)
-    SigV4Auth(Credentials(parts[0], parts[1], parts[2] if len(parts) > 2 else None), "sagemaker", region).add_auth(req)
+    SigV4Auth(Credentials(*key), "sagemaker", region).add_auth(req)
     return dict(req.headers.items())
+
+
+_CLIENTS = {}  # (region, key) -> Bedrock's runtime client: making one reads botocore's models, which takes a while
+
+
+def bedrock_client(cfg, region):
+    key = _aws_key(cfg, "Bedrock")
+    hit = _CLIENTS.get((region, key))
+    if hit is None:
+        botocore = _botocore(cfg, "Bedrock")
+        from botocore.config import Config
+
+        timeout = cfg["llm"].get("timeout") or 300
+        hit = botocore.session.Session().create_client(
+            "bedrock-runtime",
+            region_name=region,
+            aws_access_key_id=key[0],
+            aws_secret_access_key=key[1],
+            aws_session_token=key[2],
+            config=Config(read_timeout=timeout, connect_timeout=10, retries={"max_attempts": 2, "mode": "standard"}),
+        )
+        _CLIENTS.clear()  # one provider at a time: a changed key leaves no client behind
+        _CLIENTS[(region, key)] = hit
+    return hit
+
+
+def _bedrock(cfg, payload, region):
+    """Bedrock's Converse answer to an OpenAI chat request, as an OpenAI-compatible server's reply."""
+    client = bedrock_client(cfg, region)
+    from botocore.exceptions import BotoCoreError, ClientError
+
+    try:
+        params = bedrock.converse_params(payload)
+    except ValueError as e:
+        raise LLMError(f"400 from the LLM server: {e}") from None
+    try:
+        out = client.converse(**params)
+    except ClientError as e:
+        err, status = e.response.get("Error") or {}, (e.response.get("ResponseMetadata") or {}).get("HTTPStatusCode") or 400
+        said = f"{err.get('Code')}: {err.get('Message')}"
+        if err.get("Code") == "ValidationException" and bedrock.FULL_SAYS.search(err.get("Message") or ""):
+            raise ContextFull(f"{status} from the LLM server: {said[:300]}") from None
+        raise LLMError(f"{status} from the LLM server: {said[:300]}") from None
+    except BotoCoreError as e:
+        raise LLMError(f"can't reach Bedrock in {region}: {e}") from None
+    return bedrock.Answer(json.dumps(bedrock.openai_answer(out, payload["model"])).encode())
+
+
+def post(cfg, payload):
+    """The configured server's answer to a chat request, for callers outside this module."""
+    return _post(cfg, payload)
 
 
 def _listing(cfg, ttl=60):
     """The models the server offers (GET /models), each name with what the server says of it, kept for `ttl` seconds."""
     l = cfg["llm"]
     url = l["base_url"].rstrip("/")
-    if sagemaker_region(cfg):  # an endpoint serves the one model it was made with, and lists none
+    if aws(cfg):  # an endpoint serves the one model it was made with; Bedrock's model is the one named
         return {l["model"]: {"id": l["model"]}}
     hit = _MODELS.get(url)
     if hit and time.monotonic() - hit[0] < ttl:
