@@ -1069,7 +1069,64 @@ def unit_key(db, cfg, gid):
     return key
 
 
-def bootstrap(db, cfg, g, name):
+def unit_tls(db, cfg, gid, name):
+    """A certificate and key for a model unit that serves HTTPS itself (Lambda): signed by the group's own CA, made
+    once with its key kept sealed on the group, so Lens trusts only what that CA signed (`llm.tls_ca`) and the unit
+    needs no name a public CA would vouch for. {ca, cert, key}, PEM; the unit's key goes to the unit, the CA's never."""
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+    from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
+
+    ctx = f"scale_group:{gid}.unit_ca"
+    row = (db.one("SELECT unit_ca FROM $r", r=R("scale_group", gid)) or {}).get("unit_ca") or {}
+    now = dt.datetime.now(dt.UTC)
+
+    def pem(c):
+        return c.public_bytes(serialization.Encoding.PEM).decode()
+
+    def secret(k):
+        return k.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()).decode()
+
+    if row.get("cert") and row.get("key"):
+        ca = x509.load_pem_x509_certificate(row["cert"].encode())
+        ca_key = serialization.load_pem_private_key(settings.unseal(cfg, row["key"], ctx).encode(), None)
+    else:
+        ca_key = ec.generate_private_key(ec.SECP256R1())
+        subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, f"Lens scaling group {gid}")])
+        ca = (
+            x509.CertificateBuilder()
+            .subject_name(subject)
+            .issuer_name(subject)
+            .public_key(ca_key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(now - dt.timedelta(minutes=5))
+            .not_valid_after(now + dt.timedelta(days=3650))
+            .add_extension(x509.BasicConstraints(ca=True, path_length=0), critical=True)
+            .add_extension(x509.SubjectKeyIdentifier.from_public_key(ca_key.public_key()), critical=False)
+            .add_extension(x509.KeyUsage(False, False, False, False, False, True, True, False, False), critical=True)
+            .sign(ca_key, hashes.SHA256())
+        )
+        db.q("UPDATE $r SET unit_ca = $c", r=R("scale_group", gid), c={"cert": pem(ca), "key": settings.seal(cfg, secret(ca_key), ctx)})
+    key = ec.generate_private_key(ec.SECP256R1())
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, name)]))
+        .issuer_name(ca.subject)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now - dt.timedelta(minutes=5))
+        .not_valid_after(now + dt.timedelta(days=825))
+        .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
+        .add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]), critical=False)
+        .add_extension(x509.SubjectKeyIdentifier.from_public_key(key.public_key()), critical=False)
+        .add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_key.public_key()), critical=False)
+        .sign(ca_key, hashes.SHA256())
+    )
+    return {"ca": pem(ca), "cert": pem(cert), "key": secret(key)}
+
+
+def bootstrap(db, cfg, g, name, tls=False):
     """How a unit joins Lens: a worker started here gets its name and inherits the rest; a machine elsewhere gets the
     mesh's install line (`LENS_JOIN=… LENS_JOIN_TOKEN=… sh install.sh`) with a one-time join token good for an hour,
     named for the unit, so the provider's user-data carries no long-lived secret: the node asks for its database
@@ -1078,6 +1135,8 @@ def bootstrap(db, cfg, g, name):
     boot = {"env": {"LENS_SCALING_UNIT": name}, "line": None, "token_id": None, "tag": conf(cfg)["tag"]}
     if g.get("kind") == "model":  # a model server is reached over HTTPS: it joins nothing
         boot["key"] = unit_key(db, cfg, g["id"])
+        if tls:
+            boot["tls"] = unit_tls(db, cfg, g["id"], name)
         return boot
     if not can_join(cfg):
         return boot
@@ -1160,11 +1219,11 @@ class Scaler:
                 db.q("UPDATE $r SET listed_at = $t, list_error = $e", r=R("scale_provider", pid), t=_iso(now), e=err)
                 continue
             # a unit that runs is known by its id or its name; one let go lately by its id only, since a launch that
-            # failed (its id never came back) may have left a unit running under its name
+            # failed (its id never came back) may have left a unit running under its name. Any provider's: two may
+            # share an account (Lambda's workers and its model hosts)
             known = set()
             for n in db.rows(
-                "SELECT name, external_id, state FROM scale_node WHERE provider = $p AND (state IN $s OR ended_at > $since)",
-                p=pid,
+                "SELECT name, external_id, state FROM scale_node WHERE state IN $s OR ended_at > $since",
                 s=list(ALIVE),
                 since=since,
             ):
@@ -1199,9 +1258,8 @@ class Scaler:
             if serving.get("base_url") and llm.get("base_url") == serving["base_url"]:
                 prev = row.get("previous") or {}
                 key = settings.unseal(cfg, prev["api_key"], "scaling.previous_llm") if prev.get("api_key") else ""
-                settings.save(
-                    db, cfg, "llm", {"base_url": prev.get("base_url"), "model": prev.get("model"), "api_key": key}, "auto scaling"
-                )
+                back = {"base_url": prev.get("base_url"), "model": prev.get("model"), "api_key": key, "tls_ca": prev.get("tls_ca")}
+                settings.save(db, cfg, "llm", back, "auto scaling")
                 activity.record("run", "scaling.serve.end", [], cfg, db, detail={"back_to": prev.get("base_url")})
                 self.log("scaling: no model unit runs; the LLM provider is the one from before again")
             if serving or row.get("previous"):
@@ -1220,11 +1278,12 @@ class Scaler:
         n = units[0]
         e = endpoint_of(cfg, n)
         if not serving:
-            prev = {"base_url": llm.get("base_url"), "model": llm.get("model")}
+            prev = {"base_url": llm.get("base_url"), "model": llm.get("model"), "tls_ca": llm.get("tls_ca")}
             if llm.get("api_key"):
                 prev["api_key"] = settings.seal(cfg, llm["api_key"], "scaling.previous_llm")
             db.q("UPSERT $r SET previous = $p", r=ROW, p=store.clean(prev))
-        settings.save(db, cfg, "llm", {"base_url": e["base_url"], "model": e["model"], "api_key": e.get("api_key") or ""}, "auto scaling")
+        to = {"base_url": e["base_url"], "model": e["model"], "api_key": e.get("api_key") or "", "tls_ca": e.get("ca")}
+        settings.save(db, cfg, "llm", to, "auto scaling")
         db.q("UPSERT $r SET serving = $s", r=ROW, s={"base_url": e["base_url"], "unit": n["id"], "group": n["group"]})
         refs = [_ref("scale_node", n["id"]), _ref("scale_group", n["group"])]
         activity.record("run", "scaling.serve", refs, cfg, db, detail={"unit": n["name"], "model": e["model"]})
@@ -1242,6 +1301,7 @@ class Scaler:
                 o
                 and o["base_url"] != e["base_url"]
                 and o.get("model") == e.get("model")
+                and o.get("ca") == e.get("ca")
                 and (o.get("api_key") or "") == (e.get("api_key") or "")
             ):
                 urls.add(o["base_url"])
@@ -1374,7 +1434,7 @@ class Scaler:
         refs = [_ref("scale_node", nid), _ref("scale_group", g["id"]), _ref("scale_provider", p["id"])]
         try:
             with activity.call(f"scaling.{drv.id}.launch", cfg, refs=refs):
-                got = drv.launch(p, g.get("template") or {}, name, bootstrap(db, cfg, g, name)) or {}
+                got = drv.launch(p, g.get("template") or {}, name, bootstrap(db, cfg, g, name, tls=drv.tls)) or {}
         except Exception as e:  # noqa: BLE001 - the unit failed; three in a row pause the group
             err = f"{type(e).__name__}: {e}"[:300] if not isinstance(e, drivers.DriverError) else str(e)[:300]
             db.q("UPDATE $r SET state = 'failed', error = $e, ended_at = $t", r=R("scale_node", nid), e=err, t=_iso(now))

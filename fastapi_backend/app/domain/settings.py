@@ -526,6 +526,18 @@ def _check(section, key, value, default):
         return audio_cleanup.check(value)
     if (section, key) == ("server", "trusted_proxies"):
         return ipgroups.proxies(value)
+    if (section, key) == ("llm", "tls_ca"):
+        if value is None or value == "":
+            return None
+        from cryptography import x509
+
+        try:
+            if not isinstance(value, str) or len(value) > 20000:
+                raise ValueError
+            x509.load_pem_x509_certificate(value.encode())
+        except ValueError:
+            raise ValueError("llm.tls_ca is a CA certificate in PEM") from None
+        return value
     if (section, key) == ("llm", "spread"):
         ok = value is None or (
             isinstance(value, dict)

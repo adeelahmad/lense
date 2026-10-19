@@ -91,7 +91,9 @@ def h(client, db):
 def test_the_scaler_runs_a_group_on_moto_from_launch_to_scale_in(client, db, cfg, h, aws, monkeypatch):
     monkeypatch.setattr(scaling, "can_join", lambda cfg: True)  # the mesh is on and has its install line
     monkeypatch.setattr(
-        scaling, "bootstrap", lambda db, cfg, g, name: {"env": {"LENS_SCALING_UNIT": name}, "line": LINE, "token_id": None, "tag": "lens"}
+        scaling,
+        "bootstrap",
+        lambda db, cfg, g, name, **_: {"env": {"LENS_SCALING_UNIT": name}, "line": LINE, "token_id": None, "tag": "lens"},
     )
     settings.save(db, cfg, "scaling", {"enabled": True}, "root@x.io")
     cfg = settings.effective(db, cfg)

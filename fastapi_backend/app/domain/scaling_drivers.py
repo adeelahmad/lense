@@ -60,6 +60,7 @@ class Driver:
     priced = True  # it charges money: its groups need a budget
     kept: tuple[str, ...] = ()  # what a failed check keeps of the last one's answer
     needs_join = False  # its units are other machines, which join over the mesh's install line (scaling.bootstrap)
+    tls = False  # its model units serve HTTPS with a certificate Lens signs (scaling.unit_tls), handed in at launch
     delete_gone = True  # a unit found stopped is still deleted at the provider (a stopped machine's disk still costs)
     extra = None  # the optional dependency (pyproject.toml) it needs, fetched when a provider of it is saved
     modules = ()  # what that extra installs, to see whether it's here

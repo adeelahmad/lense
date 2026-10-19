@@ -5,7 +5,12 @@ launches anything, and counting only the jobs a worker node takes."""
 from __future__ import annotations
 
 import datetime as dt
+import http.server
 import json
+import re
+import shlex
+import ssl
+import threading
 
 import httpx
 import pytest
@@ -98,7 +103,7 @@ class Lam(Cloud):
 
     def __init__(self, keys=("ada-laptop",)):
         super().__init__()
-        self.keys = list(keys)
+        self.keys, self.rulesets = list(keys), {}
 
     def _type(self, name, cents, regions):
         item = {"instance_type": {"name": name, "price_cents_per_hour": cents}, "regions_with_capacity_available": regions}
@@ -111,6 +116,14 @@ class Lam(Cloud):
             return 200, {
                 "data": {"gpu_1x_a10": self._type("gpu_1x_a10", 75, here), "gpu_8x_h100_sxm5": self._type("gpu_8x_h100_sxm5", 2392, [])}
             }
+        if path == "/firewall-rulesets" and method == "GET":
+            return 200, {"data": list(self.rulesets.values())}
+        if path == "/firewall-rulesets":
+            rid = f"c4d291f47f9d436fa39f58493ce3b5{len(self.rulesets):02d}"
+            region = {"name": body["region"], "description": "Virginia, USA"}
+            made = {"id": rid, "name": body["name"], "region": region, "rules": body["rules"], "created": "2026-10-19T05:00:00Z"}
+            self.rulesets[rid] = made | {"instance_ids": []}
+            return 200, {"data": self.rulesets[rid]}
         if path == "/ssh-keys":
             return 200, {"data": [{"id": str(i), "name": k, "public_key": "ssh-ed25519 AAAA"} for i, k in enumerate(self.keys)]}
         if path == "/instance-operations/launch":
@@ -139,6 +152,16 @@ class Lam(Cloud):
 
     def _shown(self, m):
         return contract._sample(self.spec, {"$ref": "#/components/schemas/Instance"}, {k: v for k, v in m.items() if k != "body"})
+
+
+@pytest.fixture
+def lam_models(monkeypatch):
+    cloud = Lam()
+    cloud.healthy = set()
+    drv = drivers.get("lambda-models")
+    monkeypatch.setattr(drv, "transport", httpx.MockTransport(cloud))
+    monkeypatch.setattr(drv, "probe", httpx.MockTransport(lambda req: httpx.Response(200 if req.url.host in cloud.healthy else 502)))
+    return cloud
 
 
 @pytest.fixture
@@ -322,6 +345,119 @@ def test_lambda_needs_an_ssh_key_and_pages_through_instances(client, db, cfg, h,
     assert drv.price(opened, {"instance_type": "gpu_0x_none"}) is None
 
 
+def _written(script, path):
+    """What the first-boot script writes to `path` (printf '%s' '<text>' > path)."""
+    m = re.search(r"^printf '%s' ('[^']*') > " + re.escape(path) + "$", script, re.M)
+    assert m, f"nothing written to {path}"
+    return shlex.split(m[1])[0]
+
+
+def _https(tmp_path, cert, key, answer):
+    """A real HTTPS server on this machine with the unit's certificate, answering chat calls."""
+    (tmp_path / "cert.pem").write_text(cert)
+    (tmp_path / "key.pem").write_text(key)
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ctx.load_cert_chain(tmp_path / "cert.pem", tmp_path / "key.pem")
+    heard = []
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_POST(self):
+            heard.append((self.path, self.headers.get("Authorization")))
+            self.rfile.read(int(self.headers["Content-Length"]))
+            body = json.dumps(answer).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *a):
+            pass
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    server.socket = ctx.wrap_socket(server.socket, server_side=True)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server, heard
+
+
+def test_a_lambda_model_group_serves_https_with_a_certificate_lens_signed(client, db, cfg, h, lam_models, tmp_path, monkeypatch):
+    from cryptography import x509
+
+    from app.domain import llm
+
+    base = cfg
+    settings.save(db, base, "scaling", {"enabled": True}, "root@x.io")
+    settings.save(db, base, "llm", {"base_url": "http://old.home:8080/v1", "model": "big"}, "root@x.io")
+    eff = lambda: settings.effective(db, base)  # noqa: E731
+    scaler = scaling.Scaler(db, eff, "test")
+    body = {"name": "Lambda GPUs", "driver": "lambda-models", "settings": {}, "secrets": {"token": "t", "hf_token": "hf_x"}}
+    p = client.post("/api/v1/scaling/providers", headers=h, json=body).json()
+    assert p["check"]["ok"] is True and p["kind"] == "model"
+    g = client.post(
+        "/api/v1/scaling/groups",
+        headers=h,
+        json={"name": "Qwen", "provider": p["id"], "min": 2, "max": 2, "budget": 40, "template": {"model": "Qwen/Qwen3-8B"}},
+    ).json()
+    assert g["template"]["instance_type"] == "gpu_1x_a10" and g["needs_join"] is False
+    scaler.tick(now=NOW, lease=False)
+    (rules,) = lam_models.rulesets.values()  # one ruleset for the region, shared by every unit
+    assert rules["name"] == "lens-models" and rules["region"]["name"] == "us-east-1"
+    assert rules["rules"] == [
+        {"protocol": "tcp", "port_range": [8000, 8000], "source_network": "0.0.0.0/0", "description": rules["rules"][0]["description"]}
+    ]
+    (a, m1), (b, m2) = sorted(lam_models.machines.items())
+    for m in (m1, m2):
+        assert m["body"]["firewall_rulesets"] == [{"id": rules["id"]}]
+    script = m1["body"]["user_data"]
+    cert, key = _written(script, "/opt/lens/cert.pem"), _written(script, "/opt/lens/key.pem")
+    run = shlex.split(next(line for line in script.splitlines() if line.startswith("docker run")))
+    assert "--gpus" in run and run[run.index("--model") + 1] == "Qwen/Qwen3-8B" and "--ssl-certfile" in run
+    vllm_key = next(e for e in run if e.startswith("VLLM_API_KEY=")).split("=", 1)[1]
+    assert "HF_TOKEN=hf_x" in run and vllm_key in m2["body"]["user_data"]  # one key for the group's units
+    row = db.one("SELECT unit_ca FROM $r", r=R("scale_group", g["id"]))["unit_ca"]
+    assert "PRIVATE KEY" not in str(row["key"]) and "PRIVATE KEY" not in script.replace(key, "")  # the CA's key stays sealed
+    ca = x509.load_pem_x509_certificate(row["cert"].encode())
+    x509.load_pem_x509_certificate(cert.encode()).verify_directly_issued_by(ca)
+    assert _written(m2["body"]["user_data"], "/opt/lens/cert.pem") != cert  # each unit its own certificate
+
+    monkeypatch.setattr(drivers.get("lambda"), "transport", httpx.MockTransport(lam_models))  # the same account
+    workers = {"name": "Lambda workers", "driver": "lambda", "settings": {}, "secrets": {"token": "t"}}
+    client.post("/api/v1/scaling/providers", headers=h, json=workers)
+    scaler.tick(now=NOW + dt.timedelta(seconds=30), lease=False)
+    assert all(not x["strays"] for x in client.get("/api/v1/scaling/providers", headers=h).json())  # each knows the other's
+    lam_models.machines[a].update(status="active", ip="198.51.100.9")
+    scaler.tick(now=NOW + dt.timedelta(minutes=1), lease=False)
+    assert eff()["llm"]["base_url"] == "http://old.home:8080/v1"  # up, but vLLM hasn't loaded the model yet
+    lam_models.healthy.add("198.51.100.9")
+    scaler.tick(now=NOW + dt.timedelta(minutes=2), lease=False)
+    now_llm = eff()["llm"]
+    assert now_llm["base_url"] == "https://198.51.100.9:8000/v1" and now_llm["model"] == "Qwen/Qwen3-8B"
+    assert now_llm["api_key"] == vllm_key and now_llm["tls_ca"] == row["cert"]
+    assert llm.shared(eff()) == (None, None)  # embeddings and speech don't borrow it
+
+    server, heard = _https(tmp_path, cert, key, {"choices": [{"message": {"content": "hi from the GPU"}}]})
+    try:
+        here = f"https://127.0.0.1:{server.server_address[1]}/v1"
+        talk = {**eff(), "llm": {**eff()["llm"], "base_url": here}}
+        assert llm.chat(talk, [{"role": "user", "content": "hi"}]) == "hi from the GPU"
+        assert heard == [("/v1/chat/completions", f"Bearer {vllm_key}")]
+        other = scaling.unit_tls(db, eff(), g["id"] + 1000, "lens-x")["ca"]  # another group's CA signed nothing here
+        for ca_ in (None, other):
+            with pytest.raises(llm.LLMError, match="CERTIFICATE_VERIFY_FAILED"):
+                llm.chat({**talk, "llm": {**talk["llm"], "tls_ca": ca_}}, [{"role": "user", "content": "hi"}])
+    finally:
+        server.shutdown()
+
+    with pytest.raises(ValueError, match="llm.tls_ca is a CA certificate"):
+        settings.save(db, base, "llm", {"tls_ca": "not a certificate"}, "root@x.io")
+    client.patch(f"/api/v1/scaling/groups/{g['id']}", headers=h, json={"min": 0, "desired": 0})
+    for m in lam_models.machines.values():
+        m["status"] = "terminated"
+    scaler.tick(now=NOW + dt.timedelta(minutes=3), lease=False)
+    back = eff()["llm"]
+    assert (back["base_url"], back["tls_ca"]) == ("http://old.home:8080/v1", None)  # as it was
+
+
 def test_the_cloud_drivers_are_listed_and_need_the_mesh(client, h):
     ds = {d["id"]: d for d in client.get("/api/v1/scaling", headers=h).json()["drivers"]}
     assert ds["digitalocean"]["needs_join"] is True and ds["hetzner"]["priced"] is True
@@ -376,3 +512,5 @@ def test_lens_reads_only_fields_the_clouds_answer_with():
         lm, "GET", "/api/v1/instances", 200, "data.id", "data.name", "data.status", "data.tags.key", "data.tags.value"
     )
     contract.check_answer_fields(lm, "GET", "/api/v1/instances", 200, "page_token")
+    contract.check_answer_fields(lm, "GET", "/api/v1/firewall-rulesets", 200, "data.id", "data.name", "data.region.name")
+    contract.check_answer_fields(lm, "POST", "/api/v1/firewall-rulesets", 200, "data.id")

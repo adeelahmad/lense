@@ -18,6 +18,7 @@ import itertools
 import json
 import os
 import re
+import ssl
 import time
 import urllib.error
 import urllib.request
@@ -77,7 +78,7 @@ def _post(cfg, payload, whole=False):
     for n, at in enumerate(tries, 1):
         req = chat_request(at, payload, whole)
         try:
-            r = urllib.request.urlopen(req, timeout=l.get("timeout") or 300)
+            r = urllib.request.urlopen(req, timeout=l.get("timeout") or 300, **_tls(l))
             if "vnd.amazon.eventstream" in (r.headers.get("Content-Type") or ""):
                 return PayloadParts(r)
             return r
@@ -95,6 +96,23 @@ def _post(cfg, payload, whole=False):
         except (urllib.error.URLError, TimeoutError, OSError) as e:
             if n == len(tries):
                 raise LLMError(f"can't reach the LLM server at {at['llm']['base_url']}: {e}") from None
+
+
+_CONTEXTS = {}  # llm.tls_ca -> its SSL context
+
+
+def _tls(l):
+    """urlopen's TLS for the provider: with `llm.tls_ca` (an auto scaling unit's group CA, scaling.unit_tls), only a
+    certificate that CA signed, whatever name it carries; else Python's defaults."""
+    ca = l.get("tls_ca")
+    if not ca:
+        return {}
+    if ca not in _CONTEXTS:
+        ctx = ssl.create_default_context(cadata=ca)
+        ctx.check_hostname = False  # the CA is the group's own and signs only its units, which have no name to check
+        _CONTEXTS.clear()
+        _CONTEXTS[ca] = ctx
+    return {"context": _CONTEXTS[ca]}
 
 
 _TURN = itertools.count()  # whose turn it is among the addresses of llm.spread
@@ -145,7 +163,7 @@ def shared(cfg):
     they have no server of their own; (None, None) for SageMaker or Bedrock, which Lens calls for chat only and whose
     AWS key is only ever used to sign."""
     l = cfg.get("llm") or {}
-    if aws(cfg):
+    if aws(cfg) or l.get("tls_ca"):  # an auto scaling unit with its own CA serves chat only
         return None, None
     return l.get("base_url"), _key(l)
 
@@ -317,7 +335,7 @@ def _listing(cfg, ttl=60):
     if hit and time.monotonic() - hit[0] < ttl:
         return hit[1]
     try:
-        with urllib.request.urlopen(urllib.request.Request(url + "/models", headers=_headers(cfg)), timeout=10) as r:
+        with urllib.request.urlopen(urllib.request.Request(url + "/models", headers=_headers(cfg)), timeout=10, **_tls(l)) as r:
             listed = {str(m["id"]): m for m in json.load(r).get("data") or [] if isinstance(m, dict) and m.get("id")}
     except (urllib.error.URLError, TimeoutError, OSError, ValueError, AttributeError) as e:
         raise LLMError(f"can't list the models at {l['base_url']}: {e}") from None
@@ -354,7 +372,7 @@ def _llamacpp_window(cfg):
     give (only the context the model was trained for)."""
     root = re.sub(r"/v1/?$", "", cfg["llm"]["base_url"].rstrip("/"))
     try:
-        with urllib.request.urlopen(urllib.request.Request(root + "/props", headers=_headers(cfg)), timeout=10) as r:
+        with urllib.request.urlopen(urllib.request.Request(root + "/props", headers=_headers(cfg)), timeout=10, **_tls(cfg["llm"])) as r:
             j = json.load(r)
     except (urllib.error.URLError, TimeoutError, OSError, ValueError) as e:
         raise LLMError(f"can't ask llama.cpp's server for its context: {e}") from None

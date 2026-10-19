@@ -262,7 +262,7 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   runs more workers on this machine today; AWS EC2 (spot or on demand), DigitalOcean, Hetzner Cloud, Lambda GPU
   instances, Proxmox VE and Linux hosts over SSH providers are in progress (built, with machines that join over the mesh to transcribe and tell
   voices apart, not yet tried on a real cloud), so are RunPod GPUs, Hugging Face Inference Endpoints and Amazon
-  SageMaker endpoints and Amazon Bedrock provisioned throughput that serve Lens's model calls while they run, in turn
+  SageMaker endpoints, Lambda GPU instances and Amazon Bedrock provisioned throughput that serve Lens's model calls while they run, in turn
   across a group's units;
   Bedrock's models can be the LLM provider too, and more model hosts are planned. ([Auto scaling](docs/scaling.md); [checks](docs/requirements.md#scale-out))
 - **Run on more machines.** Add a Mac with a GPU, a box for the assistant's code or a server with more disk, and
@@ -346,7 +346,6 @@ Next, and not in a pull request yet; each links to where it is tracked:
   topics, recordings and the other things that have pages ([notes](docs/notes.md)).
 - **Local models:** GPU builds of llama.cpp fetched by Lens, and local embedding models
   ([local models](docs/local-models.md)).
-- **Auto scaling:** Lambda instances serving a model ([auto scaling](docs/scaling.md)).
 - **Speech providers:** their summaries, chapters and entities as optional imports
   ([speech providers](docs/speech-providers.md)).
 - **Storage:** uploads and assets' media in the file store, and a storage key to download
