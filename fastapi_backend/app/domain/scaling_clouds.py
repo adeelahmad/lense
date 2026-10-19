@@ -1,5 +1,5 @@
 """Cloud providers auto scaling launches machines on over their REST APIs (scaling_drivers.py, docs/scaling.md):
-DigitalOcean and Hetzner Cloud. Each unit is a new machine whose first boot runs the mesh's install line
+DigitalOcean, Hetzner Cloud and Lambda's GPU cloud. Each unit is a new machine whose first boot runs the mesh's install line
 (scaling_drivers.user_data), which joins it to Lens and starts `lens worker`; terminating a unit deletes the machine.
 Every machine carries Lens's tag (`scaling.tag`), so `listing` finds the ones Lens made.
 
@@ -211,5 +211,102 @@ class Hetzner(Rest):
         return [{"id": str(s["id"]), "name": s.get("name")} for s in got]
 
 
+# ---------- Lambda ----------
+class Lambda(Rest):
+    id = "lambda"
+    label = "Lambda"
+    about = (
+        "GPU instances that join Lens over the mesh and run Lens workers, for the steps a GPU speeds up (transcribing, "
+        "telling voices apart). Billed by the minute by Lambda."
+    )
+    base = "https://cloud.lambda.ai/api/v1"
+    GONE = {"terminated", "terminating", "preempted"}
+    fields = {
+        "region": _field("Region", required=True, default="us-east-1", help="where instances start: us-east-1, us-west-1..."),
+        "token": _field("API key", required=True, secret=True, help="a Lambda Cloud API key"),
+        "ssh_key": _field(
+            "SSH key", help="the name of an SSH key in your Lambda account (Lambda puts one on every instance); none: its first"
+        ),
+    }
+    template = {
+        "instance_type": _field("Instance type", required=True, default="gpu_1x_a10", help="gpu_1x_a10, gpu_1x_a100..."),
+        "steps": _steps(),
+    }
+
+    def _error(self, r):
+        try:
+            err = r.json().get("error") or {}
+        except (ValueError, AttributeError):
+            err = {}
+        said = err.get("message") if isinstance(err, dict) else None
+        return (
+            f"Lambda said {r.status_code}"
+            + (f": {said}" if said else "")
+            + (f" ({err['code']})" if isinstance(err, dict) and err.get("code") else "")
+        )
+
+    def types(self, p):
+        return self.call(p, "GET", "/instance-types").get("data") or {}
+
+    def check(self, p):
+        types, region = self.types(p), p["settings"].get("region")
+        here = [n for n, t in types.items() if any(r.get("name") == region for r in t.get("regions_with_capacity_available") or [])]
+        keys = [k.get("name") for k in self.call(p, "GET", "/ssh-keys").get("data") or []]
+        if not keys:
+            raise DriverError("Lambda puts an SSH key on every instance: add one to your Lambda account first")
+        return {"instance_types": len(types), "with_capacity_here": len(here)}
+
+    def price(self, p, template):
+        t = (self.types(p).get(template.get("instance_type")) or {}).get("instance_type") or {}
+        cents = t.get("price_cents_per_hour")
+        return round(cents / 100, 6) if isinstance(cents, (int, float)) else None
+
+    def launch(self, p, template, name, boot):
+        key = p["settings"].get("ssh_key")
+        if not key:
+            keys = [k.get("name") for k in self.call(p, "GET", "/ssh-keys").get("data") or [] if k.get("name")]
+            if not keys:
+                raise DriverError("Lambda puts an SSH key on every instance: add one to your Lambda account first")
+            key = keys[0]
+        body = {
+            "region_name": p["settings"]["region"],
+            "instance_type_name": template["instance_type"],
+            "ssh_key_names": [key],  # Lambda takes exactly one
+            "name": name,
+            "user_data": user_data(boot, template),
+            "tags": [{"key": "lens", "value": boot["tag"]}, {"key": "lens-unit", "value": name}],
+        }
+        ids = (self.call(p, "POST", "/instance-operations/launch", json=body).get("data") or {}).get("instance_ids") or []
+        if not ids:
+            raise DriverError("Lambda launched no instance")
+        return {"id": ids[0]}
+
+    def describe(self, p, node):
+        i = (self.call(p, "GET", f"/instances/{node['external_id']}", ok404=True) or {}).get("data")
+        if not i:
+            return {"state": "gone"}
+        if i.get("status") in self.GONE:
+            return {"state": "gone", **({"why": "Lambda took the instance back"} if i.get("status") == "preempted" else {})}
+        return {"state": "running" if i.get("status") == "active" else "pending", "address": i.get("ip")}
+
+    def terminate(self, p, node):
+        if node.get("external_id"):
+            self.call(p, "POST", "/instance-operations/terminate", ok404=True, json={"instance_ids": [str(node["external_id"])]})
+
+    def listing(self, p, tag):
+        found, token = [], None
+        while True:
+            params = {"page_size": 100, **({"page_token": token} if token else {})}
+            got = self.call(p, "GET", "/instances", params=params)
+            for i in got.get("data") or []:
+                tags = {t.get("key"): t.get("value") for t in i.get("tags") or []}
+                if tags.get("lens") == tag and i.get("status") not in self.GONE:
+                    found.append({"id": i["id"], "name": i.get("name")})
+            token = got.get("page_token")
+            if not token:
+                return found
+
+
 register(DigitalOcean())
 register(Hetzner())
+register(Lambda())

@@ -1,0 +1,1677 @@
+{
+ "components": {
+  "schemas": {
+   "ApiErrorAccountInactive": {
+    "properties": {
+     "code": {
+      "const": "global/account-inactive",
+      "type": "string"
+     },
+     "message": {
+      "default": "Your account is inactive.",
+      "type": "string"
+     },
+     "request_id": {
+      "type": "string"
+     },
+     "suggestion": {
+      "default": "Make sure you have verified your email address and have a valid payment method. Contact Support if problems continue.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "code",
+     "message",
+     "suggestion"
+    ],
+    "title": "ApiErrorAccountInactive",
+    "type": "object"
+   },
+   "ApiErrorFileSystemInWrongRegion": {
+    "properties": {
+     "code": {
+      "const": "instance-operations/launch/file-system-in-wrong-region",
+      "type": "string"
+     },
+     "message": {
+      "type": "string"
+     },
+     "request_id": {
+      "type": "string"
+     },
+     "suggestion": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "code",
+     "message"
+    ],
+    "title": "ApiErrorFileSystemInWrongRegion",
+    "type": "object"
+   },
+   "ApiErrorForbidden": {
+    "properties": {
+     "code": {
+      "const": "global/forbidden",
+      "type": "string"
+     },
+     "message": {
+      "type": "string"
+     },
+     "request_id": {
+      "type": "string"
+     },
+     "suggestion": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "code",
+     "message"
+    ],
+    "title": "ApiErrorForbidden",
+    "type": "object"
+   },
+   "ApiErrorInstanceNotFound": {
+    "properties": {
+     "code": {
+      "const": "global/object-does-not-exist",
+      "type": "string"
+     },
+     "message": {
+      "default": "Specified instance does not exist.",
+      "type": "string"
+     },
+     "request_id": {
+      "type": "string"
+     },
+     "suggestion": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "code",
+     "message"
+    ],
+    "title": "ApiErrorInstanceNotFound",
+    "type": "object"
+   },
+   "ApiErrorInsufficientCapacity": {
+    "properties": {
+     "code": {
+      "const": "instance-operations/launch/insufficient-capacity",
+      "type": "string"
+     },
+     "message": {
+      "default": "Not enough capacity to fulfill launch request.",
+      "type": "string"
+     },
+     "request_id": {
+      "type": "string"
+     },
+     "suggestion": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "code",
+     "message"
+    ],
+    "title": "ApiErrorInsufficientCapacity",
+    "type": "object"
+   },
+   "ApiErrorInvalidBillingAddress": {
+    "properties": {
+     "code": {
+      "const": "global/invalid-address",
+      "type": "string"
+     },
+     "message": {
+      "default": "Your billing address is invalid.",
+      "type": "string"
+     },
+     "request_id": {
+      "type": "string"
+     },
+     "suggestion": {
+      "default": "Make sure your billing address is valid. Contact Support if problems continue.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "code",
+     "message",
+     "suggestion"
+    ],
+    "title": "ApiErrorInvalidBillingAddress",
+    "type": "object"
+   },
+   "ApiErrorInvalidParameters": {
+    "properties": {
+     "code": {
+      "const": "global/invalid-parameters",
+      "type": "string"
+     },
+     "message": {
+      "default": "Invalid request data.",
+      "type": "string"
+     },
+     "request_id": {
+      "type": "string"
+     },
+     "suggestion": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "code",
+     "message"
+    ],
+    "title": "ApiErrorInvalidParameters",
+    "type": "object"
+   },
+   "ApiErrorLaunchResourceNotFound": {
+    "properties": {
+     "code": {
+      "const": "global/object-does-not-exist",
+      "type": "string"
+     },
+     "message": {
+      "type": "string"
+     },
+     "request_id": {
+      "type": "string"
+     },
+     "suggestion": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "code",
+     "message",
+     "suggestion"
+    ],
+    "title": "ApiErrorLaunchResourceNotFound",
+    "type": "object"
+   },
+   "ApiErrorNotFound": {
+    "properties": {
+     "code": {
+      "const": "global/not-found",
+      "type": "string"
+     },
+     "message": {
+      "default": "The requested resource was not found.",
+      "type": "string"
+     },
+     "request_id": {
+      "type": "string"
+     },
+     "suggestion": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "code",
+     "message"
+    ],
+    "title": "ApiErrorNotFound",
+    "type": "object"
+   },
+   "ApiErrorQuotaExceeded": {
+    "properties": {
+     "code": {
+      "const": "global/quota-exceeded",
+      "type": "string"
+     },
+     "message": {
+      "default": "Quota exceeded.",
+      "type": "string"
+     },
+     "request_id": {
+      "type": "string"
+     },
+     "suggestion": {
+      "default": "Contact Support to increase your quota.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "code",
+     "message",
+     "suggestion"
+    ],
+    "title": "ApiErrorQuotaExceeded",
+    "type": "object"
+   },
+   "ApiErrorRateLimited": {
+    "properties": {
+     "code": {
+      "const": "global/rate-limited",
+      "type": "string"
+     },
+     "message": {
+      "default": "Too many requests. Retry after the interval given in the Retry-After response header.",
+      "type": "string"
+     },
+     "request_id": {
+      "type": "string"
+     },
+     "suggestion": {
+      "default": "Wait for the interval in the Retry-After header, then retry the request. Reduce the rate of concurrent requests if this recurs.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "code",
+     "message",
+     "suggestion"
+    ],
+    "title": "ApiErrorRateLimited",
+    "type": "object"
+   },
+   "ApiErrorUnauthorized": {
+    "properties": {
+     "code": {
+      "const": "global/invalid-api-key",
+      "type": "string"
+     },
+     "message": {
+      "default": "API key was invalid, expired, or deleted.",
+      "type": "string"
+     },
+     "request_id": {
+      "type": "string"
+     },
+     "suggestion": {
+      "default": "Check your API key or create a new one, then try again.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "code",
+     "message",
+     "suggestion"
+    ],
+    "title": "ApiErrorUnauthorized",
+    "type": "object"
+   },
+   "FilesystemMountEntry": {
+    "properties": {
+     "file_system_id": {
+      "type": "string"
+     },
+     "mount_point": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "mount_point",
+     "file_system_id"
+    ],
+    "title": "FilesystemMountEntry",
+    "type": "object"
+   },
+   "FirewallRulesetEntry": {
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ],
+    "title": "FirewallRulesetEntry",
+    "type": "object"
+   },
+   "ImageSpecificationFamily": {
+    "properties": {
+     "family": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "family"
+    ],
+    "title": "ImageSpecificationFamily",
+    "type": "object"
+   },
+   "ImageSpecificationID": {
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ],
+    "title": "ImageSpecificationID",
+    "type": "object"
+   },
+   "Instance": {
+    "properties": {
+     "actions": {
+      "$ref": "#/components/schemas/InstanceActionAvailability"
+     },
+     "file_system_mounts": {
+      "items": {
+       "$ref": "#/components/schemas/FilesystemMountEntry"
+      },
+      "type": "array"
+     },
+     "file_system_names": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "firewall_rulesets": {
+      "items": {
+       "$ref": "#/components/schemas/FirewallRulesetEntry"
+      },
+      "type": "array"
+     },
+     "first_healthy": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "hostname": {
+      "type": "string"
+     },
+     "id": {
+      "type": "string"
+     },
+     "image": {
+      "$ref": "#/components/schemas/InstanceImage"
+     },
+     "instance_type": {
+      "$ref": "#/components/schemas/InstanceType"
+     },
+     "ip": {
+      "type": "string"
+     },
+     "jupyter_token": {
+      "type": "string"
+     },
+     "jupyter_url": {
+      "type": "string"
+     },
+     "name": {
+      "maxLength": 64,
+      "minLength": 0,
+      "type": "string"
+     },
+     "private_ip": {
+      "type": "string"
+     },
+     "region": {
+      "$ref": "#/components/schemas/Region"
+     },
+     "ssh_key_names": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "status": {
+      "$ref": "#/components/schemas/InstanceStatus"
+     },
+     "tags": {
+      "items": {
+       "$ref": "#/components/schemas/TagEntry"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "id",
+     "status",
+     "ssh_key_names",
+     "file_system_names",
+     "region",
+     "instance_type",
+     "first_healthy",
+     "actions"
+    ],
+    "title": "Instance",
+    "type": "object"
+   },
+   "InstanceActionAvailability": {
+    "properties": {
+     "cold_reboot": {
+      "$ref": "#/components/schemas/InstanceActionAvailabilityDetails"
+     },
+     "migrate": {
+      "$ref": "#/components/schemas/InstanceActionAvailabilityDetails"
+     },
+     "power_cycle": {
+      "$ref": "#/components/schemas/InstanceActionAvailabilityDetails"
+     },
+     "rebuild": {
+      "$ref": "#/components/schemas/InstanceActionAvailabilityDetails"
+     },
+     "restart": {
+      "$ref": "#/components/schemas/InstanceActionAvailabilityDetails"
+     },
+     "terminate": {
+      "$ref": "#/components/schemas/InstanceActionAvailabilityDetails"
+     }
+    },
+    "required": [
+     "migrate",
+     "rebuild",
+     "restart",
+     "cold_reboot",
+     "power_cycle",
+     "terminate"
+    ],
+    "title": "InstanceActionAvailability",
+    "type": "object"
+   },
+   "InstanceActionAvailabilityDetails": {
+    "properties": {
+     "available": {
+      "type": "boolean"
+     },
+     "reason_code": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/InstanceActionUnavailableCode"
+       },
+       {
+        "type": "string"
+       }
+      ]
+     },
+     "reason_description": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "available"
+    ],
+    "title": "InstanceActionAvailabilityDetails",
+    "type": "object"
+   },
+   "InstanceActionUnavailableCode": {
+    "enum": [
+     "vm-has-not-launched",
+     "vm-is-too-old",
+     "vm-is-terminating",
+     "vm-action-in-progress",
+     "vm-action-unavailable-bare-metal",
+     "vm-action-unavailable-virtualized"
+    ],
+    "title": "InstanceActionUnavailableCode",
+    "type": "string"
+   },
+   "InstanceImage": {
+    "properties": {
+     "family": {
+      "type": "string"
+     },
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "family"
+    ],
+    "title": "InstanceImage",
+    "type": "object"
+   },
+   "InstanceLaunchResponse": {
+    "properties": {
+     "instance_ids": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "instance_ids"
+    ],
+    "title": "InstanceLaunchResponse",
+    "type": "object"
+   },
+   "InstanceStatus": {
+    "enum": [
+     "booting",
+     "active",
+     "unhealthy",
+     "terminated",
+     "terminating",
+     "preempted"
+    ],
+    "title": "InstanceStatus",
+    "type": "string"
+   },
+   "InstanceTerminateResponse": {
+    "properties": {
+     "terminated_instances": {
+      "items": {
+       "$ref": "#/components/schemas/Instance"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "terminated_instances"
+    ],
+    "title": "InstanceTerminateResponse",
+    "type": "object"
+   },
+   "InstanceType": {
+    "properties": {
+     "architecture": {
+      "$ref": "#/components/schemas/InstanceTypeArchitecture"
+     },
+     "description": {
+      "type": "string"
+     },
+     "gpu_description": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     },
+     "price_cents_per_hour": {
+      "type": "integer"
+     },
+     "specs": {
+      "$ref": "#/components/schemas/InstanceTypeSpecs"
+     }
+    },
+    "required": [
+     "name",
+     "description",
+     "gpu_description",
+     "price_cents_per_hour",
+     "specs",
+     "architecture"
+    ],
+    "title": "InstanceType",
+    "type": "object"
+   },
+   "InstanceTypeArchitecture": {
+    "enum": [
+     "x86_64",
+     "arm64"
+    ],
+    "title": "InstanceTypeArchitecture",
+    "type": "string"
+   },
+   "InstanceTypeSpecs": {
+    "properties": {
+     "gpus": {
+      "type": "integer"
+     },
+     "memory_gib": {
+      "type": "integer"
+     },
+     "storage_gib": {
+      "type": "integer"
+     },
+     "vcpus": {
+      "type": "integer"
+     }
+    },
+    "required": [
+     "vcpus",
+     "memory_gib",
+     "storage_gib",
+     "gpus"
+    ],
+    "title": "InstanceTypeSpecs",
+    "type": "object"
+   },
+   "InstanceTypes": {
+    "additionalProperties": {
+     "$ref": "#/components/schemas/InstanceTypesItem"
+    },
+    "title": "InstanceTypes",
+    "type": "object"
+   },
+   "InstanceTypesItem": {
+    "properties": {
+     "instance_type": {
+      "$ref": "#/components/schemas/InstanceType"
+     },
+     "regions_with_capacity_available": {
+      "items": {
+       "$ref": "#/components/schemas/Region"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "instance_type",
+     "regions_with_capacity_available"
+    ],
+    "title": "InstanceTypesItem",
+    "type": "object"
+   },
+   "Region": {
+    "properties": {
+     "description": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "name",
+     "description"
+    ],
+    "title": "Region",
+    "type": "object"
+   },
+   "RequestedFilesystemMountEntry": {
+    "properties": {
+     "file_system_id": {
+      "type": "string"
+     },
+     "mount_point": {
+      "maxLength": 256,
+      "pattern": "^(/home|/lambda/nfs|/data)[//a-zA-Z0-9-]*$",
+      "type": "string"
+     }
+    },
+    "required": [
+     "mount_point",
+     "file_system_id"
+    ],
+    "title": "RequestedFilesystemMountEntry",
+    "type": "object"
+   },
+   "RequestedTagEntry": {
+    "properties": {
+     "key": {
+      "maxLength": 55,
+      "pattern": "^[a-z][a-z0-9-:]+$",
+      "type": "string"
+     },
+     "value": {
+      "maxLength": 128,
+      "type": "string"
+     }
+    },
+    "required": [
+     "key",
+     "value"
+    ],
+    "title": "RequestedTagEntry",
+    "type": "object"
+   },
+   "SSHKey": {
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "name": {
+      "maxLength": 64,
+      "minLength": 1,
+      "type": "string"
+     },
+     "public_key": {
+      "maxLength": 4096,
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "public_key"
+    ],
+    "title": "SSHKey",
+    "type": "object"
+   },
+   "TagEntry": {
+    "properties": {
+     "key": {
+      "type": "string"
+     },
+     "value": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "key",
+     "value"
+    ],
+    "title": "TagEntry",
+    "type": "object"
+   }
+  }
+ },
+ "info": {
+  "title": "Lambda Cloud API",
+  "version": "1.10.0",
+  "x-lens-fetched": "2026-10-18",
+  "x-lens-source": "https://cloud.lambda.ai/api/v1/openapi.json"
+ },
+ "openapi": "3.1.0",
+ "paths": {
+  "/api/v1/instance-operations/launch": {
+   "post": {
+    "operationId": "launchInstance",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "file_system_mounts": {
+          "items": {
+           "$ref": "#/components/schemas/RequestedFilesystemMountEntry"
+          },
+          "type": "array"
+         },
+         "file_system_names": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "firewall_rulesets": {
+          "items": {
+           "$ref": "#/components/schemas/FirewallRulesetEntry"
+          },
+          "type": "array"
+         },
+         "hostname": {
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][0-9a-z-]{0,62}$",
+          "type": "string"
+         },
+         "image": {
+          "anyOf": [
+           {
+            "$ref": "#/components/schemas/ImageSpecificationID"
+           },
+           {
+            "$ref": "#/components/schemas/ImageSpecificationFamily"
+           }
+          ]
+         },
+         "instance_type_name": {
+          "type": "string"
+         },
+         "name": {
+          "maxLength": 64,
+          "minLength": 0,
+          "type": "string"
+         },
+         "region_name": {
+          "type": "string"
+         },
+         "ssh_key_names": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "tags": {
+          "items": {
+           "$ref": "#/components/schemas/RequestedTagEntry"
+          },
+          "type": "array"
+         },
+         "user_data": {
+          "format": "password",
+          "type": "string",
+          "writeOnly": true
+         }
+        },
+        "required": [
+         "region_name",
+         "instance_type_name",
+         "ssh_key_names"
+        ],
+        "title": "InstanceLaunchRequest",
+        "type": "object"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "data": {
+           "$ref": "#/components/schemas/InstanceLaunchResponse"
+          }
+         },
+         "required": [
+          "data"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "anyOf": [
+            {
+             "$ref": "#/components/schemas/ApiErrorFileSystemInWrongRegion"
+            },
+            {
+             "$ref": "#/components/schemas/ApiErrorInsufficientCapacity"
+            },
+            {
+             "$ref": "#/components/schemas/ApiErrorInvalidParameters"
+            },
+            {
+             "$ref": "#/components/schemas/ApiErrorLaunchResourceNotFound"
+            },
+            {
+             "$ref": "#/components/schemas/ApiErrorQuotaExceeded"
+            }
+           ]
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "401": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorUnauthorized"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "403": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "anyOf": [
+            {
+             "$ref": "#/components/schemas/ApiErrorAccountInactive"
+            },
+            {
+             "$ref": "#/components/schemas/ApiErrorInvalidBillingAddress"
+            }
+           ]
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "404": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorLaunchResourceNotFound"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "429": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorRateLimited"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     }
+    },
+    "tags": [
+     "Instances"
+    ]
+   }
+  },
+  "/api/v1/instance-operations/terminate": {
+   "post": {
+    "operationId": "terminateInstance",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "instance_ids": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         }
+        },
+        "required": [
+         "instance_ids"
+        ],
+        "title": "InstanceTerminateRequest",
+        "type": "object"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "data": {
+           "$ref": "#/components/schemas/InstanceTerminateResponse"
+          }
+         },
+         "required": [
+          "data"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorInvalidParameters"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "401": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorUnauthorized"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "403": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorAccountInactive"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "404": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorInstanceNotFound"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "429": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorRateLimited"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     }
+    },
+    "tags": [
+     "Instances"
+    ]
+   }
+  },
+  "/api/v1/instance-types": {
+   "get": {
+    "operationId": "listInstanceTypes",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "data": {
+           "$ref": "#/components/schemas/InstanceTypes"
+          }
+         },
+         "required": [
+          "data"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorInvalidParameters"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "401": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorUnauthorized"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "403": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorAccountInactive"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "404": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorNotFound"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "429": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorRateLimited"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     }
+    },
+    "tags": [
+     "Instances"
+    ]
+   }
+  },
+  "/api/v1/instances": {
+   "get": {
+    "operationId": "listInstances",
+    "parameters": [
+     {
+      "example": 50,
+      "in": "query",
+      "name": "page_size",
+      "required": false,
+      "schema": {
+       "ge": 1,
+       "le": 100,
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "page_token",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "cluster_id",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "data": {
+           "items": {
+            "$ref": "#/components/schemas/Instance"
+           },
+           "type": "array"
+          },
+          "page_token": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          }
+         },
+         "required": [
+          "data",
+          "page_token"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorInvalidParameters"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "401": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorUnauthorized"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "403": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "anyOf": [
+            {
+             "$ref": "#/components/schemas/ApiErrorAccountInactive"
+            },
+            {
+             "$ref": "#/components/schemas/ApiErrorForbidden"
+            }
+           ]
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "404": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorNotFound"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "429": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorRateLimited"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     }
+    },
+    "tags": [
+     "Instances"
+    ]
+   }
+  },
+  "/api/v1/instances/{id}": {
+   "get": {
+    "operationId": "getInstance",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "id",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "data": {
+           "$ref": "#/components/schemas/Instance"
+          }
+         },
+         "required": [
+          "data"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorInvalidParameters"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "401": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorUnauthorized"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "403": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "anyOf": [
+            {
+             "$ref": "#/components/schemas/ApiErrorAccountInactive"
+            },
+            {
+             "$ref": "#/components/schemas/ApiErrorForbidden"
+            }
+           ]
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "404": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorInstanceNotFound"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "429": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorRateLimited"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     }
+    },
+    "tags": [
+     "Instances"
+    ]
+   }
+  },
+  "/api/v1/ssh-keys": {
+   "get": {
+    "operationId": "listSSHKeys",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "data": {
+           "items": {
+            "$ref": "#/components/schemas/SSHKey"
+           },
+           "type": "array"
+          }
+         },
+         "required": [
+          "data"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorInvalidParameters"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "401": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorUnauthorized"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "403": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorAccountInactive"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "404": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorNotFound"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "429": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorRateLimited"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     }
+    },
+    "tags": [
+     "SSH keys"
+    ]
+   }
+  }
+ },
+ "servers": [
+  {
+   "description": "Production server",
+   "url": "https://cloud.lambda.ai/"
+  }
+ ]
+}

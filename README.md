@@ -253,8 +253,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   schedule rules, within min and max and a monthly budget, with every launch, join and hour of cost in the activity
   ledger. You add providers and make groups in Settings › Auto scaling, and a group launches nothing until you approve
   its terms there; agents propose and manage groups over the API, MCP and the assistant, and never approve one. It
-  runs more workers on this machine today; AWS EC2 (spot or on demand), DigitalOcean, Hetzner Cloud, Proxmox VE and
-  Linux hosts over SSH providers are in progress (built, with machines that join over the mesh to transcribe and tell
+  runs more workers on this machine today; AWS EC2 (spot or on demand), DigitalOcean, Hetzner Cloud, Lambda GPU
+  instances, Proxmox VE and Linux hosts over SSH providers are in progress (built, with machines that join over the mesh to transcribe and tell
   voices apart, not yet tried on a real cloud), so are RunPod GPUs, Hugging Face Inference Endpoints and Amazon
   SageMaker endpoints that serve Lens's model calls while they run, and more model hosts are planned. ([Auto scaling](docs/scaling.md); [checks](docs/requirements.md#scale-out))
 - **Run on more machines.** Add a Mac with a GPU, a box for the assistant's code or a server with more disk, and
@@ -340,7 +340,7 @@ Next, and not in a pull request yet; each links to where it is tracked:
   topics, recordings and the other things that have pages ([notes](docs/notes.md)).
 - **Local models:** GPU builds of llama.cpp fetched by Lens, and local embedding models
   ([local models](docs/local-models.md)).
-- **Auto scaling:** spreading model calls across GPUs, and more model hosts (Lambda, SageMaker, Bedrock) ([auto scaling](docs/scaling.md)).
+- **Auto scaling:** spreading model calls across GPUs, and more model hosts (Lambda instances serving a model, Bedrock) ([auto scaling](docs/scaling.md)).
 - **Speech providers:** their summaries, chapters and entities as optional imports
   ([speech providers](docs/speech-providers.md)).
 - **Storage:** uploads and assets' media in the file store, and a storage key to download
