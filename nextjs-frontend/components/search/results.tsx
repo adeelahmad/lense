@@ -8,7 +8,7 @@ import { forwardRef, type KeyboardEvent } from "react";
 import type { SearchHit } from "@/app/openapi-client/types.gen";
 import type { HitGroup } from "@/components/search/facets";
 import { ROLE_LABEL, hitHref, type FileRole } from "@/components/recording/files-model";
-import { foundAs, onPage, recordingHref } from "@/components/search/links";
+import { foundAs, onPage, recordingHref, withFind } from "@/components/search/links";
 import type { InlinePlayer } from "@/components/search/player";
 import { splitSnippet } from "@/components/search/snippet";
 import { speakerTone } from "@/components/speakers/format";
@@ -114,14 +114,16 @@ function HitRow({
   first,
   player,
   audio,
+  q,
 }: {
   hit: SearchHit;
   first: boolean;
   player: InlinePlayer;
   audio: boolean | undefined;
+  q?: string;
 }) {
   const router = useRouter();
-  const href = hitHref(hit);
+  const href = withFind(hitHref(hit), q);
   const paged = onPage(hit);
   const untimed = hit.t0 == null || paged;
   const at = paged ? `Page ${(hit.page ?? 0) + 1}` : hit.t0 == null ? `Line ${(hit.line ?? 0) + 1}` : tc(hit.t0);
@@ -206,9 +208,11 @@ export const ResultGroups = forwardRef<
     groups: HitGroup[];
     player: InlinePlayer;
     audioOf: (recordingId: number) => boolean | undefined;
+    /** What was searched for: each link opens the asset with it found. */
+    q?: string;
     className?: string;
   }
->(function ResultGroups({ groups, player, audioOf, className }, ref) {
+>(function ResultGroups({ groups, player, audioOf, q, className }, ref) {
   let first = true;
   return (
     <div ref={ref} data-hit-list role="list" aria-label="Search results" className={className}>
@@ -221,7 +225,7 @@ export const ResultGroups = forwardRef<
         >
           <header className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
             <Link
-              href={recordingHref(g.recordingId)}
+              href={withFind(recordingHref(g.recordingId), q)}
               className="text-[15px] font-bold leading-snug text-fg hover:text-fg-accent hover:underline"
             >
               {g.title}
@@ -235,7 +239,14 @@ export const ResultGroups = forwardRef<
           <div className="flex flex-col gap-1">
             {g.hits.map((h) => {
               const row = (
-                <HitRow key={String(h.id)} hit={h} first={first} player={player} audio={audioOf(h.recording_id)} />
+                <HitRow
+                  key={String(h.id)}
+                  hit={h}
+                  first={first}
+                  player={player}
+                  audio={audioOf(h.recording_id)}
+                  q={q}
+                />
               );
               first = false;
               return row;

@@ -79,7 +79,7 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [checks](docs/requirements.md#connect-your-agents))
 - **Ask, and get cited answers.** A chat assistant on every page, and by voice, searches your archive by words (with
   "phrases", OR, and -word to leave lines out) and by meaning, once turned on, reads it, cites it and acts on it with
-  tools: changes wait for your approval. Ask it about Lens itself ("what's the MCP address?", "is Telegram on?") and it
+  tools: changes wait for your approval. A search result opens the asset with Find showing the words. Ask it about Lens itself ("what's the MCP address?", "is Telegram on?") and it
   answers from Lens's docs and this server, citing both. A Tools chip picks which tools an answer may use, how many
   calls it may make and which namespaces it reads. Once an admin turns them on, it also searches the web and reads
   pages, cited like the archive, and runs Python and bash in a sandbox of each conversation's own (on a Docker install,

@@ -459,7 +459,7 @@ export function SearchPage() {
             />
           )}
           {groups.length > 0 && (
-            <ResultGroups ref={listRef} groups={groups} player={player} audioOf={audioOf} className="pt-1.5" />
+            <ResultGroups ref={listRef} groups={groups} player={player} audioOf={audioOf} q={q} className="pt-1.5" />
           )}
           {results.hasNextPage && (
             <div className="flex justify-center py-5">
