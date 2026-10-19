@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import math
+import time
 
 from . import events, store
 
@@ -23,6 +24,9 @@ WEIGHTS = {"reaction": 1.0, "comment": 2.0, "important": 2.0, "hidden": -3.0, "o
 OPENS = 4  # opens of one item that count at most, so reading one thing again and again doesn't drown the rest
 SCALE = 4.0  # affinity this strong doubles (or, negative, halves) an item's score
 ORDERS = ("latest", "for_you")
+CACHE_SECONDS = 60.0  # how long a person's affinity is reused while their signals stay the same
+CACHE_SIZE = 256  # people whose affinity is kept at most, per process
+_cache: dict = {}
 
 
 def signals(db, account):
@@ -63,8 +67,25 @@ def opened(db, account, activity):
 
 def affinity(db, cfg, who):
     """{actor: {id: weight}, kind: {name: weight}, entity: {id: (weight, name)}, n}: the person's signals summed
-    over the actor, kind and tagged entities of the activities they were on; `n` is how many counted."""
+    over the actor, kind and tagged entities of the activities they were on; `n` is how many counted. The signals are
+    read on every call (small, indexed queries); looking up the activities they were on is the costly part, so the sum
+    is reused for CACHE_SECONDS while the person, what they may see and their signals are all the same. A new
+    reaction, comment, mark or open changes the signals, so it shows at once."""
     sig = signals(db, who.get("account"))
+    spaces = who.get("spaces")
+    key = (who.get("account"), bool(who.get("admin")), None if spaces is None else tuple(sorted(map(str, spaces))))
+    now = time.monotonic()
+    hit = _cache.get(key)
+    if hit and hit[0] == sig and now - hit[1] < CACHE_SECONDS:
+        return hit[2]
+    out = _sum(db, cfg, who, sig)
+    if len(_cache) >= CACHE_SIZE and key not in _cache:
+        _cache.pop(min(_cache, key=lambda k: _cache[k][1]))
+    _cache[key] = (sig, now, out)
+    return out
+
+
+def _sum(db, cfg, who, sig):
     acts = events.get_many(db, cfg, [a for a, _ in sig], who) if sig else {}
     out = {"actor": {}, "kind": {}, "entity": {}, "n": 0}
     for aid, w in sig:

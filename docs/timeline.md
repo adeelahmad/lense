@@ -251,6 +251,9 @@ nobody's reactions or marks change anyone else's order, and no model is called.
   it. An item with no signal in common keeps its recency alone.
 - A page takes the 200 newest items from where it starts, orders them by score and shows the best `limit`; **Older**
   moves past all 200. With no signals yet, For you is Latest, and the page says so.
+- Your signals are read on every page, but the sum over the activities they were on is kept for a minute while they
+  stay the same, so paging and polling don't look those activities up again; a new reaction, comment, mark or open
+  changes the signals and shows at once.
 - `why` on the page names the strongest signal that placed each item ("You often react to Work Gmail", "About St
   Mary's School, which you often react to", "You hid items from Dropbox before"), shown under the item.
 - `GET /api/v1/activities?order=for_you` is the same for agents, with `why` by id; the other filters apply as in
@@ -282,7 +285,6 @@ has any more. Comments on them stay, since they are what people wrote, and an as
   back to it.
 
 - Server-sent updates instead of the page polling for new items.
-- For you could cache each person's affinity for a minute rather than summing it on every read.
 - A muted actor's own line in the Filters.
 - A file changed in its source is read again as a new asset beside the earlier one (`file.changed` links them);
   reading the change into the same asset is to come. A file in a namespace's own folders changed in place is read
