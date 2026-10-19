@@ -472,6 +472,11 @@ def merge(db, src, dst, by=None):
         patch["name"] = a["name"]
     moved = sorted({tuple(sorted((dst if x["a"] == src else x["a"], dst if x["b"] == src else x["b"]))) for x in links} - {(dst, dst)})
     snap["moved_links"] = [list(x) for x in moved]
+    # what someone said `src` isn't now holds for `dst`: their pairs name `dst`, kept once each, never `dst` with itself
+    snap["not_same"] = db.rows("SELECT a, b, by, at FROM not_same WHERE a = $s OR b = $s", s=src)
+    have = {(r["a"], r["b"]) for r in db.rows("SELECT a, b FROM not_same WHERE a = $s OR b = $s", s=dst)}
+    kept = _repointed(snap["not_same"], {src: dst}, have)
+    snap["moved_not_same"] = [[r["a"], r["b"]] for r in kept]
     mid = db.next_id("merge")
     stmts = [
         "UPDATE segment SET speaker = $dst WHERE speaker = $src",
@@ -479,6 +484,7 @@ def merge(db, src, dst, by=None):
         "UPDATE mentions SET speaker = $dst WHERE speaker = $src",
         "DELETE suggestion WHERE speaker = $src OR candidate = $src",
         "DELETE same_as WHERE in = $srcr OR out = $srcr",
+        "DELETE not_same WHERE a = $src OR b = $src",
         "DELETE $srcr",
         "CREATE $mr CONTENT $m",
     ]
@@ -511,6 +517,9 @@ def merge(db, src, dst, by=None):
     for k, (x, y) in enumerate(moved):
         stmts.append(f"RELATE $la{k}->same_as->$lb{k}")
         params.update({f"la{k}": R("speaker", x), f"lb{k}": R("speaker", y)})
+    for k, r in enumerate(kept):
+        stmts.append(f"UPSERT $np{k} CONTENT $nd{k}")
+        params.update({f"np{k}": _pair(r["a"], r["b"]), f"nd{k}": store.clean(r)})
     db.run(stmts, **params)
     return mid
 
@@ -549,6 +558,12 @@ def undo(db, merge_id, by=None):
     for k, ln in enumerate(sn["links"]):
         stmts.append(f"RELATE $oa{k}->same_as->$ob{k}")
         params.update({f"oa{k}": R("speaker", ln["a"]), f"ob{k}": R("speaker", ln["b"])})
+    for k, (x, y) in enumerate(sn.get("moved_not_same", [])):
+        stmts.append(f"DELETE $mn{k}")
+        params[f"mn{k}"] = _pair(x, y)
+    for k, r in enumerate(sn.get("not_same", [])):
+        stmts.append(f"UPSERT $on{k} CONTENT $od{k}")
+        params.update({f"on{k}": _pair(r["a"], r["b"]), f"od{k}": store.clean(r)})
     if sn["suggestions"]:
         stmts.append("INSERT INTO suggestion $sugg")
         params["sugg"] = sn["suggestions"]
@@ -626,6 +641,44 @@ def unlink(db, a, b):
 
 def _pair(a, b):
     return R("not_same", f"{min(a, b)}-{max(a, b)}")
+
+
+def _repointed(rows, into, have):
+    """The not-the-same pairs these rows (a, b, by, at) become once each speaker in `into` is the one it maps to: each
+    pair once with a < b, and none that names one person twice or is already in `have`."""
+    out = {}
+    for r in rows:
+        x, y = into.get(r["a"], r["a"]), into.get(r["b"], r["b"])
+        k = (min(x, y), max(x, y))
+        if x != y and k not in have and k not in out:
+            out[k] = {**r, "a": k[0], "b": k[1]}
+    return list(out.values())
+
+
+def migrate_not_same(db):
+    """Upgrade step: pairs someone said aren't the same person that name a speaker merged away before merges carried
+    them over name the one they were merged into (through merges of merges), as merge() does now. The old rows stay,
+    so undoing that merge brings them back; safe to run twice, as a pair already there isn't made again."""
+    into = {m["from_id"]: m["into_id"] for m in db.rows("SELECT from_id, into_id FROM merge WHERE undone = false")}
+    rows = db.rows("SELECT a, b, by, at FROM not_same")
+    ids = {i for r in rows for i in (r["a"], r["b"])}
+    alive = set(db.values("SELECT VALUE record::id(id) FROM $rs", rs=[R("speaker", i) for i in sorted(ids)])) if ids else set()
+
+    def now_is(x):
+        seen = set()
+        while x not in alive and x in into and x not in seen:
+            seen.add(x)
+            x = into[x]
+        return x
+
+    gone = [r for r in rows if not {r["a"], r["b"]} <= alive]
+    kept = [r for r in _repointed(gone, {i: now_is(i) for i in ids - alive}, {(r["a"], r["b"]) for r in rows}) if {r["a"], r["b"]} <= alive]
+    if kept:
+        db.run(
+            [f"UPSERT $p{k} CONTENT $d{k}" for k in range(len(kept))],
+            **{f"p{k}": _pair(r["a"], r["b"]) for k, r in enumerate(kept)},
+            **{f"d{k}": store.clean(r) for k, r in enumerate(kept)},
+        )
 
 
 def not_same(db, a, b, by=None):

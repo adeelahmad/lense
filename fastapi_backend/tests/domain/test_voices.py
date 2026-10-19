@@ -42,6 +42,47 @@ def test_match_suggest_merge_undo_link(db, cfg):
         speakers.undo(db, mid)  # only once
 
 
+def test_merging_keeps_who_they_are_not(db):
+    pods, calls = store.ns_id(db, "pods"), store.ns_id(db, "calls")
+    a, b, c, d = (speakers.new_speaker(db, pods) for _ in range(4))
+    e = speakers.new_speaker(db, calls)
+    speakers.not_same(db, b, c, by="ann@example.com")  # moves to a-c
+    speakers.not_same(db, b, a)  # would be a-a: dropped
+    speakers.not_same(db, b, d)  # a-d is already there: kept once
+    speakers.not_same(db, a, d)
+    speakers.not_same(db, e, b)  # across namespaces too
+    before = db.rows("SELECT a, b, by FROM not_same ORDER BY a, b")
+
+    def pairs():
+        return sorted((r["a"], r["b"]) for r in db.rows("SELECT a, b FROM not_same"))
+
+    mid = speakers.merge(db, b, a)
+    assert pairs() == sorted([(min(a, c), max(a, c)), (min(a, d), max(a, d)), (min(a, e), max(a, e))])
+    assert db.one("SELECT by FROM $p", p=speakers._pair(a, c))["by"] == "ann@example.com"
+    ids = db.rows("SELECT record::id(id) AS k, a, b FROM not_same")
+    assert all(r["k"] == f"{r['a']}-{r['b']}" for r in ids)  # keyed as not_same() keys them
+    speakers.undo(db, mid)
+    assert db.rows("SELECT a, b, by FROM not_same ORDER BY a, b") == before
+
+
+def test_upgrade_gives_pairs_lost_to_merges_to_who_they_were_merged_into(db):
+    pods = store.ns_id(db, "pods")
+    a, b, c, x = (speakers.new_speaker(db, pods) for _ in range(4))
+    speakers.not_same(db, b, c)
+    speakers.not_same(db, b, a)
+    speakers.not_same(db, x, c)
+    # as merges left it before they carried pairs over: b went into x, then x into a
+    for src, dst in ((b, x), (x, a)):
+        db.q("CREATE $r CONTENT $m", r=store.R("merge", db.next_id("merge")), m={"from_id": src, "into_id": dst, "undone": False})
+        db.q("DELETE $r", r=store.R("speaker", src))
+    speakers.migrate_not_same(db)
+    once = sorted((r["a"], r["b"]) for r in db.rows("SELECT a, b FROM not_same"))
+    assert (min(a, c), max(a, c)) in once and (min(a, b), max(a, b)) in once  # the old rows stay, for undo
+    assert len(once) == 4  # b-c and x-c both became a-c, b-a became nothing
+    speakers.migrate_not_same(db)
+    assert sorted((r["a"], r["b"]) for r in db.rows("SELECT a, b FROM not_same")) == once
+
+
 def test_channels_and_clustering():
     rng = np.random.default_rng(0)
     x = rng.normal(scale=0.01, size=(48000, 2)).astype(np.float32)

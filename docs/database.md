@@ -127,6 +127,10 @@ The steps so far, in the order they run:
   a `model`, except a spec's note) get their words kept for search in `generated`, under their template's name
   ([Pipelines and templates](processing.md#pipelines-and-templates)). Outputs that already have them are left as they
   are, so it's safe to run twice.
+* `speaker-not-same-merged`: pairs of people someone said aren't the same that name a person merged away before
+  merges carried them over (the `not_same` table) get a pair naming the person they were merged into, following merges
+  of merges; a pair that would name one person twice is dropped. The old rows stay, so undoing such a merge brings
+  them back, and a pair already there isn't made again, so it's safe to run twice.
 
 To add a step:
 

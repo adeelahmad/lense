@@ -23,6 +23,7 @@ SHIPPED = [
     "mcp-sealed-secrets",
     "entity-types",
     "generated-search",
+    "speaker-not-same-merged",
 ]
 
 
