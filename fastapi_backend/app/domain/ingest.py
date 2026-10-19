@@ -544,7 +544,10 @@ def _language(segs):
 
 
 def write_transcript(db, rid, nid, segs, patch):
-    """Replace a recording's transcript and everything derived from it, atomically."""
+    """Replace a recording's transcript and everything derived from it, atomically. A language a person set
+    (library.set_language) stays over the one transcription gives."""
+    if "language" in patch and (db.one("SELECT language_set FROM $r", r=store.R("recording", rid)) or {}).get("language_set"):
+        patch = {k: v for k, v in patch.items() if k != "language"}
     rows = segment_rows(rid, nid, segs)  # overwrite segments in place and drop the extra ones (see store.DOWNSTREAM)
     db.run(
         store.DOWNSTREAM + ["FOR $s IN $segs { UPSERT $s.id CONTENT $s; }", "UPDATE $rec MERGE $patch", "UPDATE $rec SET embedded = NONE"],

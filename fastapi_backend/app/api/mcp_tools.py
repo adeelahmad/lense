@@ -920,7 +920,10 @@ def list_speakers(ctx: Context, namespace: str | None, query: str | None, limit:
 def get_recording(ctx: Context, recording_id: int) -> dict[str, Any]:
     rec = recording_routes.get_recording(recording_id, ctx.acl, ctx.db, ctx.cfg)
     raw = (
-        ctx.db.one("SELECT recorded_at, duration_ms, source, media, language, pages, analyzed_at FROM $r", r=R("recording", recording_id))
+        ctx.db.one(
+            "SELECT recorded_at, duration_ms, source, media, language, language_set, pages, analyzed_at FROM $r",
+            r=R("recording", recording_id),
+        )
         or {}
     )
     sections = ctx.db.rows("SELECT idx, t0, t1, title FROM section WHERE recording = $r ORDER BY idx", r=recording_id)
@@ -937,6 +940,7 @@ def get_recording(ctx: Context, recording_id: int) -> dict[str, Any]:
         "media": render.kind(raw),
         "pages": raw.get("pages"),
         "language": raw.get("language"),
+        "language_set": bool(raw.get("language_set")) or None,  # a person set it; transcription leaves it
         "status": rec.status,
         "tags": rec.tags or None,
         "your_role": rec.role,
@@ -2958,6 +2962,32 @@ def mark_nsfw(ctx: Context, recording_id: int, verdict: str) -> dict[str, Any]:
     got = nsfw.mark(ctx.db, ctx.cfg, recording_id, flagged, ctx.user.email)
     auth.audit(ctx.db, ctx.user.as_audit(), "recording.nsfw", f"recording:{recording_id}", {"flagged": flagged, "via": "mcp"})
     return {"recording_id": recording_id, "nsfw": got, "url": ctx.link(recording_id)}
+
+
+# ---------- an asset's language ----------
+@tool(
+    "set_language",
+    "Set an asset's language",
+    "Set or correct the language an asset is in, as a BCP 47 tag with a region if it matters (en-GB, en-US, pt-BR, "
+    "pt-PT); it is written the usual way (en-gb becomes en-GB) and kept over the language transcription detects. "
+    "Left out, it forgets it, so the next transcription says again. get_recording gives its language and whether a person "
+    "set it (language_set). Editors, with a token that has the write scope.",
+    Arg("recording_id", "integer", "the asset", required=True),
+    Arg("language", "string", "a BCP 47 tag such as en, en-GB or pt-BR; left out, it's forgotten", max_length=40),
+    writes=True,
+)
+def set_language(ctx: Context, recording_id: int, language: str | None) -> dict[str, Any]:
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to set languages")
+    ctx.acl.recording(recording_id, "edit")
+    try:
+        before, after = library.set_language(ctx.db, ctx.cfg, recording_id, language)
+    except ValueError as e:
+        raise ToolError(str(e)) from None
+    if before != after:
+        detail = {"from": before, "to": after, "via": "mcp"}
+        auth.audit(ctx.db, ctx.user.as_audit(), "recording.language", f"recording:{recording_id}", detail)
+    return {"recording_id": recording_id, "language": after, "language_set": after is not None, "url": ctx.link(recording_id)}
 
 
 # ---------- enhancing low quality images ----------

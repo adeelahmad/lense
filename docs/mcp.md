@@ -127,6 +127,7 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 | `nsfw_settings` | how [NSFW classification](nsfw.md) works in a namespace: on or off, the threshold, how flagged resources show, and how many are classified, flagged and not classified yet |
 | `set_nsfw` | turn NSFW classification on or off, set its threshold and display, for a namespace (owners) or the archive (admins), and optionally classify what's there. Needs a write-scope token |
 | `mark_nsfw` | mark a resource NSFW or not by hand, or hand it back to the model's score. Needs a write-scope token and editor access |
+| `set_language` | set or correct the [language an asset is in](api.md#an-assets-language) as a BCP 47 tag with a region if it matters (`en-GB`, `pt-BR`), written the usual way and kept over the one transcription detects; left out, it's forgotten. Needs a write-scope token and editor access |
 | `enhance` | [enhance an image](enhance.md) whatever the settings, keeping the original, and read it again from the enhanced copy. Needs a write-scope token and the process permission |
 | `namespace_integrations` | whether a namespace has [its own MCP server](#one-namespaces-mcp-server) and [chat completions](api.md#chat-completions-for-any-app) on, their addresses, and the tools offered there |
 | `set_namespace_integrations` | turn a namespace's own MCP server or chat completions on or off, and pick the read tools its chat completions may use. Owners, with a write-scope token |
@@ -212,7 +213,7 @@ app (merges and deletes can be undone), `write_note`, which adds a note, `create
 queues an episode, `create_feed` and `publish_to_feed`, which make and fill a [published feed](feeds.md),
 `save_circle`, `share_with_circle` and `undo_share`, which change your [circles](circles.md) and what you share with them,
 `write_spec`, which queues a spec, `translate_transcript`, which queues a translation, `draft_reply` and `edit_reply`, which draft and change [email replies](email-replies.md) (nothing is sent), `send_reply`, which asks to send one (it waits in Approvals), `set_nsfw` and `mark_nsfw`, which change [NSFW classification](nsfw.md) (owners or admins, and
-editors), `enhance`, which enhances an image and reads it again (the process permission),
+editors), `set_language`, which sets an asset's language (editors), `enhance`, which enhances an image and reads it again (the process permission),
 `set_namespace_integrations`, which turns a namespace's own MCP server or chat completions on or off (owners), `set_picture_descriptions`, which changes what describes pictures (admins), `set_file_storage`, which changes where new files are kept (admins), `set_secret_reference`, which points a secret field at a password manager's item (admins), `install_plugin`, which
 installs a plugin from a marketplace as your own extension, `add_mcp_server`, which adds an
 MCP server (admins), `subscribe_feed` and `unsubscribe_feed`, which follow and stop following news feeds (admins), `set_mail_routing`, which changes where an email account's messages go (admins), `add_mesh_node`,

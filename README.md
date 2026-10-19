@@ -182,7 +182,9 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   (noise, volume, echo, and silence left out, with the transcript's times kept), and transcripts cleaned up before
   analysis (stutters, "um"s, spacing and, with a local model, punctuation put back, and grammar by a LanguageTool server
   you run), entities found by spaCy instead of the rules, and the dates people say read as days on the calendar, each
-  off by default. Words transcription wasn't sure of are underlined, with how sure, to check and correct in place. Translate a transcript into another language when you ask, with the estimate shown first: it's kept
+  off by default. Words transcription wasn't sure of are underlined, with how sure, to check and correct in place. The language
+  transcription hears is kept on the asset, and you can correct it with a region (en-GB or en-US, pt-BR or pt-PT), which
+  transcribing again keeps. Translate a transcript into another language when you ask, with the estimate shown first: it's kept
   beside the asset as a translation whose lines keep their times, found by search like an uploaded one.
   A date said ("let's meet next Tuesday at 3") becomes a calendar event in one click,
   prefilled from the line and added only once you approve it ([propose an event](docs/processing.md#propose-an-event)).
@@ -195,7 +197,7 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [cleaning up audio](docs/processing.md#cleaning-up-audio),
   [your own names](docs/processing.md#your-own-names-in-transcription),
   [cleaning up transcripts](docs/processing.md#cleaning-up-transcripts), [dates](docs/processing.md#dates),
-  [unsure words](docs/processing.md#unsure-words),
+  [unsure words](docs/processing.md#unsure-words), [an asset's language](docs/api.md#an-assets-language),
   [translations](docs/api.md#translating-a-transcript), [captions](docs/video.md#captions);
   [checks](docs/requirements.md#understand-it))
 - **Learn from it.** Make a two-host podcast episode about what you pick, every claim cited and checked against its

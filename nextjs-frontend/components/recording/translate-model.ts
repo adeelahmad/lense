@@ -34,11 +34,17 @@ export const COMMON_LANGUAGES = [
 
 const primary = (code: string) => code.trim().split(/[-_]/)[0].toLowerCase();
 
-/** A language tag as it is usually written: "pt_br" → "pt-BR", "EN" → "en". */
+/** A language tag as it is usually written: "pt_br" → "pt-BR", "EN" → "en", "zh-hant-tw" → "zh-Hant-TW". */
 export function tidyLanguage(code: string): string {
   const [lang, ...rest] = code.trim().split(/[-_]/);
   if (!lang) return "";
-  return [lang.toLowerCase(), ...rest.map((p) => (p.length === 2 ? p.toUpperCase() : p))].join("-");
+  const part = (p: string, i: number) =>
+    p.length === 2
+      ? p.toUpperCase()
+      : i === 0 && /^[a-z]{4}$/i.test(p)
+        ? p[0].toUpperCase() + p.slice(1).toLowerCase()
+        : p;
+  return [lang.toLowerCase(), ...rest.map(part)].join("-");
 }
 
 /** The language to translate into first: the first one the browser reads that the transcript isn't in, or "" when

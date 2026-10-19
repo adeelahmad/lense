@@ -728,7 +728,7 @@ many changed. `GET /resources/tags` (`ns` for one namespace) lists the tags in u
 most used first.
 
 `PATCH /resources/{rid}` with `{"title": …}` renames an asset (editors; whitespace is collapsed, at most 200
-characters). It is audited as `recording.rename`; the asset's report page follows the new title and is rebuilt,
+characters), and with `{"language": …}` sets its language ([An asset's language](#an-assets-language)). It is audited as `recording.rename`; the asset's report page follows the new title and is rebuilt,
 and a published asset shows up as an Update in the IIIF change feed.
 
 `DELETE /resources/{rid}` deletes an asset (owners). Everything Lens made from it goes: its text and analysis
@@ -787,6 +787,20 @@ ended permission back; `DELETE …/{account}` takes it away. They answer with th
 all of the asset (owners). `PUT …/{gid}` opens the asset to a group that opens chosen assets (400 for one
 that opens `everything` already), `DELETE …/{gid}` closes it again (404 when it wasn't open). Both answer with the list
 and are audited as `recording.ip_group.open` and `recording.ip_group.close`.
+
+### An asset's language
+
+Transcription keeps the language it hears on the asset (`language`): SenseVoice's, the one Whisper detects when
+Settings → Transcription leaves the language on auto, or a speech provider's, as a short code such as `en`. A person
+can set or correct it as a BCP 47 tag, with a region when it matters (`en-GB` or `en-US`, `pt-BR` or `pt-PT`):
+`PATCH /resources/{rid}` with `{"language": "en-gb"}` (editors) checks the tag and writes it the usual way (`en-GB`,
+`zh-Hant-TW`, `es-419`); one that isn't a tag is a 400. `GET /resources/{rid}` gives `language` and `language_set`,
+true when a person set it: transcribing it again, importing a transcript over it or reading it again keeps their
+language instead of the detected one. `{"language": null}` forgets it, so the next transcription says again. Changes
+are audited as `recording.language`, and a published asset shows up as an Update in the IIIF change feed (its
+manifest and Dublin Core record give the tag). The MCP tool `set_language` does the same, and the asset's Details tab
+in the web app shows the language by name with its tag, which editors change there. The Language filter counts `en-GB`
+apart from `en`; a pipeline step's `languages` condition of `en` takes `en-GB` and `en-US` too.
 
 ### Documents and images
 

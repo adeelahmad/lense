@@ -348,8 +348,14 @@ def condition_ok(db, rid, when):
         ("min_minutes" in when and mins < when["min_minutes"])
         or ("max_minutes" in when and mins > when["max_minutes"])
         or ("source" in when and rec.get("source") != when["source"])
-        or (when.get("languages") and rec.get("language") not in when["languages"])
+        or (when.get("languages") and not _language_in(rec.get("language"), when["languages"]))
     )
+
+
+def _language_in(lang, wanted):
+    """Whether a recording's language is one of these: en takes en-GB and en-US too, ignoring case."""
+    lang = str(lang or "").lower()
+    return any(lang == w or lang.startswith(w + "-") for w in (str(x).lower() for x in wanted))
 
 
 GENERATED_MAX = 100_000  # characters of an output kept for search
