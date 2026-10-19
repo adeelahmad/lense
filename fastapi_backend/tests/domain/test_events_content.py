@@ -225,6 +225,34 @@ def test_a_file_from_storage_is_file_added(db, cfg):
     assert a["summary"] == "Office share added “minutes”" and set(a["lens"]["untrusted"]) == {"object.name", "object.path"}
 
 
+def test_a_file_changed_in_its_source_is_file_changed_linked_to_the_asset_it_was_before(db, cfg, monkeypatch):
+    calls = store.ns_id(db, "calls")
+    src = source(db, "Office share", "s3")
+    wid = db.next_id("watch_path")
+    db.q(
+        "CREATE $r CONTENT $d",
+        r=R("watch_path", wid),
+        d={"source": src["id"], "path": "/talks", "space": calls, "kinds": "both", "backfill": True, "stable_seconds": 0},
+    )
+    listing = [{"path": "/talks/one.mp3", "size": 10, "modified": "2026-01-01T00:00:00Z"}]
+    monkeypatch.setattr(sources, "list_files", lambda *a, **k: listing)
+    quiet = lambda *a: None  # noqa: E731
+    assert sources.poll_watch(db, cfg, wid, log=quiet)["new"] == 1
+    (first,) = db.values("SELECT VALUE record::id(id) FROM recording WHERE remote.path = '/talks/one.mp3'")
+    assert one(db, cfg, first)["kind"] == "file.added"
+    assert sources.poll_watch(db, cfg, wid, log=quiet)["new"] == 0  # unchanged: nothing new
+    listing[0].update(size=11, modified="2026-02-01T00:00:00Z")
+    assert sources.poll_watch(db, cfg, wid, log=quiet)["new"] == 1
+    (second,) = [r for r in db.values("SELECT VALUE record::id(id) FROM recording WHERE remote.path = '/talks/one.mp3'") if r != first]
+    a = one(db, cfg, second)
+    assert (a["kind"], a["type"]) == ("file.changed", "Update")
+    assert a["object"]["previous"] == {"id": f"lens:recording/{first}", "url": f"/resources/{first}"}
+    assert a["object"]["path"] == "/talks/one.mp3" and a["object"]["size"] == 11
+    assert a["summary"] == "Office share updated “one”" and set(a["lens"]["untrusted"]) == {"object.name", "object.path"}
+    assert one(db, cfg, first)["kind"] == "file.added"  # the earlier one stays what it was
+    assert "file.changed" in events.descendants("asset.added")  # a trigger on any asset still fires on it
+
+
 def test_an_upload_is_upload_added_by_whoever_uploaded_it(db, cfg, folder):
     sam = make_user(db, "sam@example.org", "sam password 1", roles={"pods": "editor"})
     db.q("UPDATE $r SET name = 'Sam'", r=R("account", sam))

@@ -189,6 +189,7 @@ and the paths holding outside text are in `GET /api/v1/activities/kinds` (`event
 | `calendar_event.added` | `asset.added` | `recordings` | `startTime`, `endTime`, `location`, `organizer`, `attendees` (addresses), `calendar` | Family calendar added the event “Parents' evening” on 2026-10-20 |
 | `feed_post.received` | `asset.added` | `recordings` | `href` (the post's address), `site`, `feed` (its title), `author`, `published`, `categories` | Harbour news received the post “Autumn regatta” from harbour.example.org |
 | `file.added` | `asset.added` | `recordings` | `path` (in its source), `mediaType`, `size` (bytes), `duration` (seconds) | Office share added “Minutes” |
+| `file.changed` | `asset.added` | `recordings` | as `file.added`, and `previous` (`id`, `url`: the asset it was before); an `Update`, for a file changed in its source and read again | Office share updated “Minutes” |
 | `upload.added` | `asset.added` | `recordings` | `path` (the file's name), `mediaType`, `size`, `duration` | Sam uploaded “Call with the school” |
 | `web_page.saved` | `asset.added` | `recordings` | `href` (the page's address), `site` | Sam saved “Museum opening hours” from museum.example.org |
 | `import.received` | `asset.added` | `recordings` | `via`: hook (an import hook), paste (pasted text) or file (a file read as text) | Phone shortcut imported “Shopping list” |

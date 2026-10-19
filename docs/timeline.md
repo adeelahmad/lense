@@ -19,7 +19,7 @@ Status: in progress. The studio's timeline is built in steps; only what is merge
 | Sources, sensors, people and agents as actors in the graph: a Source node with ADDED links, on the canvas, in the explorer and in Cypher | built |
 | A For you order learned from what each person reacts to, comments on, marks important and hides, each item saying why | built |
 | Muting a source, person or kind, for good or until a time, for yourself alone; `mute_activities` for agents | built |
-| Moves and switches as their own verbs: an asset moved to another namespace (`asset.moved`, a Move) and a sensor paused, ignored or resumed (`sensor.changed`, an Update with what it was) | built |
+| Moves and switches as their own verbs: an asset moved to another namespace (`asset.moved`, a Move), a sensor paused, ignored or resumed (`sensor.changed`, an Update with what it was), and a file changed in its source and read again (`file.changed`, an Update linking the asset it was before) | built |
 | Saved views: the filters and order under a name, one click away in the page's Views menu, each person's own; `timeline_views`, `save_timeline_view` and `delete_timeline_view` for agents | built |
 
 ## What shows
@@ -276,8 +276,9 @@ per source page; they go when the person is removed. Nothing of this costs a mod
 - For you counts opens too, once the page reports them, and could cache each person's affinity for a minute rather
   than summing it on every read.
 - A muted actor's own line in the Filters, and a snooze of your own length from the page.
-- A file changed in its source and read again is `asset.added` once more; linking the new activity to the
-  asset's earlier one as a `file.changed` Update, rather than a second Create, is to come.
+- A file changed in its source is read again as a new asset beside the earlier one (`file.changed` links them);
+  reading the change into the same asset is to come. A file in a namespace's own folders changed in place is read
+  again into the same asset with no activity yet.
 - Marks on activities whose rows are gone (an event log entry past `events.keep_days`, a deleted asset) stay until
   the person is removed; a tidy could drop them. Reactions and comments on such activities likewise.
 - The agent's reply in a thread is plain text with links; the answer's excerpts could open at their moment, as in
