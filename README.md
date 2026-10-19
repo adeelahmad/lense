@@ -177,7 +177,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   rules, without a model, and a decision model types the ones the rules can't. Find what is most like a passage, an
   asset, a topic or an entity, in a Similar tab on every asset or by selecting text anywhere, and, with anytopdf, photos
   by what they show. Search filters moments by person, emotion or the sound heard in them (laughter, applause,
-  music), with a count for each. Pages and shots are described in words by the model provider's vision model or, off by
+  music), with a count for each, and keeps to the assets recorded between two days, with a tag, from a source or in a
+  language, in the link and for agents too. Pages and shots are described in words by the model provider's vision model or, off by
   default, by Florence-2 or Moondream on your own server. A recording's sound can be cleaned up before it's transcribed
   (noise, volume, echo, and silence left out, with the transcript's times kept), and transcripts cleaned up before
   analysis (stutters, "um"s, spacing and, with a local model, punctuation put back, and grammar by a LanguageTool server

@@ -16424,7 +16424,7 @@
           "search"
         ],
         "summary": "Search Transcripts",
-        "description": "Moments where the words appear (said in audio or video, shown on screen in a video, written in a document or in\na resource's supplementary transcripts, captions, translations and indexes, the kinds of object seen in videos,\ndocuments and images, what a model that can see said they show, or what a pipeline's model step wrote about them),\nbest first, in the namespaces you can read and the collections you were given a role on. A person, emotion or\nsound filter keeps to their lines. By meaning, a moment is a passage about what was asked, though its words may differ.",
+        "description": "Moments where the words appear (said in audio or video, shown on screen in a video, written in a document or in\na resource's supplementary transcripts, captions, translations and indexes, the kinds of object seen in videos,\ndocuments and images, what a model that can see said they show, or what a pipeline's model step wrote about them),\nbest first, in the namespaces you can read and the collections you were given a role on. A person, emotion or\nsound filter keeps to their lines. A date, tag, origin or language keeps to the assets that have it, as the Library\nfilters them. By meaning, a moment is a passage about what was asked, though its words may differ.",
         "operationId": "search_transcripts",
         "parameters": [
           {
@@ -16539,6 +16539,107 @@
               "title": "Object"
             },
             "description": "only assets this kind of object is seen in (person, car \u2026)"
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "only assets recorded on or after this day (added, when the file doesn't say when)",
+              "title": "From"
+            },
+            "description": "only assets recorded on or after this day (added, when the file doesn't say when)"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "only assets recorded on or before this day",
+              "title": "To"
+            },
+            "description": "only assets recorded on or before this day"
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "only assets with these tags (ignoring case); repeat for several (any of them)",
+              "title": "Tag"
+            },
+            "description": "only assets with these tags (ignoring case); repeat for several (any of them)"
+          },
+          {
+            "name": "origin",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "only assets that came from here: source:<id> (a connected source), upload, paste, iiif, folder (the archive's own folders) or file (GET /recordings/origins); repeat for several",
+              "title": "Origin"
+            },
+            "description": "only assets that came from here: source:<id> (a connected source), upload, paste, iiif, folder (the archive's own folders) or file (GET /recordings/origins); repeat for several"
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "only assets in these languages (codes, ignoring case; none: not known); repeat for several",
+              "title": "Language"
+            },
+            "description": "only assets in these languages (codes, ignoring case; none: not known); repeat for several"
           },
           {
             "name": "limit",
@@ -17146,7 +17247,7 @@
           "searches"
         ],
         "summary": "Create Search",
-        "description": "Save a search (its words, namespace, person, emotion, sound, asset and object) under a name unique among yours. Sharing it\nwith its namespace needs editor access there.",
+        "description": "Save a search (its words, namespace, person, emotion, sound, asset, object, dates, tag, origin and language) under a\nname unique among yours. Sharing it with its namespace needs editor access there.",
         "operationId": "create_search",
         "requestBody": {
           "content": {
@@ -79951,6 +80052,65 @@
             "title": "Object",
             "description": "a kind of object the assets have"
           },
+          "date_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date From",
+            "description": "assets recorded on or after this day"
+          },
+          "date_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date To",
+            "description": "assets recorded on or before this day"
+          },
+          "tag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tag"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin",
+            "description": "where the assets came from (upload, folder, source:<id> \u2026)"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language",
+            "description": "the assets' language"
+          },
           "created_by": {
             "anyOf": [
               {
@@ -80511,6 +80671,71 @@
             ],
             "title": "Object",
             "description": "a kind of object the assets have (person, car \u2026)"
+          },
+          "date_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date From",
+            "description": "assets recorded on or after this day (/search `from`)"
+          },
+          "date_to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date To",
+            "description": "assets recorded on or before this day (/search `to`)"
+          },
+          "tag": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tag",
+            "description": "assets with this tag"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(upload|paste|iiif|folder|file|source:\\d+)$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin",
+            "description": "assets that came from here (upload, folder, source:<id> \u2026)"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language",
+            "description": "assets in this language (a code; none: not known)"
           },
           "name": {
             "type": "string",

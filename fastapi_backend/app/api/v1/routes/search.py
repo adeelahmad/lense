@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
-from app.api.deps import Acl, Cfg, CurrentUser, Db
+from app.api.deps import Acl, Cfg, CurrentUser, Db, domain_errors
 from app.api.media import sign_urls
 from app.domain import graph as graphmod
-from app.domain import graph_history, hierarchy, nsfw, photos, render, similar, store
+from app.domain import graph_history, hierarchy, library, nsfw, photos, render, similar, store
 from app.domain import search as searchmod
 from app.schemas.search import Graph, Mention, PhotoResults, SearchResults, SimilarResults, TermSuggestion
 
@@ -31,6 +32,19 @@ def search_transcripts(
     event: str | None = Query(None, max_length=40, description="only lines with this sound (laughter, applause, music …), ignoring case"),
     recording: int | None = None,
     object: str | None = Query(None, max_length=60, description="only assets this kind of object is seen in (person, car …)"),
+    date_from: date | None = Query(
+        None, alias="from", description="only assets recorded on or after this day (added, when the file doesn't say when)"
+    ),
+    date_to: date | None = Query(None, alias="to", description="only assets recorded on or before this day"),
+    tag: list[str] | None = Query(None, description="only assets with these tags (ignoring case); repeat for several (any of them)"),
+    origin: list[str] | None = Query(
+        None,
+        description="only assets that came from here: source:<id> (a connected source), upload, paste, iiif, folder (the "
+        "archive's own folders) or file (GET /recordings/origins); repeat for several",
+    ),
+    language: list[str] | None = Query(
+        None, description="only assets in these languages (codes, ignoring case; none: not known); repeat for several"
+    ),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     facets: bool = Query(
@@ -48,10 +62,28 @@ def search_transcripts(
     a resource's supplementary transcripts, captions, translations and indexes, the kinds of object seen in videos,
     documents and images, what a model that can see said they show, or what a pipeline's model step wrote about them),
     best first, in the namespaces you can read and the collections you were given a role on. A person, emotion or
-    sound filter keeps to their lines. By meaning, a moment is a passage about what was asked, though its words may differ."""
+    sound filter keeps to their lines. A date, tag, origin or language keeps to the assets that have it, as the Library
+    filters them. By meaning, a moment is a passage about what was asked, though its words may differ."""
     if ns:
         acl.scope(ns)  # 404 unless they see some of it
     also = acl.partial_recordings()
+    kept = None
+    if date_from or date_to or tag or origin or language:
+        spaces, within = acl.scope(ns)
+        with domain_errors():
+            cond, p = library.where(
+                db,
+                spaces,
+                within=within,
+                cfg=cfg,
+                sensitive="include",  # search blurs what's flagged rather than leaving it out
+                date_from=date_from,
+                date_to=date_to,
+                tags=tag,
+                origins=origin,
+                languages=language,
+            )
+        kept = set(db.values(f"SELECT VALUE record::id(id) FROM recording WHERE {cond}", **p))
     res = searchmod.search(
         db,
         q,
@@ -71,6 +103,7 @@ def search_transcripts(
         cfg=cfg,
         mode=mode,
         event=event,
+        recordings=kept,
     )
     blur = nsfw.blurred(db, cfg, [h.get("recording_id") for h in res.get("hits") or []])
     for h in res.get("hits") or []:

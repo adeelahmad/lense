@@ -8,6 +8,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Search, Searches, Speakers } from "@/app/openapi-client";
 import type { SavedSearch, SearchResults } from "@/app/openapi-client/types.gen";
+import { languageName } from "@/components/library/model";
+import { useLanguages, useOrigins } from "@/components/library/use-library";
+import { AssetFilters, useAssetFilterLabels } from "@/components/search/asset-filters";
 import { useRecordingIndex } from "@/components/search/data";
 import { FacetPanel } from "@/components/search/facet-panel";
 import { fromServer, groupByRecording } from "@/components/search/facets";
@@ -17,6 +20,7 @@ import { PhotoHits } from "@/components/search/photos";
 import { InlinePlayerBar, useInlinePlayer } from "@/components/search/player";
 import {
   activeFilterCount,
+  dateRange,
   fromParams,
   hasTerms,
   eventName,
@@ -72,6 +76,8 @@ export function SearchPage() {
   const toast = useToast();
   const { namespaces, can } = useArchive();
   const { q, filters, mode } = useMemo(() => fromParams(new URLSearchParams(params.toString())), [params]);
+  const origins = useOrigins(filters.namespace ?? null);
+  const languages = useLanguages(filters.namespace ?? null);
   const [draft, setDraft] = useState(q);
   const [problem, setProblem] = useState<string | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -117,6 +123,11 @@ export function SearchPage() {
             event: filters.event,
             recording: filters.recording,
             object: filters.object,
+            from: filters.from,
+            to: filters.to,
+            tag: filters.tag ? [filters.tag] : undefined,
+            origin: filters.origin ? [filters.origin] : undefined,
+            language: filters.language ? [filters.language] : undefined,
             mode,
             limit: PAGE,
             offset: pageParam,
@@ -147,8 +158,9 @@ export function SearchPage() {
   const facets = useMemo(() => (baseData?.facets ? fromServer(baseData.facets) : null), [baseData]);
   const total = first?.total ?? 0;
 
+  const assetLabels = useAssetFilterLabels(filters);
   const labels = useMemo(() => {
-    const out: Partial<Record<keyof SearchFilters, string>> = {};
+    const out: Partial<Record<keyof SearchFilters, string>> = { ...assetLabels };
     if (filters.namespace) out.namespace = filters.namespace;
     if (filters.emotion) out.emotion = filters.emotion;
     if (filters.event) out.event = eventName(filters.event);
@@ -163,7 +175,7 @@ export function SearchPage() {
         hits.find((h) => h.recording_id === filters.recording)?.title ??
         `Asset #${filters.recording}`;
     return out;
-  }, [filters, baseData, hits, index.byId]);
+  }, [filters, baseData, hits, index.byId, assetLabels]);
 
   const go = useCallback(
     (nq: string, f: SearchFilters, m: SearchMode = mode) => router.push(`/search?${toParams(nq, f, m)}`),
@@ -171,8 +183,13 @@ export function SearchPage() {
   );
   const setFilter = (key: keyof SearchFilters, value: string | number | undefined) =>
     go(q, { ...filters, [key]: value });
-  const clearFilter = (key: keyof SearchFilters | "all") =>
-    go(q, key === "all" ? {} : { ...filters, [key]: undefined });
+  const clearFilter = (key: keyof SearchFilters | (keyof SearchFilters)[] | "all") =>
+    go(
+      q,
+      key === "all"
+        ? {}
+        : { ...filters, ...Object.fromEntries((Array.isArray(key) ? key : [key]).map((k) => [k, undefined])) },
+    );
 
   const resolveSpeaker = async (name: string, ns?: string): Promise<number | undefined> => {
     const want = name.trim().toLowerCase();
@@ -208,6 +225,24 @@ export function SearchPage() {
     if (typed.emotion) next.emotion = normalizeEmotion(typed.emotion);
     if (typed.event) next.event = normalizeEvent(typed.event);
     if (typed.object) next.object = typed.object.trim().toLowerCase();
+    if (typed.from) next.from = typed.from;
+    if (typed.to) next.to = typed.to;
+    if (typed.tag) next.tag = typed.tag.trim();
+    if (typed.origin) {
+      const want = typed.origin.trim().toLowerCase();
+      const known = origins.data ?? [];
+      const o = known.find((x) => x.origin === want || x.name.toLowerCase() === want);
+      if (o) next.origin = o.origin;
+      else if (/^(upload|paste|iiif|folder|file|source:\d+)$/.test(want)) next.origin = want;
+      else issues.push(`Nothing came from “${typed.origin}”.`);
+    }
+    if (typed.language) {
+      const want = typed.language.trim().toLowerCase();
+      const l = (languages.data ?? []).find(
+        (x) => (x.language ?? "none").toLowerCase() === want || languageName(x.language).toLowerCase() === want,
+      );
+      next.language = l ? (l.language ?? "none") : want;
+    }
     if (typed.recording) {
       const want = typed.recording.toLowerCase();
       const all = index.data ?? [];
@@ -233,13 +268,31 @@ export function SearchPage() {
     setDraft(text);
   };
 
-  const chips: Chip[] = (["namespace", "speaker", "emotion", "event", "recording", "object"] as const)
-    .filter((k) => filters[k] != null && filters[k] !== "")
-    .map((k) => ({
-      key: k,
-      label: `${k}: ${labels[k]}`,
-      onRemove: () => clearFilter(k),
-    }));
+  const chips: Chip[] = [
+    ...(["namespace", "speaker", "emotion", "event", "recording", "object"] as const)
+      .filter((k) => filters[k] != null && filters[k] !== "")
+      .map((k) => ({
+        key: k,
+        label: `${k}: ${labels[k]}`,
+        onRemove: () => clearFilter(k),
+      })),
+    ...(filters.from || filters.to
+      ? [
+          {
+            key: "dates",
+            label: `date: ${dateRange(filters.from, filters.to)}`,
+            onRemove: () => clearFilter(["from", "to"]),
+          },
+        ]
+      : []),
+    ...(["tag", "origin", "language"] as const)
+      .filter((k) => filters[k])
+      .map((k) => ({
+        key: k,
+        label: `${k === "origin" ? "source" : k}: ${labels[k]}`,
+        onRemove: () => clearFilter(k),
+      })),
+  ];
 
   const saved = useQuery({
     queryKey: ["saved-searches"],
@@ -266,20 +319,23 @@ export function SearchPage() {
   const audioOf = (rid: number) => hasMedia(index.byId.get(rid));
 
   const facetPanel = (
-    <FacetPanel
-      facets={facets}
-      filters={filters}
-      labels={labels}
-      loading={enabled && !facets && (results.isLoading || base.isLoading)}
-      partial={Boolean(baseData?.facets?.partial)}
-      onToggle={(k, v) => {
-        setFilter(k, v);
-        setFiltersOpen(false);
-      }}
-      saved={saved.data ?? null}
-      onDeleteSaved={(s) => forget.mutate(s)}
-      deletingSaved={forget.isPending ? (forget.variables?.id ?? null) : null}
-    />
+    <div className="flex flex-col gap-4">
+      <AssetFilters filters={filters} onChange={(k, v) => setFilter(k, v)} />
+      <FacetPanel
+        facets={facets}
+        filters={filters}
+        labels={labels}
+        loading={enabled && !facets && (results.isLoading || base.isLoading)}
+        partial={Boolean(baseData?.facets?.partial)}
+        onToggle={(k, v) => {
+          setFilter(k, v);
+          setFiltersOpen(false);
+        }}
+        saved={saved.data ?? null}
+        onDeleteSaved={(s) => forget.mutate(s)}
+        deletingSaved={forget.isPending ? (forget.variables?.id ?? null) : null}
+      />
+    </div>
   );
 
   return (

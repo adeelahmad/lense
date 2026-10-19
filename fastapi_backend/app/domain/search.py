@@ -115,8 +115,8 @@ def search(
     transcripts, captions, translations and indexes; with objects, the kinds of object seen in videos, documents and
     images; with described, what a model that can see said their pages and shots show, and what a pipeline's model step
     wrote about them) matching q. spaces limits the search to namespaces someone may read, and `also` adds recordings they may
-    read beyond those (in collections they were given a role on); recordings limits it to a set of recordings (such as
-    the transcripts a visitor may read), and obj to those a kind of object is seen in. event keeps to lines with that
+    read beyond those (in collections they were given a role on); recordings limits it, on every layer, to a set of recordings
+    (such as the transcripts a visitor may read, or those a date, tag, origin or language keeps), and obj to those a kind of object is seen in. event keeps to lines with that
     sound (Laughter, Applause, BGM …). With facets, also how many of all the matching moments (up to FACET_CAP) are in
     each namespace, speaker, emotion, sound and recording, and which kinds of object the recordings they're in have.
 
@@ -340,8 +340,6 @@ def _meaning(db, cfg, q, groups, kinds, need, base, ns, spaces, recording, speak
     Passages don't record their sounds, so a sound is matched on their lines."""
     params = {k: v for k, v in base.items() if k in ("sp", "allowed", "also", "rec", "recs", "spk", "emo")}
     where = space_filter(ns, spaces, recording, params)
-    if "recs" in params:
-        where += " AND recording IN $recs"
     if "spk" in params:
         where += " AND $spk IN speakers"
     if "emo" in params:
@@ -590,6 +588,8 @@ def space_filter(ns, spaces, recording, params):
         parts.append("(space IN $allowed OR recording IN $also)" if "also" in params else "space IN $allowed")
     if recording not in (None, ""):
         parts.append("recording = $rec")
+    if "recs" in params:  # a set of recordings (a kind of object seen, a date, tag, origin or language), on every layer
+        parts.append("recording IN $recs")
     return (" AND " + " AND ".join(parts)) if parts else ""
 
 
@@ -620,7 +620,7 @@ def _objects(db, groups, where_f, cap, base):
 
 def _layer(db, groups, where_f, cap, base, table, extra, source):
     """Hits in another table of text with times (`extra` names the fields it adds), marked as from `source`."""
-    params = {k: v for k, v in base.items() if k in ("m0", "m1", "sp", "allowed", "also", "rec") or k.startswith("q")}
+    params = {k: v for k, v in base.items() if k in ("m0", "m1", "sp", "allowed", "also", "rec", "recs") or k.startswith("q")}
     fields = f"record::id(id) AS id, recording, t0, t1, space, text, {extra}"
     rows = textindex.rows(db, table, groups, fields, where_f, params, cap, (M0, M1))
     if rows is None and db.ready_fulltext():

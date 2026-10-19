@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { Collections, Searches } from "@/app/openapi-client";
-import type { SearchFilters } from "@/components/search/query";
+import { dateRange, type SearchFilters } from "@/components/search/query";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -59,6 +59,11 @@ export function SaveSearchDialog({
             event: filters.event ?? null,
             recording: filters.recording ?? null,
             object: filters.object ?? null,
+            date_from: filters.from ?? null,
+            date_to: filters.to ?? null,
+            tag: filters.tag ?? null,
+            origin: filters.origin ?? null,
+            language: filters.language ?? null,
             shared: shared && !noShare,
           },
         }),
@@ -73,6 +78,8 @@ export function SaveSearchDialog({
                 q,
                 ...(ns ? { namespaces: [ns] } : {}),
                 ...(filters.speaker != null ? { speakers: [filters.speaker] } : {}),
+                ...(filters.from ? { from: filters.from } : {}),
+                ...(filters.to ? { to: filters.to } : {}),
               },
             },
           }),
@@ -102,7 +109,11 @@ export function SaveSearchDialog({
     filters.event ? `event: ${labels.event ?? filters.event}` : null,
     filters.recording != null ? `recording: ${labels.recording ?? filters.recording}` : null,
     filters.object ? `object: ${filters.object}` : null,
+    filters.tag ? `tag: ${filters.tag}` : null,
+    filters.origin ? `source: ${labels.origin ?? filters.origin}` : null,
+    filters.language ? `language: ${labels.language ?? filters.language}` : null,
   ].filter(Boolean);
+  const when = dateRange(filters.from, filters.to);
   return (
     <Dialog
       open={open}
@@ -169,6 +180,30 @@ export function SaveSearchDialog({
           <>
             <dt className="text-fg-secondary">Object seen</dt>
             <dd className="m-0 text-fg">{filters.object}</dd>
+          </>
+        )}
+        {when && (
+          <>
+            <dt className="text-fg-secondary">Recorded</dt>
+            <dd className="m-0 text-fg">{when}</dd>
+          </>
+        )}
+        {filters.tag && (
+          <>
+            <dt className="text-fg-secondary">Tag</dt>
+            <dd className="m-0 text-fg">{filters.tag}</dd>
+          </>
+        )}
+        {filters.origin && (
+          <>
+            <dt className="text-fg-secondary">Source</dt>
+            <dd className="m-0 text-fg">{labels.origin ?? filters.origin}</dd>
+          </>
+        )}
+        {filters.language && (
+          <>
+            <dt className="text-fg-secondary">Language</dt>
+            <dd className="m-0 text-fg">{labels.language ?? filters.language}</dd>
           </>
         )}
       </dl>

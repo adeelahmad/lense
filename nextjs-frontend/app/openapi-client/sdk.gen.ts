@@ -7959,7 +7959,8 @@ export class Search {
    * a resource's supplementary transcripts, captions, translations and indexes, the kinds of object seen in videos,
    * documents and images, what a model that can see said they show, or what a pipeline's model step wrote about them),
    * best first, in the namespaces you can read and the collections you were given a role on. A person, emotion or
-   * sound filter keeps to their lines. By meaning, a moment is a passage about what was asked, though its words may differ.
+   * sound filter keeps to their lines. A date, tag, origin or language keeps to the assets that have it, as the Library
+   * filters them. By meaning, a moment is a passage about what was asked, though its words may differ.
    */
   public static searchTranscripts<ThrowOnError extends boolean = false>(
     options: Options<SearchTranscriptsData, ThrowOnError>,
@@ -8110,8 +8111,8 @@ export class Searches {
   /**
    * Create Search
    *
-   * Save a search (its words, namespace, person, emotion, sound, asset and object) under a name unique among yours. Sharing it
-   * with its namespace needs editor access there.
+   * Save a search (its words, namespace, person, emotion, sound, asset, object, dates, tag, origin and language) under a
+   * name unique among yours. Sharing it with its namespace needs editor access there.
    */
   public static createSearch<ThrowOnError extends boolean = false>(
     options: Options<CreateSearchData, ThrowOnError>,

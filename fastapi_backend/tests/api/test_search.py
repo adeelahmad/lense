@@ -148,3 +148,69 @@ def test_word_suggestions_for_a_prefix(client, db, cfg, folder):
     assert client.get("/api/v1/search/terms", params={"prefix": "c"}, headers=hv).status_code == 422
     assert client.get("/api/v1/search/terms", params={"prefix": "caps", "ns": "calls"}, headers=hv).status_code == 404
     assert client.get("/api/v1/search/terms", params={"prefix": "caps"}).status_code == 401
+
+
+def test_dates_tags_origins_and_languages_narrow_search(client, db, cfg, folder):
+    import pathlib
+
+    from app.domain import library
+    from tests.api.test_mcp import _bearer, _grant, tool
+
+    ep1, ep2, call = seed(db, cfg, folder)
+    R = store.R
+    for rid, day in ((ep1, "2026-09-30T09:00:00"), (ep2, "2026-03-02T10:00:00"), (call, "2025-11-20T08:00:00")):
+        db.q("UPDATE $r SET recorded_at = $d", r=R("recording", rid), d=day)
+    db.q("UPDATE $r SET language = 'en', path = $p", r=R("recording", ep1), p=str(pathlib.Path(cfg["data_dir"]) / "uploads" / "ep1.txt"))
+    db.q("UPDATE $r SET language = 'de'", r=R("recording", call))
+    library.set_tags(db, call, ["Interview"])
+    # on screen in ep2, so the filters must keep to their assets on every layer, not only in what's said
+    db.q(
+        "CREATE ocr_span CONTENT {recording: $r, space: $s, t0: 1000, t1: 2000, text: 'CAPSID ON SCREEN'}", r=ep2, s=store.ns_id(db, "pods")
+    )
+    make_user(db, "root@x.io", "root password 1", admin=True)
+    make_user(db, "vi@x.io", "viewer password 1", roles={"pods": "viewer"})
+    hr, hv = login(client, "root@x.io", "root password 1"), login(client, "vi@x.io", "viewer password 1")
+
+    def assets(h=hr, **p):
+        r = client.get("/api/v1/search", params={"q": "capsid", **p}, headers=h)
+        assert r.status_code == 200, r.text
+        return {x["recording_id"] for x in r.json()["hits"]}
+
+    assert assets() == {ep1, ep2, call}  # nothing set changes nothing
+    assert assets(**{"from": "2026-01-01"}) == {ep1, ep2}
+    assert assets(**{"from": "2026-03-01", "to": "2026-03-02"}) == {ep2}  # both days included
+    assert assets(to="2025-12-31") == {call}
+    assert assets(tag="interview") == {call}  # ignoring case
+    assert assets(language="DE") == {call}
+    assert assets(language=["en", "de"]) == {ep1, call}  # any of them
+    assert assets(origin="upload") == {ep1}
+    assert assets(origin="upload", language="de") == set()  # filters combine with AND
+    assert assets(hv, tag="interview") == set()  # still only what you can read
+    assert client.get("/api/v1/search", params={"q": "capsid", "origin": "nowhere"}, headers=hr).status_code == 400
+    assert client.get("/api/v1/search", params={"q": "capsid", "from": "soon"}, headers=hr).status_code == 422
+    with_facets = client.get("/api/v1/search", params={"q": "capsid", "tag": "interview", "facets": True}, headers=hr).json()
+    assert [x["id"] for x in with_facets["facets"]["recordings"]] == [call]
+
+    # an agent narrows the same way, a day, a month or a year
+    _, tokens = _grant(client, hv, scope="read")
+    found = lambda **a: {r["recording_id"] for r in tool(client, _bearer(tokens), "search", query="capsid", **a)["results"]}  # noqa: E731
+    assert found() == {ep1, ep2}
+    assert found(date_from="2026-09") == {ep1}
+    assert found(date_to="2026-03") == {ep2}
+    assert found(languages=["en"], origins=["upload"]) == {ep1}
+    assert found(tags=["interview"]) == set()
+
+    # a saved search keeps them
+    saved = client.post(
+        "/api/v1/searches",
+        headers=hv,
+        json={"name": "Spring", "q": "capsid", "date_from": "2026-03-01", "date_to": "2026-03-31", "tag": "x", "language": "en"},
+    ).json()
+    assert (saved["date_from"], saved["date_to"], saved["tag"], saved["language"], saved["origin"]) == (
+        "2026-03-01",
+        "2026-03-31",
+        "x",
+        "en",
+        None,
+    )
+    assert client.post("/api/v1/searches", headers=hv, json={"name": "Bad", "q": "capsid", "date_from": "March"}).status_code == 422

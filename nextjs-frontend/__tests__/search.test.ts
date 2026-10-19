@@ -57,6 +57,25 @@ describe("parseQuery", () => {
     expect(savedSearchHref({ q: "capsid", event: "Laughter" })).toBe("/search?q=capsid&event=Laughter");
   });
 
+  it("reads dates, tags, sources and languages, and keeps them in the address", () => {
+    expect(parseQuery("tag:interview lang:de from:2026-01-01 to:2026-03-31 origin:upload capsid")).toEqual({
+      text: "capsid",
+      typed: { tag: "interview", language: "de", from: "2026-01-01", to: "2026-03-31", origin: "upload" },
+    });
+    expect(parseQuery("mail from:alice").text).toBe("mail from:alice"); // not a day: words
+    const f = { from: "2026-01-01", to: "2026-03-31", tag: "interview", origin: "source:2", language: "de" };
+    const qs = toParams("capsid", f);
+    expect(qs).toBe("q=capsid&from=2026-01-01&to=2026-03-31&tag=interview&origin=source%3A2&language=de");
+    expect(fromParams(new URLSearchParams(qs)).filters).toMatchObject(f);
+    expect(fromParams(new URLSearchParams("q=capsid&from=soon")).filters.from).toBeUndefined();
+    expect(activeFilterCount(f)).toBe(5);
+    expect(activeFilterCount({})).toBe(0);
+    const saved = { q: "capsid", date_from: "2026-01-01", date_to: "2026-03-31", tag: "interview", language: "de" };
+    expect(savedSearchHref(saved)).toBe("/search?q=capsid&from=2026-01-01&to=2026-03-31&tag=interview&language=de");
+    expect(savedSearchFilters(saved)).toBe("2026-01-01 – 2026-03-31 · #interview · in de");
+    expect(savedSearchFilters({ q: "x", date_from: "2026-01-01" })).toBe("since 2026-01-01");
+  });
+
   it("leaves words with colons that aren't filters alone", () => {
     expect(parseQuery("time: 14:29 notes").text).toBe("time: 14:29 notes");
   });
