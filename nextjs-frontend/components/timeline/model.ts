@@ -422,6 +422,17 @@ export function viewName(f: Filters, labels: Record<string, string> = {}): strin
 export const SNOOZES = { "an hour": 3_600_000, "a day": 86_400_000, "a week": 7 * 86_400_000 } as const;
 export type Snooze = keyof typeof SNOOZES;
 
+/** A `datetime-local` input's value for a moment, in the browser's own time zone (YYYY-MM-DDTHH:mm). */
+export function localInput(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+/** Where a snooze to a time you pick starts: tomorrow at nine in the morning, local time. */
+export function tomorrowMorning(now = new Date()): Date {
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 9, 0);
+}
+
 /** A snooze's end from now, as the `until` of a mute. */
 export function snoozeUntil(span: Snooze, now = Date.now()): string {
   return new Date(now + SNOOZES[span]).toISOString();

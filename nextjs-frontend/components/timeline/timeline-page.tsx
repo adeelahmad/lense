@@ -222,7 +222,7 @@ export function TimelinePage() {
     (a: Activity, opts?: MuteOpts) =>
       mutes.mute(
         opts?.kind ? { kind: a.kind, name: labels[a.kind] ?? a.kind } : { actor: a.actor.id, name: a.actor.name },
-        opts?.span,
+        opts?.until ?? opts?.span,
       ),
     [mutes, labels],
   );

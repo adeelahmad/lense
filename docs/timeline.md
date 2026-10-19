@@ -199,15 +199,16 @@ block.
 ## Muting
 
 Each person mutes a source or person (an actor) or a kind of activity ("hide syslog"), for good or until a time
-(snoozed for an hour, a day or a week), for themselves alone. Muting hides; it never deletes: a muted actor's activities stay stored,
+(snoozed for an hour, a day, a week or until a time they pick), for themselves alone. Muting hides; it never deletes: a muted actor's activities stay stored,
 still trigger automations and still show to everyone else, and come back the moment the mute is lifted or runs out.
 The timeline leaves them out as it leaves out what you hid, so `hidden=true` shows them and `hidden=false` (the
 page) does not; a For you page scores only what is left.
 
 - On the page, **Mute Work Gmail** on an opened item mutes its actor with one click; the small menu beside it has
   **Mute Work Gmail for an hour**, **for a day** and **for a week** (a snooze: the mute runs out by itself), **Mute
+  Work Gmail until…** (a time you pick, nine tomorrow morning to start with; Enter mutes), **Mute
   Email received items** (the kind) and the kind for each of those. The **Muted** row above the list shows each, with when a snooze ends, and lifts one with its ×.
-  Any other time is through the API, MCP and the assistant.
+  The API, MCP and the assistant take any time too.
 - `POST /api/v1/activities/mute` with `{"actor": "lens:source/12", "name": "Work Gmail"}` or `{"kind":
   "sensor.reading"}` (the kinds under it count too), and `"until"` as an ISO 8601 time to snooze it, mutes for
   yourself; `"on": false` lifts it. The answer, and `GET /api/v1/activities/mutes`, is your mutes now: `{actor, kind,
@@ -282,7 +283,7 @@ has any more. Comments on them stay, since they are what people wrote, and an as
 
 - Server-sent updates instead of the page polling for new items.
 - For you could cache each person's affinity for a minute rather than summing it on every read.
-- A muted actor's own line in the Filters, and a snooze to a time you pick from the page (the API takes any `until`).
+- A muted actor's own line in the Filters.
 - A file changed in its source is read again as a new asset beside the earlier one (`file.changed` links them);
   reading the change into the same asset is to come. A file in a namespace's own folders changed in place is read
   again into the same asset with no activity yet.

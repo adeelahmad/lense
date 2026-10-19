@@ -7,6 +7,7 @@ import { Activities, Chats } from "@/app/openapi-client";
 import type { ActivityPage, StreamActivity } from "@/app/openapi-client/types.gen";
 import { ASK_ABOUT_EVENT } from "@/components/page-chat/page-chat-model";
 import { LatestCard } from "@/components/timeline/latest-card";
+import { localInput, tomorrowMorning } from "@/components/timeline/model";
 import { TimelinePage } from "@/components/timeline/timeline-page";
 import { ToastProvider } from "@/components/ui/toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -631,6 +632,36 @@ test("the menu beside Mute snoozes a source for an hour, a day or a week, or mut
   const until = m(Activities.muteActivities).mock.lastCall![0].body.until as string;
   expect(Date.parse(until) - Date.now()).toBeGreaterThan(23 * 3_600_000);
   expect(await screen.findByText("Muted Work Gmail for a day")).toBeInTheDocument();
+});
+
+test("a snooze can end at a time you pick, nine tomorrow to start with, and Enter mutes", async () => {
+  wrap(<TimelinePage />);
+  const rows = within(await screen.findByRole("list", { name: "Timeline" })).getAllByTestId("timeline-row");
+  fireEvent.click(within(rows[1]).getByRole("button", { name: "Show details" }));
+  fireEvent.keyDown(within(rows[1]).getByRole("button", { name: "More ways to mute Adeel" }), { key: "Enter" });
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Mute Adeel until…" }));
+  const dialog = await screen.findByRole("dialog", { name: "Mute Adeel until" });
+  const input = within(dialog).getByLabelText("Until") as HTMLInputElement;
+  expect(input).toHaveFocus();
+  expect(input.value).toBe(localInput(tomorrowMorning()));
+  // a time gone by says so and mutes nothing
+  fireEvent.change(input, { target: { value: "2020-01-01T09:00" } });
+  fireEvent.submit(input.form!);
+  expect(await within(dialog).findByRole("alert")).toHaveTextContent("Pick a time still to come.");
+  expect(m(Activities.muteActivities)).not.toHaveBeenCalled();
+  const later = new Date(Date.now() + 3 * 86_400_000);
+  later.setHours(18, 30, 0, 0);
+  fireEvent.change(input, { target: { value: localInput(later) } });
+  fireEvent.submit(input.form!);
+  await waitFor(() =>
+    expect(m(Activities.muteActivities)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: { actor: "lens:account/1", name: "Adeel", until: later.toISOString(), on: true },
+      }),
+    ),
+  );
+  expect(await screen.findByText(`Muted Adeel until ${later.toLocaleString()}`)).toBeInTheDocument();
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 });
 
 test("the address can name one item, opened above the timeline, with a way back", async () => {
