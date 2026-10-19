@@ -269,6 +269,9 @@ GET    /api/v1/circles/shares
 POST   /api/v1/circles/shares
 POST   /api/v1/circles/when-free
 POST   /api/v1/circles/ask
+GET    /api/v1/circles/elsewhere
+PUT    /api/v1/circles/elsewhere
+GET    /api/v1/circles/shares/{share_id}/elsewhere
 DELETE /api/v1/circles/shares/{share_id}
 GET    /api/v1/circles/{circle_id}
 PATCH  /api/v1/circles/{circle_id}
@@ -286,7 +289,10 @@ you're free. `POST /circles/when-free` takes `people`, a window (`start`, `end`,
 `day_start` and `day_end`, and answers each person's busy times (only when, never what) or why not, and the free
 stretches when you and all of them are free; each person asked gets `agent.asked` in their timeline. With `lets`
 holding `questions` and `about` naming namespaces of yours, `POST /circles/ask` (`person`, `question`) answers from
-those namespaces only, with its `sources`; the person asked sees the question and the answer.
+those namespaces only, with its `sources`; the person asked sees the question and the answer. Once an admin turns on
+[circles with other servers](federation.md), `PUT /circles/elsewhere` (`findable`) gives you a handle, circles take
+people elsewhere by handle (`remote`, `add_remote`, `remove_remote`), and `GET /circles/shares/{id}/elsewhere` says
+how a share is getting on with them.
 
 ## automations
 

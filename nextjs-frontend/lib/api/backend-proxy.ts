@@ -2,7 +2,8 @@ import { apiBaseUrl } from "@/lib/api/client";
 
 /**
  * Serves the FastAPI backend's paths on this origin: /api/v1, /embed, /s (short share links), /iiif, /reports,
- * /static, and /id and /ns (linked data: the archive's RDF URIs and the Lens vocabulary).
+ * /static, /id and /ns (linked data: the archive's RDF URIs and the Lens vocabulary), and /ap (ActivityPub, for
+ * circles with other servers).
  *
  * The API hands out relative signed media links (`/api/v1/recordings/12/audio?exp=..&sig=..`), so proxying them
  * makes <audio>, <video> and <img> work, and lets the browser call the API (including server-sent event streams)

@@ -82,6 +82,7 @@ export type SectionId =
   | "https"
   | "nodes"
   | "network"
+  | "federation"
   | "sign-in"
   | "encryption"
   | "secrets"
@@ -285,6 +286,13 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["mesh"],
     description:
       "The private network between Lens’s machines, a Nebula mesh Lens issues the certificates for: every packet between them is encrypted. Off until you add a node.",
+  },
+  {
+    id: "federation",
+    label: "Circles elsewhere",
+    backend: ["federation"],
+    description:
+      "Off unless you turn it on. People can add people on other Lens or ActivityPub servers to their circles, and what they share with those circles reaches them. Nobody can be found until they turn that on under Profile.",
   },
   {
     id: "mail",
@@ -1661,6 +1669,23 @@ export const FIELDS: FieldSpec[] = [
   },
   { section: "https", key: "https_port", label: "HTTPS port in the container", kind: "int", min: 1, max: 65535 },
   { section: "https", key: "http_port", label: "HTTP port in the container", kind: "int", min: 1, max: 65535 },
+  // Circles with people on other servers (federation.py, docs/federation.md)
+  {
+    section: "federation",
+    key: "enabled",
+    label: "Let circles reach people on other servers",
+    kind: "switch",
+    hint: "Off: circles are people on this Lens only, and nothing answers at /ap or WebFinger",
+  },
+  {
+    section: "federation",
+    key: "url",
+    label: "Public address",
+    kind: "text",
+    mono: true,
+    placeholder: "https://lens.example.com",
+    hint: "Where other servers reach this Lens, over https://. Empty: the HTTPS domain’s",
+  },
   // Chat rooms (Matterbridge)
   { section: "bridge", key: "enabled", label: "Answer in chat rooms", kind: "switch" },
   {

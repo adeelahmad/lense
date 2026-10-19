@@ -690,6 +690,13 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
       return <SensorsBody ctx={ctx} />;
     case "nfs":
       return <NfsBody ctx={ctx} />;
+    case "federation":
+      return (
+        <>
+          <F ctx={ctx} id="federation.enabled" />
+          <F ctx={ctx} id="federation.url" />
+        </>
+      );
     case "smb":
       return <SmbBody ctx={ctx} />;
     case "shares":

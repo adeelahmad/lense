@@ -18,10 +18,17 @@ class Person(ResponseModel):
     email: str | None = None
 
 
+class RemotePerson(ResponseModel):
+    id: int
+    handle: str = Field(description="where they are, like sam@lens.example")
+    name: str | None = None
+
+
 class Circle(ResponseModel):
     id: int
     name: str
     members: list[Person]
+    remote: list[RemotePerson] = Field(default_factory=list, description="people on other servers in it (docs/federation.md)")
     lets: list[Let] = Field(default_factory=list, description="what its people may ask your agent: free_busy, questions")
     about: list[str] = Field(default_factory=list, description="the namespaces of yours their questions are answered from")
     created_at: str | None = None
@@ -36,6 +43,9 @@ class CircleList(ResponseModel):
 class CircleCreate(RequestModel):
     name: str = Field(min_length=1, max_length=80)
     members: list[Member] = Field(default_factory=list, max_length=200, description="people by account id or email")
+    remote: list[str] = Field(
+        default_factory=list, max_length=200, description="people on other servers, by handle like sam@lens.example (docs/federation.md)"
+    )
     lets: list[Let] = Field(default_factory=list, description="what its people may ask your agent: free_busy, questions")
     about: list[Member] = Field(
         default_factory=list, max_length=50, description="namespaces of yours, by name or id, their questions are answered from"
@@ -47,6 +57,8 @@ class CircleUpdate(RequestModel):
     members: list[Member] | None = Field(None, max_length=200, description="everyone in it, replacing who was")
     add: list[Member] = Field(default_factory=list, max_length=200, description="people to add")
     remove: list[Member] = Field(default_factory=list, max_length=200, description="people to take out")
+    add_remote: list[str] = Field(default_factory=list, max_length=200, description="people on other servers to add, by handle")
+    remove_remote: list[str] = Field(default_factory=list, max_length=200, description="people on other servers to take out, by handle")
     lets: list[Let] | None = Field(None, description="what its people may ask your agent, replacing what they could")
     about: list[Member] | None = Field(None, max_length=50, description="namespaces of yours their questions are answered from")
 
@@ -70,6 +82,7 @@ class Shared(ResponseModel):
     people: list[Person]
     with_item: bool
     granted: int = Field(description="how many members were given permission on the resource")
+    elsewhere: list[str] = Field(default_factory=list, description="people on other servers it's being sent to, by handle")
 
 
 class CircleShare(ResponseModel):
@@ -141,3 +154,20 @@ class AgentAnswer(ResponseModel):
     name: str
     answer: str
     sources: list[AnswerSource]
+
+
+class Elsewhere(ResponseModel):
+    on: bool = Field(description="whether an admin turned on circles with other servers, and Lens has a public address")
+    findable: bool = Field(description="whether people on other servers can find you and add you to their circles")
+    handle: str | None = Field(None, description="what they add you by, like adeel@lens.example")
+    actor: str | None = Field(None, description="your ActivityPub actor")
+
+
+class ElsewhereIn(RequestModel):
+    findable: bool = Field(description="let people on other servers find you by your handle, or stop")
+
+
+class ShareDelivery(ResponseModel):
+    handle: str | None = None
+    state: Literal["waiting", "sent", "gave up"]
+    error: str | None = None

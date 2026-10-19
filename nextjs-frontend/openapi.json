@@ -36259,7 +36259,7 @@
           "circles"
         ],
         "summary": "Create Circle",
-        "description": "A new circle of yours. Audited as `circle.create`.",
+        "description": "A new circle of yours, with people here (`members`) and on other servers (`remote`, by handle). Audited as\n`circle.create`.",
         "operationId": "create_circle",
         "requestBody": {
           "content": {
@@ -36468,6 +36468,115 @@
         }
       }
     },
+    "/api/v1/circles/shares/{sid}/elsewhere": {
+      "get": {
+        "tags": [
+          "circles"
+        ],
+        "summary": "List Share Deliveries",
+        "description": "How a share of yours is getting on with the people on other servers it went to: waiting, sent or gave up.",
+        "operationId": "list_share_deliveries",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Sid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ShareDelivery"
+                  },
+                  "title": "Response Circles-List Share Deliveries"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/circles/elsewhere": {
+      "get": {
+        "tags": [
+          "circles"
+        ],
+        "summary": "Get Elsewhere",
+        "description": "Whether people on other servers can find you, and your handle (docs/federation.md).",
+        "operationId": "get_elsewhere",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Elsewhere"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "circles"
+        ],
+        "summary": "Set Elsewhere",
+        "description": "Let people on other servers find you by a handle and add you to their circles, or stop (your handle and keys\nare deleted). Audited as `circle.findable`.",
+        "operationId": "set_elsewhere",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ElsewhereIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Elsewhere"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/circles/ask": {
       "post": {
         "tags": [
@@ -36598,7 +36707,7 @@
           "circles"
         ],
         "summary": "Update Circle",
-        "description": "Rename a circle of yours, set who is in it, add and take people out, or set what they may ask your agent\n(`lets`: free_busy lets them see when you're free).",
+        "description": "Rename a circle of yours, set who is in it, add and take people out (on other servers too, by handle), or set\nwhat they may ask your agent (`lets`: free_busy lets them see when you're free).",
         "operationId": "update_circle",
         "parameters": [
           {
@@ -44442,6 +44551,14 @@
             "type": "array",
             "title": "Members"
           },
+          "remote": {
+            "items": {
+              "$ref": "#/components/schemas/RemotePerson"
+            },
+            "type": "array",
+            "title": "Remote",
+            "description": "people on other servers in it (docs/federation.md)"
+          },
           "lets": {
             "items": {
               "type": "string",
@@ -44517,6 +44634,15 @@
             "maxItems": 200,
             "title": "Members",
             "description": "people by account id or email"
+          },
+          "remote": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "title": "Remote",
+            "description": "people on other servers, by handle like sam@lens.example (docs/federation.md)"
           },
           "lets": {
             "items": {
@@ -44737,6 +44863,24 @@
             "maxItems": 200,
             "title": "Remove",
             "description": "people to take out"
+          },
+          "add_remote": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "title": "Add Remote",
+            "description": "people on other servers to add, by handle"
+          },
+          "remove_remote": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "title": "Remove Remote",
+            "description": "people on other servers to take out, by handle"
           },
           "lets": {
             "anyOf": [
@@ -48429,6 +48573,66 @@
           "template"
         ],
         "title": "DriverSpec"
+      },
+      "Elsewhere": {
+        "properties": {
+          "on": {
+            "type": "boolean",
+            "title": "On",
+            "description": "whether an admin turned on circles with other servers, and Lens has a public address"
+          },
+          "findable": {
+            "type": "boolean",
+            "title": "Findable",
+            "description": "whether people on other servers can find you and add you to their circles"
+          },
+          "handle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Handle",
+            "description": "what they add you by, like adeel@lens.example"
+          },
+          "actor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor",
+            "description": "your ActivityPub actor"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "on",
+          "findable"
+        ],
+        "title": "Elsewhere"
+      },
+      "ElsewhereIn": {
+        "properties": {
+          "findable": {
+            "type": "boolean",
+            "title": "Findable",
+            "description": "let people on other servers find you by your handle, or stop"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "findable"
+        ],
+        "title": "ElsewhereIn"
       },
       "EmailInfo": {
         "properties": {
@@ -73494,6 +73698,37 @@
         ],
         "title": "RemoteBackups"
       },
+      "RemotePerson": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "handle": {
+            "type": "string",
+            "title": "Handle",
+            "description": "where they are, like sam@lens.example"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "handle"
+        ],
+        "title": "RemotePerson"
+      },
       "Removed": {
         "properties": {
           "removed": {
@@ -80539,6 +80774,47 @@
         "type": "object",
         "title": "ShareCreate"
       },
+      "ShareDelivery": {
+        "properties": {
+          "handle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Handle"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "waiting",
+              "sent",
+              "gave up"
+            ],
+            "title": "State"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "title": "ShareDelivery"
+      },
       "ShareIn": {
         "properties": {
           "activity": {
@@ -80781,6 +81057,14 @@
             "type": "integer",
             "title": "Granted",
             "description": "how many members were given permission on the resource"
+          },
+          "elsewhere": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Elsewhere",
+            "description": "people on other servers it's being sent to, by handle"
           }
         },
         "additionalProperties": true,

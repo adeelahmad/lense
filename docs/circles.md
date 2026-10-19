@@ -14,7 +14,7 @@ Status: in progress. Circles are built in steps; only what is merged is called b
 | Rules: an automation shares what you pick (by kind, sender, entity or the decision model) with a circle, asking you first or on its own | built |
 | When they're free: a circle can see when you're free (never what), and agents find a time that suits everyone | built |
 | Asking someone's agent a question (what does the trip need), answered only from the namespaces they let that circle ask about, with citations | built |
-| Circles across Lens servers over ActivityPub: a signed inbox, an outbox and WebFinger handles like `sam@lens.example` | planned |
+| [Circles with other servers](federation.md) over ActivityPub: people elsewhere by handle (`sam@lens.example`), shares sent to them signed and theirs received, off until an admin turns it on | built |
 
 ## Circles
 
@@ -23,7 +23,9 @@ not even the people in them. The usual ones are offered as suggestions (Immediat
 Colleagues); none is made for you.
 
 You can add people you share a namespace with, and people who have you in a circle of theirs, so your son can add you
-back once you have added him. Admins can add anyone. Adding someone tells them nothing; sharing does.
+back once you have added him. Admins can add anyone. Adding someone tells them nothing; sharing does. Once an admin
+turns it on, a circle can also hold people on other Lens or ActivityPub servers, by handle
+([Circles with other servers](federation.md)).
 
 **In the web app**, your circles are under Profile: a suggested name makes a circle in one click, *Add someone…*
 adds a person, the × by a name takes them out, and deleting a circle is undone from its message.
@@ -104,7 +106,7 @@ Everything here works for agents as it does for people.
   they're busy and when everyone is free; a circle's `lets` turns it on. `POST /api/v1/circles/ask` (`person`,
   `question`) asks their agent; a circle's `lets: ["questions"]` and `about` (namespaces) let it.
 - **MCP:** `list_circles` (with `shares`: received or sent), `save_circle`, `share_with_circle`, `undo_share`,
-  `when_free` and `ask_their_agent`. They are about the person, so a namespace's own MCP server doesn't offer them.
+  `when_free`, `ask_their_agent` and `circles_elsewhere`. They are about the person, so a namespace's own MCP server doesn't offer them.
 - **The assistant:** `circles` reads them, `share_with_circle` asks the person first (telling other people is always
   their pick), `when_free` finds a time, and `ask_their_agent` asks someone's agent.
 - **Automations:** the `share_with_circle` action ([Rules](#rules)), which agents can add with the automation tools.

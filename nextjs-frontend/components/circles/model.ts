@@ -1,7 +1,7 @@
 /** Circles of trust (docs/circles.md): who a person is, who can still be added to a circle, and what a share says it
  * goes to. No React here, so it is tested on its own. */
 
-import type { Circle, Person } from "@/app/openapi-client/types.gen";
+import type { Circle, Person, RemotePerson } from "@/app/openapi-client/types.gen";
 
 /** A person's name, else their email, else their account number. */
 export function personLabel(p: Pick<Person, "id" | "name" | "email">): string {
@@ -23,11 +23,25 @@ export function whom(circles: Pick<Circle, "id" | "name">[], picked: number[]): 
   return `${names.length} circles`;
 }
 
-/** How many different people a share reaches: everyone in the picked circles, once each. */
-export function reach(circles: Pick<Circle, "id" | "members">[], picked: number[]): number {
-  const ids = new Set<number>();
-  for (const c of circles) if (picked.includes(c.id)) for (const m of c.members) ids.add(m.id);
+/** How many different people a share reaches: everyone in the picked circles, here and elsewhere, once each. */
+export function reach(circles: Pick<Circle, "id" | "members" | "remote">[], picked: number[]): number {
+  const ids = new Set<string>();
+  for (const c of circles) {
+    if (!picked.includes(c.id)) continue;
+    for (const m of c.members) ids.add(`a${m.id}`);
+    for (const r of c.remote ?? []) ids.add(`r${r.id}`);
+  }
   return ids.size;
+}
+
+/** Someone on another server, by name, else their handle. */
+export function remoteLabel(r: Pick<RemotePerson, "name" | "handle">): string {
+  return r.name?.trim() || r.handle;
+}
+
+/** Whether text is a handle on another server (sam@lens.example, with or without a leading @). */
+export function isHandle(text: string): boolean {
+  return /^@?[a-z0-9_][a-z0-9_.-]*@[a-z0-9.-]+\.[a-z]{2,63}(:\d{1,5})?$/i.test(text.trim());
 }
 
 /** The circles a share starts with: the only circle when there is one, else none. */

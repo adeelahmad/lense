@@ -67,6 +67,7 @@ EDITABLE = {
     "fedora": None,
     "tunnel": None,
     "https": None,
+    "federation": ("enabled", "url"),
     "mesh": None,
     # bind is a startup setting only
     "nfs": ("enabled", "port", "allowed_networks", "account", "add_files"),
@@ -705,6 +706,19 @@ def _check(section, key, value, default):
         if not (u and VIEWER_URL.match(value.strip()) and u.hostname and u.username is None and u.password is None):
             raise ValueError(
                 "analysis.cleanup_grammar_url is a LanguageTool server's http(s) address with no password in it, such as http://languagetool:8010"
+            )
+        return value.strip().rstrip("/")
+    if (section, key) == ("federation", "enabled"):
+        if not isinstance(value, bool):
+            raise ValueError("federation.enabled is true or false")
+        return value
+    if (section, key) == ("federation", "url"):
+        if value in (None, ""):
+            return ""
+        u = urllib.parse.urlsplit(value.strip()) if isinstance(value, str) else None
+        if not (u and u.scheme == "https" and u.hostname and not u.username and not u.password and u.path in ("", "/") and not u.query):
+            raise ValueError(
+                "federation.url is this Lens's public https:// address with nothing after the host, such as https://lens.example.com"
             )
         return value.strip().rstrip("/")
     if (section, key) == ("documents", "tika_url"):

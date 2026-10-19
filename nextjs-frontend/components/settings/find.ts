@@ -20,7 +20,7 @@ export const SETTINGS_GROUPS: { label: string; sections: SectionId[] }[] = [
   { label: "Chat and email", sections: ["telegram", "slack", "bridge", "mailbox", "mail", "notifications"] },
   {
     label: "Security and access",
-    sections: ["sign-in", "tokens", "encryption", "secrets", "access", "remote-access", "https"],
+    sections: ["sign-in", "tokens", "encryption", "secrets", "access", "remote-access", "https", "federation"],
   },
   { label: "Files and devices", sections: ["storage", "shares", "smb", "nfs", "fedora", "sensors"] },
   { label: "Nodes and network", sections: ["nodes", "network"] },
