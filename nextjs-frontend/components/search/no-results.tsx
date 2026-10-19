@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Fragment, type ReactNode } from "react";
 
 import { Search } from "@/app/openapi-client";
-import { phrases, prefixWords, replacePrefix, type SearchFilters } from "@/components/search/query";
+import { dateRange, phrases, prefixWords, replacePrefix, type SearchFilters } from "@/components/search/query";
 import { data, useApiClient } from "@/lib/api/browser";
 import { plural } from "@/lib/format";
 
@@ -83,7 +83,7 @@ export function NoResults({
   /** Recordings in the filtered namespace. */
   nsRecordings?: number;
   onSearch: (q: string) => void;
-  onClearFilter: (key: keyof SearchFilters | "all") => void;
+  onClearFilter: (key: keyof SearchFilters | (keyof SearchFilters)[] | "all") => void;
 }) {
   const hints: Hint[] = [];
   for (const w of prefixWords(q)) {
@@ -173,6 +173,42 @@ export function NoResults({
         </>
       ),
     });
+  const when = dateRange(filters.from, filters.to);
+  if (when)
+    hints.push({
+      key: "dates",
+      node: (
+        <>
+          The filter <b>date: {when}</b> keeps to the assets recorded then.{" "}
+          <button type="button" className={LINK} onClick={() => onClearFilter(["from", "to"])}>
+            Any time
+          </button>
+          .
+        </>
+      ),
+    });
+  for (const [key, name, what, any] of [
+    ["tag", "tag", "tagged so", "Any tag"],
+    ["origin", "source", "that came from there", "Any source"],
+    ["language", "language", "in it", "Any language"],
+  ] as const)
+    if (filters[key])
+      hints.push({
+        key,
+        node: (
+          <>
+            The filter{" "}
+            <b>
+              {name}: {labels[key] ?? filters[key]}
+            </b>{" "}
+            keeps to the assets {what}.{" "}
+            <button type="button" className={LINK} onClick={() => onClearFilter(key)}>
+              {any}
+            </button>
+            .
+          </>
+        ),
+      });
   const words = q.split(/\s+/).filter((w) => w && w.toUpperCase() !== "OR");
   if (!hints.length || (baseTotal === 0 && words.length > 1 && !q.includes(" OR ")))
     hints.push({

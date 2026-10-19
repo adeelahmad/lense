@@ -24344,6 +24344,34 @@ export type SavedSearch = {
    */
   object?: string | null;
   /**
+   * Date From
+   *
+   * assets recorded on or after this day
+   */
+  date_from?: string | null;
+  /**
+   * Date To
+   *
+   * assets recorded on or before this day
+   */
+  date_to?: string | null;
+  /**
+   * Tag
+   */
+  tag?: string | null;
+  /**
+   * Origin
+   *
+   * where the assets came from (upload, folder, source:<id> …)
+   */
+  origin?: string | null;
+  /**
+   * Language
+   *
+   * the assets' language
+   */
+  language?: string | null;
+  /**
    * Created By
    *
    * its maker's email
@@ -24674,6 +24702,36 @@ export type SearchCreate = {
    * a kind of object the assets have (person, car …)
    */
   object?: string | null;
+  /**
+   * Date From
+   *
+   * assets recorded on or after this day (/search `from`)
+   */
+  date_from?: string | null;
+  /**
+   * Date To
+   *
+   * assets recorded on or before this day (/search `to`)
+   */
+  date_to?: string | null;
+  /**
+   * Tag
+   *
+   * assets with this tag
+   */
+  tag?: string | null;
+  /**
+   * Origin
+   *
+   * assets that came from here (upload, folder, source:<id> …)
+   */
+  origin?: string | null;
+  /**
+   * Language
+   *
+   * assets in this language (a code; none: not known)
+   */
+  language?: string | null;
   /**
    * Name
    */
@@ -41919,6 +41977,36 @@ export type SearchTranscriptsData = {
      * only assets this kind of object is seen in (person, car …)
      */
     object?: string | null;
+    /**
+     * From
+     *
+     * only assets recorded on or after this day (added, when the file doesn't say when)
+     */
+    from?: string | null;
+    /**
+     * To
+     *
+     * only assets recorded on or before this day
+     */
+    to?: string | null;
+    /**
+     * Tag
+     *
+     * only assets with these tags (ignoring case); repeat for several (any of them)
+     */
+    tag?: Array<string> | null;
+    /**
+     * Origin
+     *
+     * only assets that came from here: source:<id> (a connected source), upload, paste, iiif, folder (the archive's own folders) or file (GET /recordings/origins); repeat for several
+     */
+    origin?: Array<string> | null;
+    /**
+     * Language
+     *
+     * only assets in these languages (codes, ignoring case; none: not known); repeat for several
+     */
+    language?: Array<string> | null;
     /**
      * Limit
      */

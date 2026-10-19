@@ -1,11 +1,23 @@
 /**
  * The search box: free words plus typed filters (`speaker:"Host B"`, `namespace:podcasts`, `emotion:surprise`,
- * `event:laughter`, `recording:"Episode 12"`, `object:car`). Typed filters become chips; the chip and the facet are one filter. The backend's rules:
+ * `event:laughter`, `recording:"Episode 12"`, `object:car`, `tag:interview`, `language:de`, `origin:upload`,
+ * `from:2026-01-01`, `to:2026-03-31`). Typed filters become chips; the chip and the facet are one filter. The backend's rules:
  * every word must appear (English stemming), "quoted phrases" as written, OR between alternatives, NOT or -word to
  * leave lines out, no prefix search.
  */
 
-export type FilterKey = "namespace" | "speaker" | "emotion" | "event" | "recording" | "object";
+export type FilterKey =
+  | "namespace"
+  | "speaker"
+  | "emotion"
+  | "event"
+  | "recording"
+  | "object"
+  | "from"
+  | "to"
+  | "tag"
+  | "origin"
+  | "language";
 
 /** Filters as the URL holds them: speaker and recording are ids, namespace a name, emotion and event labels. */
 export type SearchFilters = {
@@ -17,7 +29,23 @@ export type SearchFilters = {
   recording?: number;
   /** A kind of object the recordings have (person, car …). */
   object?: string;
+  /** Recorded on or after this day (YYYY-MM-DD). */
+  from?: string;
+  /** Recorded on or before this day (YYYY-MM-DD). */
+  to?: string;
+  /** A tag the assets have. */
+  tag?: string;
+  /** Where the assets came from: upload, paste, iiif, folder, file or source:<id>. */
+  origin?: string;
+  /** The assets' language code; none for not known. */
+  language?: string;
 };
+
+/** The filters on the assets rather than on the moments: when, tag, where from and language. */
+export const ASSET_FILTERS = ["from", "to", "tag", "origin", "language"] as const;
+
+/** A day as the date filters take it. */
+export const DAY_RX = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Filters as typed in the box, by name, before they are matched to ids. */
 export type TypedFilters = Partial<Record<FilterKey, string>>;
@@ -30,8 +58,15 @@ const KEYS: Record<string, FilterKey> = {
   event: "event",
   recording: "recording",
   object: "object",
+  from: "from",
+  to: "to",
+  tag: "tag",
+  origin: "origin",
+  language: "language",
+  lang: "language",
 };
-const FILTER_RX = /(?:^|\s)(namespace|ns|speaker|emotion|event|recording|object):(?:"([^"]*)"?|(\S+))/gi;
+const FILTER_RX =
+  /(?:^|\s)(namespace|ns|speaker|emotion|event|recording|object|from|to|tag|origin|language|lang):(?:"([^"]*)"?|(\S+))/gi;
 
 /** Split what was typed into the words to search for and the typed filters. */
 export function parseQuery(input: string): {
@@ -40,9 +75,11 @@ export function parseQuery(input: string): {
 } {
   const typed: TypedFilters = {};
   const text = input
-    .replace(FILTER_RX, (_all, key: string, quoted: string | undefined, bare: string | undefined) => {
+    .replace(FILTER_RX, (all, key: string, quoted: string | undefined, bare: string | undefined) => {
       const value = (quoted ?? bare ?? "").trim();
-      if (value) typed[KEYS[key.toLowerCase()]] = value;
+      const k = KEYS[key.toLowerCase()];
+      if ((k === "from" || k === "to") && value && !DAY_RX.test(value)) return all; // "from:alice" is words
+      if (value) typed[k] = value;
       return " ";
     })
     .replace(/\s+/g, " ")
@@ -142,6 +179,7 @@ export function fromParams(p: URLSearchParams): {
   mode: SearchMode;
 } {
   const int = (v: string | null) => (v && /^\d+$/.test(v) ? Number(v) : undefined);
+  const day = (v: string | null) => (v && DAY_RX.test(v) ? v : undefined);
   const by = p.get("by");
   return {
     q: p.get("q") ?? "",
@@ -153,6 +191,11 @@ export function fromParams(p: URLSearchParams): {
       event: p.get("event") || undefined,
       recording: int(p.get("recording")),
       object: p.get("object") || undefined,
+      from: day(p.get("from")),
+      to: day(p.get("to")),
+      tag: p.get("tag") || undefined,
+      origin: p.get("origin") || undefined,
+      language: p.get("language") || undefined,
     },
   };
 }
@@ -167,13 +210,15 @@ export function toParams(q: string, f: SearchFilters, mode: SearchMode = "auto")
   if (f.event) p.set("event", f.event);
   if (f.recording != null) p.set("recording", String(f.recording));
   if (f.object) p.set("object", f.object);
+  for (const k of ASSET_FILTERS) if (f[k]) p.set(k, f[k]!);
   if (mode !== "auto") p.set("by", mode === "keyword" ? "words" : "meaning");
   return p.toString();
 }
 
 export function activeFilterCount(f: SearchFilters): number {
-  return [f.namespace, f.speaker, f.emotion, f.event, f.recording, f.object].filter((v) => v != null && v !== "")
-    .length;
+  return [f.namespace, f.speaker, f.emotion, f.event, f.recording, f.object, ...ASSET_FILTERS.map((k) => f[k])].filter(
+    (v) => v != null && v !== "",
+  ).length;
 }
 
 type Saved = {
@@ -186,6 +231,11 @@ type Saved = {
   recording?: number | null;
   recording_title?: string | null;
   object?: string | null;
+  date_from?: string | null;
+  date_to?: string | null;
+  tag?: string | null;
+  origin?: string | null;
+  language?: string | null;
 };
 
 /** Where a saved search opens: the search page with its words and filters. */
@@ -197,6 +247,11 @@ export function savedSearchHref(s: Saved): string {
     event: s.event ?? undefined,
     recording: s.recording ?? undefined,
     object: s.object ?? undefined,
+    from: s.date_from ?? undefined,
+    to: s.date_to ?? undefined,
+    tag: s.tag ?? undefined,
+    origin: s.origin ?? undefined,
+    language: s.language ?? undefined,
   })}`;
 }
 
@@ -209,7 +264,19 @@ export function savedSearchFilters(s: Saved): string {
     s.event ? eventName(s.event) : null,
     s.recording != null ? (s.recording_title ?? `Asset #${s.recording}`) : null,
     s.object ? `with ${s.object}` : null,
+    dateRange(s.date_from, s.date_to),
+    s.tag ? `#${s.tag}` : null,
+    s.origin ? `from ${s.origin}` : null,
+    s.language ? `in ${s.language}` : null,
   ]
     .filter(Boolean)
     .join(" · ");
+}
+
+/** "2026-01-01 – 2026-03-31", "since 2026-01-01" or "until 2026-03-31": a date filter as words. */
+export function dateRange(from?: string | null, to?: string | null): string | null {
+  if (from && to) return from === to ? from : `${from} – ${to}`;
+  if (from) return `since ${from}`;
+  if (to) return `until ${to}`;
+  return null;
 }

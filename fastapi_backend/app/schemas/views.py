@@ -11,6 +11,8 @@ from app.schemas.recordings import RecordingSort, RecordingState
 
 LibraryTab = Literal["all", "attention", "processing", "mine"]
 Tag = Annotated[str, Field(min_length=1, max_length=40)]
+DAY = r"^\d{4}-\d{2}-\d{2}$"
+ORIGIN = r"^(upload|paste|iiif|folder|file|source:\d+)$"
 
 
 class ViewState(RequestModel):
@@ -26,7 +28,7 @@ class ViewState(RequestModel):
     )
     media: Literal["any", "audio", "video", "transcript", "document", "image"] = "any"
     tags: list[Tag] = Field(default_factory=list, max_length=20, description="any of these")
-    origins: list[Annotated[str, Field(pattern=r"^(upload|paste|iiif|folder|file|source:\d+)$")]] = Field(
+    origins: list[Annotated[str, Field(pattern=ORIGIN)]] = Field(
         default_factory=list, max_length=20, description="where they came from (GET /recordings `origin`)"
     )
     languages: list[Annotated[str, Field(min_length=1, max_length=20)]] = Field(
@@ -78,6 +80,11 @@ class SearchState(RequestModel):
     event: str | None = Field(None, max_length=40, description="a sound heard (laughter, applause, music …)")
     recording: int | None = None
     object: str | None = Field(None, max_length=60, description="a kind of object the assets have (person, car …)")
+    date_from: str | None = Field(None, pattern=DAY, description="assets recorded on or after this day (/search `from`)")
+    date_to: str | None = Field(None, pattern=DAY, description="assets recorded on or before this day (/search `to`)")
+    tag: str | None = Field(None, max_length=100, description="assets with this tag")
+    origin: str | None = Field(None, pattern=ORIGIN, description="assets that came from here (upload, folder, source:<id> …)")
+    language: str | None = Field(None, max_length=20, description="assets in this language (a code; none: not known)")
 
 
 class SavedSearch(ResponseModel):
@@ -93,6 +100,11 @@ class SavedSearch(ResponseModel):
     recording: int | None = None
     recording_title: str | None = Field(None, description="the asset's title, when you can read it")
     object: str | None = Field(None, description="a kind of object the assets have")
+    date_from: str | None = Field(None, description="assets recorded on or after this day")
+    date_to: str | None = Field(None, description="assets recorded on or before this day")
+    tag: str | None = None
+    origin: str | None = Field(None, description="where the assets came from (upload, folder, source:<id> …)")
+    language: str | None = Field(None, description="the assets' language")
     created_by: str | None = Field(None, description="its maker's email")
     created_at: str | None = None
     updated_at: str | None = None

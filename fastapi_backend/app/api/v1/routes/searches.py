@@ -14,7 +14,7 @@ from app.api.v1.routes.views import change, check_share, common, remove
 from app.domain import auth, store, views
 from app.domain.store import DB
 from app.schemas.common import Ok
-from app.schemas.views import SavedSearch, SearchCreate, SearchUpdate
+from app.schemas.views import SavedSearch, SearchCreate, SearchState, SearchUpdate
 
 router = APIRouter(prefix="/searches", tags=["searches"])
 
@@ -67,14 +67,14 @@ def list_searches(user: CurrentUser, acl: Acl, db: Db) -> list[SavedSearch]:
 
 @router.post("")
 def create_search(body: SearchCreate, user: Writer, acl: Acl, db: Db) -> SavedSearch:
-    """Save a search (its words, namespace, person, emotion, sound, asset and object) under a name unique among yours. Sharing it
-    with its namespace needs editor access there."""
+    """Save a search (its words, namespace, person, emotion, sound, asset, object, dates, tag, origin and language) under a
+    name unique among yours. Sharing it with its namespace needs editor access there."""
     sid = acl.namespace(body.namespace) if body.namespace else None
     if body.recording is not None:
         acl.recording(body.recording)
     if body.shared:
         check_share(acl, sid, "saved search")
-    state = body.model_dump(include={"q", "speaker", "emotion", "event", "recording", "object"})
+    state = body.model_dump(include=set(SearchState.model_fields))
     with domain_errors():
         vid = views.create(db, user.id, body.name, sid, state, body.shared, kind="search")
     if body.shared:

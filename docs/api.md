@@ -1351,7 +1351,12 @@ namespaces you can read, best first: every word
 (English stemming), "quoted phrases" as written, `OR` between alternatives, `NOT` or `-` before a word or phrase to leave out the lines
 with it; `ns`, `speaker`, `emotion`, `event` (a sound heard, such as laughter, applause or music, typed any way; music
 is stored as `BGM`) and `recording` narrow it, and `object` keeps to the assets a kind of object is seen in
-([Objects](#objects));
+([Objects](#objects)); `from` and `to` (days, both included: when the asset was recorded, or added when its file
+doesn't say), `tag`, `origin` (`upload`, `paste`, `iiif`, `folder`, `file` or `source:<id>`, as `GET
+/recordings/origins` lists them) and `language` (a code, or `none` for not known) keep to the assets that have them,
+exactly as the Library's filters of the same names do, on every kind of hit (said, on screen, in files …); repeat
+`tag`, `origin` or `language` for several (any of them). None of them is set unless asked for, so a search without
+them is as it was;
 `limit`/`offset` page through it. `total` counts the moments ranked so far (`capped` when there may be more).
 With `facets=true` it also counts all the matching moments, whatever the page, by namespace, person, emotion, sound
 (`events`; plain speech isn't one) and asset (`facets`: up to 50 values each, most first, and `moments`), and lists the kinds of object seen in the
@@ -1360,7 +1365,11 @@ assets they're in, with how many of those assets each is in (`objects`); past 20
 
 In the web app, a result links to the asset with the words searched for (`/resources/<id>?t=<seconds>&q=<words>`,
 without filters, left-out words or `OR`): it opens with Find in its text showing them, on the match at that moment,
-or on the longest of the words when the text doesn't have them together.
+or on the longest of the words when the text doesn't have them together. The search page's filter panel starts with
+Assets: From and To days, and a tag, a source and a language to pick (a list is left out when there's nothing to
+choose between). Each is empty until picked, one pick searches again, and each can be typed in the box too
+(`from:2026-01-01`, `to:2026-03-31`, `tag:interview`, `origin:upload` or a source's name, `language:de` or
+`language:German`). They're kept in the address, so a link carries them, and in a saved search.
 
 Each hit's `source` says where it was found: `said` (a line of the asset's text or transcript), `screen` (text on screen), `page` (a document's or an
 image's text: its `page`, from 0, and its `box` on it), `object` (a kind of object, where it's first seen: its time, or
@@ -1942,7 +1951,9 @@ DELETE /api/v1/searches/{sid}
 ```
 
 Saved searches: `POST` with a `name` (unique among yours), the search's `q`, and any of `namespace`, `speaker`,
-`emotion`, `event` and `recording`, as `GET /search` takes them. They follow the rules of saved views (above): yours, or
+`emotion`, `event`, `recording`, `object`, `date_from` and `date_to` (`YYYY-MM-DD`), `tag`, `origin` and `language`,
+as `GET /search` takes them (one value each; `date_from` and `date_to` are its `from` and `to`). They follow the rules
+of saved views (above): yours, or
 `shared` with the namespace they search (editors there; a search of every namespace can't be shared); only their maker
 renames or shares them (`PATCH` with `name` or `shared`); their maker, or an owner of the namespace for a shared one,
 deletes them. `GET` lists yours, then the shared ones, with `speaker_name` and `recording_title` where you can read

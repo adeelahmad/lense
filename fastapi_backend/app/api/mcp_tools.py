@@ -464,12 +464,23 @@ def _recording(ctx: Context, rid: int) -> dict[str, Any]:
     "pipelines' model steps wrote about assets (found: generated, with the step in output). Words are all required "
     '(matched after stemming), "quoted phrases" must appear as written, OR separates alternatives, NOT or a leading - leaves out lines with a word or phrase. Results are the best '
     "moments first, each with the asset, the person (who said or wrote it), where in it, the matching text (matches in **bold**) "
-    "and a url that opens the asset at that moment. Use get_transcript for the lines around a moment.",
+    "and a url that opens the asset at that moment. A date range, tags, origins or languages keep to the assets that have "
+    "them. Use get_transcript for the lines around a moment.",
     Arg("query", "string", 'what to look for: words, "a phrase", or alternatives separated by OR', required=True, max_length=500),
     Arg("namespace", "string", "only this namespace (see list_namespaces)"),
     Arg("speaker_id", "integer", "only lines from this person (ids from list_speakers or get_recording)"),
     Arg("recording_id", "integer", "only within this asset"),
     Arg("event", "string", "only lines with this sound: laughter, applause, music, cough …", max_length=40),
+    Arg("date_from", "string", "only assets recorded (or added) on or after this day, month or year (2026-09-30, 2026-09, 2026)"),
+    Arg("date_to", "string", "only assets recorded (or added) on or before this day, month or year"),
+    Arg("tags", "string[]", "only assets with any of these tags (ignoring case)"),
+    Arg(
+        "origins",
+        "string[]",
+        "only assets that came from here: source:<id> (a connected source), upload, paste, iiif, folder (the archive's own "
+        "folders) or file",
+    ),
+    Arg("languages", "string[]", "only assets in these languages (en, de …); none for those whose language isn't known"),
     Arg("limit", "integer", "how many moments", default=10, minimum=1, maximum=50),
     Arg("offset", "integer", "skip this many (for the next page)", default=0, minimum=0, maximum=10000),
 )
@@ -480,6 +491,11 @@ def search(
     speaker_id: int | None,
     recording_id: int | None,
     event: str | None,
+    date_from: str | None,
+    date_to: str | None,
+    tags: list[str] | None,
+    origins: list[str] | None,
+    languages: list[str] | None,
     limit: int,
     offset: int,
 ) -> dict[str, Any]:
@@ -497,6 +513,11 @@ def search(
         event=event,
         recording=recording_id,
         object=None,
+        date_from=findmod.day(date_from, name="date_from"),
+        date_to=findmod.day(date_to, end=True, name="date_to"),
+        tag=tags or None,
+        origin=origins or None,
+        language=languages or None,
         limit=limit,
         offset=offset,
         facets=False,
