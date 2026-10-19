@@ -49,7 +49,7 @@ LEGACY = ("access-levels", "collection-homes")
 
 def steps():
     """[(name, fn(db))] in the order they run. Append only."""
-    from . import access, auth, chat, entities, hierarchy, jobs, mcp_servers, pipelines
+    from . import access, auth, chat, entities, hierarchy, jobs, mcp_servers, pipelines, speakers
 
     return [
         # IIIF-only access levels (public, transcript, signed-in, private) become the access setting
@@ -68,6 +68,8 @@ def steps():
         ("entity-types", entities.migrate_types),
         # what a model step wrote about a recording before then is found by search too
         ("generated-search", pipelines.migrate_generated),
+        # what someone said a person merged away isn't now holds for the one they were merged into
+        ("speaker-not-same-merged", speakers.migrate_not_same),
     ]
 
 

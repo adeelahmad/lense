@@ -1422,7 +1422,8 @@ People (everyone recognised by voice or face) live under `/speakers`.
 `GET /speakers?ns=` lists the namespace's people (each with its suggested merges), its last merges (with `by`, the
 `recordings` and `segments` that moved, and `undone_by`/`undone_at`), its links to other namespaces, and `cross`:
 voices in other shared namespaces you can read that are likely the same person (`score`, best first). `not-same
-{with}` says two entries aren't the same person (one namespace or two): the suggestion goes and isn't made again.
+{with}` says two entries aren't the same person (one namespace or two): the suggestion goes and isn't made again,
+and a merge carries it over to the person merged into.
 `detach {recording}` says the voice heard as this person in one asset is someone else: its lines there go to a new
 person (`speaker` in the answer), this person's voice is worked out again from the assets they're still in, and the two
 are marked not the same; merging the new person back undoes it. It's a 400 when they aren't heard in that asset, or
