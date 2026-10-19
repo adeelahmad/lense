@@ -20,6 +20,7 @@ Status: in progress. The studio's timeline is built in steps; only what is merge
 | A For you order learned from what each person reacts to, comments on, marks important and hides, each item saying why | built |
 | Muting a source, person or kind, for good or until a time, for yourself alone; `mute_activities` for agents | built |
 | Moves and switches as their own verbs: an asset moved to another namespace (`asset.moved`, a Move) and a sensor paused, ignored or resumed (`sensor.changed`, an Update with what it was) | built |
+| Saved views: the filters and order under a name, one click away in the page's Views menu, each person's own; `timeline_views`, `save_timeline_view` and `delete_timeline_view` for agents | built |
 
 ## What shows
 
@@ -215,6 +216,24 @@ page) does not; a For you page scores only what is left.
   person a token acts for, with the write scope to mute. The assistant's `mute_activities` acts at once, but after
   it has read text from outside Lens it asks first, as hiding does, since that text may have asked for it.
 
+## Saved views
+
+A saved view is a name for a set of filters and an order ("Work mail to review": the work namespace, Email received,
+Unreviewed), so a timeline you read often is one click away. Views are each person's own: nobody else sees them.
+
+- **Views** beside the order lists your views; picking one sets the filters and order it saved (and the address, so
+  it can still be linked). When the filters shown match a view, the button carries its name.
+- **Save these filters as a view** offers a name made from the filters ("work · Email received · Unreviewed"); Enter
+  saves it, Escape leaves it. After picking a view and changing the filters, **Save these filters into “Work mail”**
+  updates it. **Delete** takes it away, with Undo.
+- `GET`, `POST /api/v1/activities/views` and `PATCH`, `DELETE /api/v1/activities/views/{id}` list, save, rename or
+  re-save, and delete them, up to 100 each. A view's `state` has the timeline's filters: `kinds`, `actor` and
+  `namespace` (lists), `tag`, `from_day` and `to_day` (days, `YYYY-MM-DD`), `automation`, `q`, `unreviewed`,
+  `important` and `order` (`latest` or `for_you`). They are saved views of their own kind, beside the Library's views
+  and saved searches, which they don't show among.
+- Over MCP, `timeline_views` lists them, `save_timeline_view` (`name`, `state`, and `id` to change one) saves one and
+  `delete_timeline_view` deletes one; an agent reads what a view shows by giving its filters to `timeline`.
+
 ## For you
 
 For you is a cheap, explainable order of the timeline, learned from each person's own signals and nothing else:
@@ -259,7 +278,6 @@ per source page; they go when the person is removed. Nothing of this costs a mod
 - A muted actor's own line in the Filters, and a snooze of your own length from the page.
 - A file changed in its source and read again is `asset.added` once more; linking the new activity to the
   asset's earlier one as a `file.changed` Update, rather than a second Create, is to come.
-- Saved filter views.
 - Marks on activities whose rows are gone (an event log entry past `events.keep_days`, a deleted asset) stay until
   the person is removed; a tidy could drop them. Reactions and comments on such activities likewise.
 - The agent's reply in a thread is plain text with links; the answer's excerpts could open at their moment, as in

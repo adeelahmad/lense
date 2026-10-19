@@ -16,6 +16,10 @@ import {
   toQuery,
   unseen,
   type Activity,
+  fromViewState,
+  toViewState,
+  sameFilters,
+  viewName,
 } from "@/components/timeline/model";
 
 const MIN = 60_000;
@@ -169,4 +173,16 @@ describe("kinds and objects", () => {
       ["from", "office@stmarys.org"],
     ]);
   });
+});
+
+test("a saved view keeps the filters and order as they are, and offers a name from them", () => {
+  const f = fromParams(
+    new URLSearchParams("kinds=email.received&ns=work&from=2026-10-01&automation=4&important=1&order=for_you"),
+  );
+  expect(fromViewState(toViewState(f))).toEqual(f);
+  expect(toViewState(NO_FILTERS)).toMatchObject({ from_day: null, to_day: null, automation: null, order: "latest" });
+  expect(fromViewState({})).toEqual(NO_FILTERS);
+  expect(sameFilters(f, { ...f, order: "latest" })).toBe(false);
+  expect(viewName(f, { "email.received": "Email received" })).toBe("work · Email received · Important · For you");
+  expect(viewName(NO_FILTERS)).toBe("My view");
 });

@@ -31,6 +31,7 @@ import {
 } from "@/components/timeline/model";
 import { Social } from "@/components/timeline/social";
 import { useCommentCounts, useReactions } from "@/components/timeline/use-social";
+import { ViewsMenu } from "@/components/timeline/views";
 import { aDay, useKinds, useMarks, useMutes, useNewItems, useTimeline } from "@/components/timeline/use-timeline";
 import { Button } from "@/components/ui/button";
 import { Segmented } from "@/components/ui/tabs";
@@ -309,6 +310,7 @@ export function TimelinePage() {
             { value: "for_you", label: "For you", icon: <Sparkles /> },
           ]}
         />
+        <ViewsMenu value={filters} onPick={setFilters} labels={labels} />
         <WordsBox value={filters.q} onApply={(q) => setFilters({ ...filters, q })} />
         {phone && (
           <Button

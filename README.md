@@ -211,7 +211,7 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   assistant about any item from the item; a comment that tags @lens gets the agent's answer in the thread, with
   every change it proposes waiting for a yes, a For you order learned from each person's own reactions, comments
   and marks says why each item is where it is, each person mutes a source or a kind for themselves, with nothing
-  deleted, and an opened item shows what it caused, the runs and approvals, with Approve and Decline right there.
+  deleted, and saves the filters they read often as views, and an opened item shows what it caused, the runs and approvals, with Approve and Decline right there.
   Automations act
   on that stream, on a schedule, at a time or when their own webhook is called, alone or with their triggers joined (all
   of them, a number of times, one that doesn't come in time, or a batch): they test conditions (text, patterns,

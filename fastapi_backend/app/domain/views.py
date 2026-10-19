@@ -1,5 +1,6 @@
-"""Saved views: of the Library (its tab, filters and sort) or of a search (its words and filters), under a name, with
-the namespace they show (or every one). Kind ``library`` is a Library view, ``search`` a saved search.
+"""Saved views: of the Library (its tab, filters and sort), of a search (its words and filters) or of the timeline (its
+filters and order), under a name, with the namespace they show (or every one). Kind ``library`` is a Library view,
+``search`` a saved search, ``timeline`` a timeline view (always its maker's alone: it names namespaces in its filters).
 
 A view is its maker's. Shared with its namespace, everyone with a role there sees it, and the namespace's owners may
 delete it; only its maker changes it.
@@ -11,7 +12,7 @@ from . import store
 
 R = store.R
 MAX_VIEWS = 100  # per person, of each kind
-KINDS = {"library": "view", "search": "saved search"}
+KINDS = {"library": "view", "search": "saved search", "timeline": "timeline view"}
 FIELDS = "record::id(id) AS id, account, kind ?? 'library' AS kind, name, space, shared ?? false AS shared, state, created_at, updated_at"
 
 

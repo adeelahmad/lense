@@ -120,6 +120,8 @@ def test_clients_are_sent_to_sign_in(client, app, env):
         "unsubscribe_feed",
         "set_mail_routing",
         "mark_activities",
+        "save_timeline_view",
+        "delete_timeline_view",
         "mute_activities",
         "react_to_activity",
         "comment_on_activity",
