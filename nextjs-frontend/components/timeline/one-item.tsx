@@ -3,12 +3,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { useState, type ComponentProps } from "react";
+import { useEffect, useState, type ComponentProps } from "react";
 
 import { Activities } from "@/app/openapi-client";
 import type { StreamActivity } from "@/app/openapi-client/types.gen";
 import { TimelineRow } from "@/components/timeline/item";
 import { group, type Activity } from "@/components/timeline/model";
+import { useOpened } from "@/components/timeline/use-timeline";
 import { EmptyState, Skeleton } from "@/components/ui/states";
 import { data, useApiClient } from "@/lib/api/browser";
 
@@ -55,6 +56,12 @@ export function OneItem({
 >) {
   const [open, setOpen] = useState(true);
   const g = a ? group([a])[0] : null;
+  // opening an item by its address counts as opening it, for the person's For you order
+  const opened = useOpened();
+  const found = a?.id;
+  useEffect(() => {
+    if (found) opened(found);
+  }, [found, opened]);
   return (
     <section aria-label="This item" className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2 text-[12.5px] text-fg-secondary">

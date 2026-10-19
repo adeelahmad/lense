@@ -25,6 +25,7 @@ jest.mock("@/app/openapi-client", () => ({
     muteActivities: jest.fn(),
     activityCaused: jest.fn(),
     getActivity: jest.fn(),
+    openActivity: jest.fn(),
     listTimelineViews: jest.fn(),
     createTimelineView: jest.fn(),
     updateTimelineView: jest.fn(),
@@ -643,6 +644,13 @@ test("the address can name one item, opened above the timeline, with a way back"
   expect(within(one).getByRole("link", { name: "Back to the timeline" })).toHaveAttribute("href", "/timeline");
   expect(within(await screen.findByRole("list", { name: "Timeline" })).getAllByTestId("timeline-row")).toHaveLength(2);
   expect(replace).not.toHaveBeenCalled();
+  // opening it by its address counts for the person's For you order, and so does following a line to what it is about
+  await waitFor(() =>
+    expect(m(Activities.openActivity)).toHaveBeenCalledWith(expect.objectContaining({ path: { activity_id: "u1" } })),
+  );
+  m(Activities.openActivity).mockClear();
+  fireEvent.click(within(one).getByRole("link", { name: "Adeel received “Mail u1”" }));
+  await waitFor(() => expect(m(Activities.openActivity)).toHaveBeenCalledTimes(1));
   // one that isn't there, or not yours, says so
   search = "item=nope";
   wrap(<TimelinePage />);

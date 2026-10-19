@@ -1514,6 +1514,10 @@ SCHEMA = [
     # event_mute:<hash of account and target> (the id keeps the pair unique)
     "DEFINE TABLE IF NOT EXISTS event_mute SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS event_mute_account ON event_mute FIELDS account",
+    # opens on the timeline (domain/for_you.py): how often each person opened an activity, for their For you order
+    # alone, event_open:<hash of account and activity>
+    "DEFINE TABLE IF NOT EXISTS event_open SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS event_open_account ON event_open FIELDS account",
     # every line of a run's log, in chunks (jobs.RunLog): job_log:<random>
     "DEFINE TABLE IF NOT EXISTS job_log SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS job_log_job ON job_log FIELDS job",

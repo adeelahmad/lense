@@ -2,29 +2,32 @@
 
 Latest is the stream as it is, newest first. For you takes a page's worth of the newest items (up to WINDOW) and
 reorders it by a cheap local score, recency times affinity: how much the person has reacted to, commented on and
-marked important items from the same actor, of the same kind and about the same entities, less what they hid. Each
-item's `why` says which of those put it where it is, so the order is explainable. No model call: three small queries
-for the person's signals, one look-up of the activities they were on, and arithmetic. Signals are the person's own
-(their reactions, comments and marks), never anyone else's, and nothing is stored: the score is made on each read.
+marked important or opened items from the same actor, of the same kind and about the same entities, less what they
+hid. Each item's `why` says which of those put it where it is, so the order is explainable. No model call: four small
+queries for the person's signals, one look-up of the activities they were on, and arithmetic. Signals are the
+person's own (their reactions, comments, marks and opens), never anyone else's; the score is made on each read, and
+the only thing stored for it is how often each person opened an item (`event_open:<hash of account and activity>`).
 """
 
 from __future__ import annotations
 
+import hashlib
 import math
 
-from . import events
+from . import events, store
 
 HALF_LIFE_HOURS = 48.0  # an item's recency halves every two days
 WINDOW = 200  # the newest items one page scores (the most events.page gives)
 SIGNALS = 200  # the most recent rows of each kind of signal that count
-WEIGHTS = {"reaction": 1.0, "comment": 2.0, "important": 2.0, "hidden": -3.0}
+WEIGHTS = {"reaction": 1.0, "comment": 2.0, "important": 2.0, "hidden": -3.0, "open": 0.5}
+OPENS = 4  # opens of one item that count at most, so reading one thing again and again doesn't drown the rest
 SCALE = 4.0  # affinity this strong doubles (or, negative, halves) an item's score
 ORDERS = ("latest", "for_you")
 
 
 def signals(db, account):
     """[(activity id, weight)]: the person's most recent reactions, comments (on an activity, or on an asset, which is
-    on its arrival) and important or hidden marks, each weighed."""
+    on its arrival), important or hidden marks and opens (each open counting, up to OPENS of one item), each weighed."""
     if account is None:
         return []
     out = []
@@ -46,7 +49,16 @@ def signals(db, account):
             out.append((r["activity"], WEIGHTS["hidden"]))
         elif r.get("important"):
             out.append((r["activity"], WEIGHTS["important"]))
+    for r in db.rows(f"SELECT activity, n, at FROM event_open WHERE account = $a ORDER BY at DESC LIMIT {SIGNALS}", a=account):
+        n = r.get("n") if isinstance(r.get("n"), int) else 1
+        out.append((r["activity"], WEIGHTS["open"] * max(1, min(n, OPENS))))
     return [(a, w) for a, w in out if isinstance(a, str)]
+
+
+def opened(db, account, activity):
+    """Count that the person opened an activity (its own page, or what it is about), for their For you order alone."""
+    ref = store.R("event_open", hashlib.sha1(f"{account}|{activity}".encode()).hexdigest())
+    db.q("UPSERT $r SET account = $a, activity = $i, n = (n ?? 0) + 1, at = $t", r=ref, a=account, i=activity, t=store.now())
 
 
 def affinity(db, cfg, who):
