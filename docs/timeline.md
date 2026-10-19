@@ -100,6 +100,9 @@ them, and each one is an activity of its own, so an automation (or an agent) can
 - **Comments** open from the comment count on an opened item (or **Comment** when there are none): the threads with
   who wrote each and when, **Reply** on a thread, and a box where Enter sends (Shift+Enter makes a new line). Anyone
   who sees the activity can comment, up to 1,000 each; its writer, or an owner of the namespace, deletes a comment.
+  **Edit** on your own comment opens its text in the box (Enter saves, Escape leaves it as it was), and it then says
+  "edited". **Resolve the thread** (on its first comment, for whoever started it or an editor of the namespace)
+  marks it "Resolved by Sam", and **Reopen the thread** takes that back; a resolved thread stays in place, dimmed.
   Each comment is a `comment.added` activity. A comment on an asset's arrival (`create-recording-<id>`) is a comment
   on the asset itself: the same thread shows on the asset's page and here, and a comment made on the page shows here.
 - Comments and reactions on an activity meant for one person (`lens.audience` owner) stay with that person, as the
@@ -259,6 +262,5 @@ per source page; they go when the person is removed. Nothing of this costs a mod
 - Saved filter views.
 - Marks on activities whose rows are gone (an event log entry past `events.keep_days`, a deleted asset) stay until
   the person is removed; a tidy could drop them. Reactions and comments on such activities likewise.
-- Editing and resolving comments from the timeline (the API has both).
 - The agent's reply in a thread is plain text with links; the answer's excerpts could open at their moment, as in
   chat. Tagging a namespace's own assistant by its name, with its memory.

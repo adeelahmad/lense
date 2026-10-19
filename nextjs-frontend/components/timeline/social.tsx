@@ -1,10 +1,10 @@
 "use client";
 
-import { MessageSquare, Reply, SmilePlus, Sparkles, Trash2 } from "lucide-react";
+import { Check, MessageSquare, Pencil, Reply, RotateCcw, SmilePlus, Sparkles, Trash2 } from "lucide-react";
 import { useState, type KeyboardEvent } from "react";
 
 import type { Comment, Reaction } from "@/app/openapi-client/types.gen";
-import { threads, type Thread } from "@/components/recording/comments-model";
+import { resolvedBy, threads, type Thread } from "@/components/recording/comments-model";
 import { writer } from "@/components/recording/notes-model";
 import type { Activity } from "@/components/timeline/model";
 import { EMOJIS, EMOJI_LABEL, commentsLabel, linked, reactedBy } from "@/components/timeline/social-model";
@@ -134,6 +134,7 @@ function Composer({
   placeholder,
   pending,
   autoFocus,
+  initial = "",
   onSend,
   onCancel,
 }: {
@@ -141,10 +142,11 @@ function Composer({
   placeholder: string;
   pending: boolean;
   autoFocus?: boolean;
+  initial?: string;
   onSend: (text: string) => Promise<unknown>;
   onCancel?: () => void;
 }) {
-  const [text, setText] = useState("");
+  const [text, setText] = useState(initial);
   const send = () => {
     if (!text.trim() || pending) return;
     void onSend(text.trim()).then(() => setText(""));
@@ -181,12 +183,19 @@ function CommentLine({
   replies,
   onReply,
   onDelete,
+  onEdit,
+  onResolve,
+  pending,
 }: {
   c: Comment;
   replies: number;
   onReply?: () => void;
   onDelete: () => void;
+  onEdit: (text: string) => Promise<unknown>;
+  onResolve?: (resolved: boolean) => void;
+  pending: boolean;
 }) {
+  const [editing, setEditing] = useState(false);
   return (
     <li className={cn("flex flex-col gap-0.5 py-1", c.parent != null && "ml-5 border-l border-border pl-3")}>
       <span className="flex items-center gap-2 text-[12px] text-fg-muted">
@@ -197,6 +206,20 @@ function CommentLine({
         <span title={c.created_at ?? undefined}>{relative(c.created_at)}</span>
         {c.edited_at && <span>· edited</span>}
         <span className="ml-auto flex items-center gap-0.5">
+          {onResolve && c.can_resolve && (
+            <IconButton
+              label={c.resolved ? "Reopen the thread" : "Resolve the thread"}
+              size={24}
+              onClick={() => onResolve(!c.resolved)}
+            >
+              {c.resolved ? <RotateCcw className="size-3.5" /> : <Check className="size-3.5" />}
+            </IconButton>
+          )}
+          {c.mine && !c.by_agent && (
+            <IconButton label="Edit" size={24} onClick={() => setEditing(true)}>
+              <Pencil className="size-3.5" />
+            </IconButton>
+          )}
           {onReply && (
             <IconButton label="Reply" size={24} onClick={onReply}>
               <Reply className="size-3.5" />
@@ -213,19 +236,31 @@ function CommentLine({
           )}
         </span>
       </span>
-      <p className="whitespace-pre-wrap text-[13px] text-fg">
-        {c.by_agent
-          ? linked(c.text).map((part, i) =>
-              part.url ? (
-                <a key={i} href={part.url} className="text-fg-accent underline-offset-2 hover:underline">
-                  {part.text}
-                </a>
-              ) : (
-                <span key={i}>{part.text}</span>
-              ),
-            )
-          : c.text}
-      </p>
+      {editing ? (
+        <Composer
+          label="Save"
+          placeholder="Edit your comment… (Enter saves, Escape cancels)"
+          pending={pending}
+          autoFocus
+          initial={c.text}
+          onSend={(text) => (text === c.text ? Promise.resolve() : onEdit(text)).then(() => setEditing(false))}
+          onCancel={() => setEditing(false)}
+        />
+      ) : (
+        <p className="whitespace-pre-wrap text-[13px] text-fg">
+          {c.by_agent
+            ? linked(c.text).map((part, i) =>
+                part.url ? (
+                  <a key={i} href={part.url} className="text-fg-accent underline-offset-2 hover:underline">
+                    {part.text}
+                  </a>
+                ) : (
+                  <span key={i}>{part.text}</span>
+                ),
+              )
+            : c.text}
+        </p>
+      )}
     </li>
   );
 }
@@ -234,6 +269,8 @@ function ThreadView({
   t,
   onReply,
   onDelete,
+  onEdit,
+  onResolve,
   replying,
   setReplying,
   pending,
@@ -241,23 +278,45 @@ function ThreadView({
   t: Thread;
   onReply: (text: string, parent: number) => Promise<unknown>;
   onDelete: (c: Comment, replies: number) => void;
+  onEdit: (c: Comment, text: string) => Promise<unknown>;
+  onResolve: (c: Comment, resolved: boolean) => void;
   replying: boolean;
   setReplying: (on: boolean) => void;
   pending: boolean;
 }) {
+  const done = resolvedBy(t.root);
   return (
-    <li className="flex flex-col">
+    <li
+      className={cn("flex flex-col", t.root.resolved && "opacity-80")}
+      aria-label={t.root.resolved ? "Resolved thread" : "Thread"}
+    >
       <ul className="flex flex-col">
         <CommentLine
           c={t.root}
           replies={t.replies.length}
           onReply={() => setReplying(true)}
           onDelete={() => onDelete(t.root, t.replies.length)}
+          onEdit={(text) => onEdit(t.root, text)}
+          onResolve={(on) => onResolve(t.root, on)}
+          pending={pending}
         />
         {t.replies.map((r) => (
-          <CommentLine key={r.id} c={r} replies={0} onDelete={() => onDelete(r, 0)} />
+          <CommentLine
+            key={r.id}
+            c={r}
+            replies={0}
+            onDelete={() => onDelete(r, 0)}
+            onEdit={(text) => onEdit(r, text)}
+            pending={pending}
+          />
         ))}
       </ul>
+      {done && (
+        <span className="ml-5 inline-flex w-fit items-center gap-1 text-[11.5px] font-semibold text-green-dark">
+          <Check className="size-3" aria-hidden /> {done}
+          {t.root.resolved_at ? ` · ${relative(t.root.resolved_at)}` : ""}
+        </span>
+      )}
       {replying && (
         <div className="ml-5 pl-3">
           <Composer
@@ -278,11 +337,11 @@ function ThreadView({
  * activity reads and joins it; on an asset's arrival it is the asset's own comments. */
 export function CommentThread({ a, bump }: { a: Activity; bump: (id: string, by: number) => void }) {
   const q = useActivityComments(a.id, true);
-  const { create, remove } = useActivityCommentActions(a.id, bump);
+  const { create, remove, update } = useActivityCommentActions(a.id, bump);
   const [replying, setReplying] = useState<number | null>(null);
   const list = q.data ?? [];
   const all = threads(list);
-  const pending = create.isPending;
+  const pending = create.isPending || update.isPending;
   const send = (text: string, parent?: number) => create.mutateAsync({ text, parent: parent ?? null });
   return (
     <div className="flex flex-col gap-1.5" aria-label="Comments">
@@ -299,6 +358,8 @@ export function CommentThread({ a, bump }: { a: Activity; bump: (id: string, by:
                 t={t}
                 onReply={send}
                 onDelete={(c, replies) => remove.mutate({ cid: c.id, replies })}
+                onEdit={(c, text) => update.mutateAsync({ cid: c.id, text })}
+                onResolve={(c, resolved) => update.mutate({ cid: c.id, resolved })}
                 replying={replying === t.root.id}
                 setReplying={(on) => setReplying(on ? t.root.id : null)}
                 pending={pending}

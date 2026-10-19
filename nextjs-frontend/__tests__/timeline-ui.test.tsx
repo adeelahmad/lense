@@ -20,6 +20,7 @@ jest.mock("@/app/openapi-client", () => ({
     listActivityComments: jest.fn(),
     commentOnActivity: jest.fn(),
     deleteActivityComment: jest.fn(),
+    updateActivityComment: jest.fn(),
     listActivityMutes: jest.fn(),
     muteActivities: jest.fn(),
     activityCaused: jest.fn(),
@@ -211,6 +212,53 @@ test("reactions and comments: a line sums its items', a 👍 goes to the server,
   await waitFor(() =>
     expect(m(Activities.commentOnActivity)).toHaveBeenLastCalledWith(
       expect.objectContaining({ body: { text: "Agreed", parent: 7 } }),
+    ),
+  );
+});
+
+test("your comment is edited in place, and a thread you can resolve is resolved and reopened from the timeline", async () => {
+  const mineC = { ...COMMENT, mine: true, can_resolve: true, can_delete: true };
+  m(Activities.listActivityComments).mockReturnValue(ok([mineC]));
+  m(Activities.updateActivityComment).mockImplementation(({ body }) => ok({ ...mineC, ...body }));
+  wrap(<TimelinePage />);
+  const rows = within(await screen.findByRole("list", { name: "Timeline" })).getAllByTestId("timeline-row");
+  fireEvent.click(within(rows[1]).getByRole("button", { name: "Show details" }));
+  fireEvent.click(within(rows[1]).getByRole("button", { name: "1 comment" }));
+  await within(rows[1]).findByText("Nice one");
+  // Edit opens the text in a box; Enter saves it
+  fireEvent.click(within(rows[1]).getByRole("button", { name: "Edit" }));
+  const box = within(rows[1]).getByRole("textbox", { name: "Save" });
+  expect(box).toHaveValue("Nice one");
+  fireEvent.change(box, { target: { value: "Nice one, thanks" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+  await waitFor(() =>
+    expect(m(Activities.updateActivityComment)).toHaveBeenCalledWith(
+      expect.objectContaining({ path: { activity_id: "u1", cid: 7 }, body: { text: "Nice one, thanks" } }),
+    ),
+  );
+  await waitFor(() => expect(within(rows[1]).queryByRole("textbox", { name: "Save" })).not.toBeInTheDocument());
+  // Escape leaves an edit without saving
+  fireEvent.click(within(rows[1]).getByRole("button", { name: "Edit" }));
+  fireEvent.keyDown(within(rows[1]).getByRole("textbox", { name: "Save" }), { key: "Escape" });
+  expect(within(rows[1]).queryByRole("textbox", { name: "Save" })).not.toBeInTheDocument();
+  expect(m(Activities.updateActivityComment)).toHaveBeenCalledTimes(1);
+  // resolve, then the thread says so and offers Reopen
+  m(Activities.listActivityComments).mockReturnValue(
+    ok([{ ...mineC, resolved: true, resolved_by_name: "Adeel", resolved_at: new Date(NOW).toISOString() }]),
+  );
+  fireEvent.click(within(rows[1]).getByRole("button", { name: "Resolve the thread" }));
+  await waitFor(() =>
+    expect(m(Activities.updateActivityComment)).toHaveBeenLastCalledWith(
+      expect.objectContaining({ path: { activity_id: "u1", cid: 7 }, body: { resolved: true } }),
+    ),
+  );
+  expect(await within(rows[1]).findByRole("listitem", { name: "Resolved thread" })).toHaveTextContent(
+    "Resolved by Adeel",
+  );
+  fireEvent.click(within(rows[1]).getByRole("button", { name: "Reopen the thread" }));
+  await waitFor(() =>
+    expect(m(Activities.updateActivityComment)).toHaveBeenLastCalledWith(
+      expect.objectContaining({ body: { resolved: false } }),
     ),
   );
 });

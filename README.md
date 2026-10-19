@@ -258,7 +258,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   runs more workers on this machine today; AWS EC2 (spot or on demand), DigitalOcean, Hetzner Cloud, Lambda GPU
   instances, Proxmox VE and Linux hosts over SSH providers are in progress (built, with machines that join over the mesh to transcribe and tell
   voices apart, not yet tried on a real cloud), so are RunPod GPUs, Hugging Face Inference Endpoints and Amazon
-  SageMaker endpoints that serve Lens's model calls while they run, and more model hosts are planned. ([Auto scaling](docs/scaling.md); [checks](docs/requirements.md#scale-out))
+  SageMaker endpoints that serve Lens's model calls while they run; Amazon Bedrock's models can be the LLM provider
+  too, and more model hosts are planned. ([Auto scaling](docs/scaling.md); [checks](docs/requirements.md#scale-out))
 - **Run on more machines.** Add a Mac with a GPU, a box for the assistant's code or a server with more disk, and
   Lens joins it over a private network of its own, a Nebula mesh it issues the certificates for: one install line
   with a one-time token, and the machine needs nothing else. Worker nodes run jobs as their own user of the

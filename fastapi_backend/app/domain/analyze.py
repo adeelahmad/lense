@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import math
 import re
-import urllib.request
 from collections import Counter, defaultdict
 
 from . import enrich, entity_map, entity_setup, graph_history, llm, name_types, store, telemetry
@@ -757,8 +756,7 @@ def _llm(cfg, user, system=SUMMARY_SYSTEM):
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
         "response_format": {"type": "json_schema", "json_schema": {"name": "summary", "strict": True, "schema": SUMMARY_SCHEMA}},
     }
-    req = llm.chat_request(cfg, body)
-    with telemetry.model_call(cfg, body) as call, urllib.request.urlopen(req, timeout=l.get("timeout", 300)) as r:
+    with telemetry.model_call(cfg, body) as call, llm.post(cfg, body) as r:
         text = call.reply(json.loads(r.read().decode()))["choices"][0]["message"]["content"]
     text = re.sub(r"^```(?:json)?|```$", "", text.strip()).strip()
     obj = json.loads(text[text.find("{") : text.rfind("}") + 1])
