@@ -1,16 +1,19 @@
 """Auto scaling on Proxmox VE (docs/scaling.md "Providers"): clones of a VM template, booted and joined through the
-guest agent, against an httpx MockTransport standing in for the Proxmox API."""
+guest agent, against an httpx MockTransport standing in for the Proxmox API, held to Proxmox's own published schema of
+its API (tests/data/openapi/proxmox-ve.json, converted from its API viewer's): every request must be one it takes, and
+every answer is built from its schemas."""
 
 from __future__ import annotations
-
-from urllib.parse import parse_qs
 
 import httpx
 import pytest
 
 from app.domain import scaling
 from app.domain import scaling_drivers as drivers
+from tests import openapi_contract as contract
 from tests.helpers import login, make_user
+
+SPEC = contract.load("proxmox-ve")
 
 
 class PVE:
@@ -22,44 +25,53 @@ class PVE:
 
     def __call__(self, req):
         path = req.url.path.removeprefix("/api2/json")
-        form = {k: v if len(v) > 1 else v[0] for k, v in parse_qs(req.content.decode()).items()} if req.content else {}
-        self.calls.append((req.method, path, form, req.headers.get("authorization")))
+        form = contract.form(SPEC, req.method, path, req.content) if req.content else None
+        self.calls.append((req.method, path, form or {}, req.headers.get("authorization")))
+        contract.check_request(SPEC, req.method, path, form, dict(req.url.params))
+        r = self.answer(req.method, path, form or {})
+        if r.status_code == 200:
+            r = httpx.Response(200, json=contract.answer(SPEC, req.method, path, 200, r.json()))
+        return r
+
+    def answer(self, method, path, form):
         ok = lambda data: httpx.Response(200, json={"data": data})  # noqa: E731
         if path == "/version":
-            return ok({"version": "8.2.4"})
+            return ok({"version": "8.2.4", "release": "8.2", "repoid": "faa83925c9641325"})
         if path == "/nodes":
-            return ok([{"node": "pve"}])
+            return ok([{"node": "pve", "status": "online"}])
         if path == "/cluster/nextid":
-            return ok(str(self.next))
+            return ok(self.next)
         if path == "/cluster/resources":
-            return ok([{"node": "pve", "vmid": i, **v} for i, v in self.vms.items()])
+            shown = lambda v: {k: x for k, x in v.items() if k != "ran"}  # noqa: E731
+            return ok([{"id": f"qemu/{i}", "type": "qemu", "node": "pve", "vmid": i, **shown(v)} for i, v in self.vms.items()])
         if path.startswith("/nodes/pve/tasks/"):
-            return ok({"status": "stopped", "exitstatus": "OK"})
+            upid = path.rsplit("/", 2)[1]
+            return ok({"status": "stopped", "exitstatus": "OK", "upid": upid, "node": "pve", "type": "qmclone", "user": "lens@pve"})
         parts = path.split("/")  # ['', 'nodes', 'pve', 'qemu', id, ...]
         vmid, rest = int(parts[4]), "/".join(parts[5:])
         if rest == "clone":
-            self.vms[int(form["newid"])] = {"name": form["name"], "status": "stopped", "tags": ""}
+            self.vms[form["newid"]] = {"name": form["name"], "status": "stopped", "tags": ""}
             self.next += 1
-            return ok("UPID:pve:clone")
+            return ok(f"UPID:pve:00001A2B:0001F4C3:6713A2B0:qmclone:{vmid}:lens@pve!scaling:")
         vm = self.vms.get(vmid)
         if vm is None:
             return httpx.Response(
                 500, json={"data": None}, extensions={"reason_phrase": f"Configuration file '{vmid}.conf' does not exist".encode()}
             )
-        if req.method == "DELETE":
+        if method == "DELETE":
             del self.vms[vmid]
-            return ok("UPID:pve:destroy")
+            return ok(f"UPID:pve:00001A2C:0001F4C4:6713A2B1:qmdestroy:{vmid}:lens@pve!scaling:")
         if rest == "config":
             vm["tags"] = form["tags"]
             return ok(None)
         if rest == "status/start":
             vm["status"] = "running"
-            return ok("UPID:pve:start")
+            return ok(f"UPID:pve:00001A2D:0001F4C5:6713A2B2:qmstart:{vmid}:lens@pve!scaling:")
         if rest == "status/stop":
             vm["status"] = "stopped"
-            return ok("UPID:pve:stop")
+            return ok(f"UPID:pve:00001A2E:0001F4C6:6713A2B3:qmstop:{vmid}:lens@pve!scaling:")
         if rest == "status/current":
-            return ok({"status": vm["status"]})
+            return ok({"status": vm["status"], "vmid": vmid})
         if rest == "agent/ping":
             if self.agent_after > 0:
                 self.agent_after -= 1
@@ -105,7 +117,7 @@ def test_proxmox_clones_boots_through_the_guest_agent_and_deletes(client, db, cf
     got = drv.launch(opened, {"vm_template": 9000, "steps": ["ocr"]}, "lens-lab-1", boot)
     assert got == {"id": "pve/105"}
     clone = next(c for c in pve.calls if c[1].endswith("/clone"))
-    assert clone[1] == "/nodes/pve/qemu/9000/clone" and clone[2] == {"newid": "105", "name": "lens-lab-1", "full": "0"}
+    assert clone[1] == "/nodes/pve/qemu/9000/clone" and clone[2] == {"newid": 105, "name": "lens-lab-1", "full": 0}
     vm = pve.vms[105]
     assert vm["status"] == "running" and vm["tags"] == "lens;lens-booted"
     assert vm["ran"][:2] == ["sh", "-c"] and "export LENS_WORKER_STEPS=ocr" in vm["ran"][2] and vm["ran"][2].endswith("echo join\n")
@@ -140,3 +152,12 @@ def test_a_clone_still_booting_is_pending(pve):
         assert drv.describe({"settings": SETTINGS, "secrets": {}}, {"name": "lens-lab-3", "external_id": "pve/200"}) == {"state": "pending"}
     finally:
         drv.booting.pop("lens-lab-3", None)
+
+
+def test_lens_reads_only_fields_proxmox_answers_with():
+    contract.check_answer_fields(SPEC, "GET", "/version", 200, "data.version")
+    contract.check_answer_fields(SPEC, "GET", "/nodes", 200, "data.node")
+    contract.check_answer_fields(SPEC, "GET", "/nodes/{node}/tasks/{upid}/status", 200, "data.status", "data.exitstatus")
+    contract.check_answer_fields(SPEC, "GET", "/nodes/{node}/qemu/{vmid}/status/current", 200, "data.status")
+    for field in ("node", "vmid", "name", "tags", "template"):
+        contract.check_answer_fields(SPEC, "GET", "/cluster/resources", 200, f"data.{field}")

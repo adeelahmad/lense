@@ -198,7 +198,9 @@ scaler go from launch to scale-in as they would on a real account; Lens's signed
 botocore's own model of SageMaker's runtime API. moto has no Bedrock provisioned throughput, so botocore's Stubber
 answers for Bedrock, holding each request and answer to AWS's model of Bedrock's API and each name Lens sends to the
 model's patterns; Lens's Converse calls are held to it the same way.
-Proxmox and SSH hosts have no published document to hold their fakes to yet.
+Proxmox's fake is held the same way to Proxmox's own schema of its API, converted from its API viewer (forms
+read by the types the schema gives). SSH hosts have no API document: their stand-in runs the driver's commands in a real
+shell.
 
 While a model group's unit runs, it is Lens's LLM provider (the template's `use_as_provider`, on by default): the
 scaler points Settings › LLM provider at the unit's address, model and key, keeping the provider that was there
