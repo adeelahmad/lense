@@ -108,7 +108,9 @@ A cloud provider's unit is a new machine. Its first boot runs a script (user-dat
 name) and `LENS_WORKER_STEPS` (the template's steps), then the mesh's install line with a join token made for that
 unit, usable once within an hour. The machine joins Lens over the [mesh](mesh.md) as a worker node and starts
 `lens worker`; it asks for its own database user over the mesh once it has joined, so the user-data holds no
-long-lived secret. A worker node runs only `transcribe` and `diarize` (it never gets the archive's key:
+long-lived secret. When the unit goes (let go, failed, or never came up), it leaves the mesh too: its join token is
+withdrawn if unspent, and the node that joined with it is taken off (its certificates on the blocklist, its database
+user removed), as removing it on the Nodes page does. A worker node runs only `transcribe` and `diarize` (it never gets the archive's key:
 [Worker nodes](mesh.md#worker-nodes)), so a group on these providers counts only those steps' jobs in its metrics
 (`unit_steps`), and one whose template names none of them waits and launches nothing. Each machine
 carries Lens's tag (`scaling.tag`: a DigitalOcean tag, a Hetzner label `lens=<tag>`, a Lambda tag `lens` with the tag
@@ -373,8 +375,7 @@ which only that yes in the web app does.
 Spreading model calls across a group's units, and serving only some kinds of call (chat, decisions); more model
 hosts (Lambda instances serving a model); Bedrock's price per unit-hour from AWS, its streamed answers
 (`ConverseStream`) and Bedrock API keys as the provider's key; SageMaker's streamed invocations (`InvokeEndpointWithResponseStream`), so a SageMaker answer
-streams as it is written; Hugging Face's scale to zero and private endpoints; RunPod network volumes, so a model is downloaded once; Proxmox LXC containers; revoking a unit's mesh
-certificate when it goes; a live euro rate;
+streams as it is written; Hugging Face's scale to zero and private endpoints; RunPod network volumes, so a model is downloaded once; Proxmox LXC containers; a live euro rate;
 preemptible and spot instances at clouds other than AWS and RunPod; draining an AWS spot unit on its two-minute notice
 (the node agent reading the instance's metadata) and handing its job back at once; following the spot price as it
 changes; AWS sign-in with an instance role or IAM Identity Center instead of keys; mixed instance types per group;

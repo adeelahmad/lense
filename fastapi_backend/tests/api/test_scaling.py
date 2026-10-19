@@ -402,6 +402,31 @@ def test_protected_and_terminated_units(client, db, cfg, h, key, fake):
     assert fake.machines == {} and scaling.nodes(db, gid, alive=True) == []
 
 
+def test_a_unit_let_go_or_failed_leaves_the_mesh(client, db, cfg, h, fake, monkeypatch):
+    class Mesh:  # the mesh's side of it (mesh.let_go_unit) is in test_mesh_workers.py
+        off = []
+
+        def let_go_unit(self, db, name, by="scaling"):
+            self.off.append(name)
+            return [len(self.off)]
+
+    mesh = Mesh()
+    monkeypatch.setattr(scaling, "mesh_module", lambda: mesh)
+    cfg = on(db, cfg)
+    pid = provider(client, h)["id"]
+    gid = group(client, h, pid, min=1, max=1, cooldown_seconds=0, warmup_seconds=0).json()["id"]
+    tick(db, cfg)
+    (n,) = scaling.nodes(db, gid, alive=True)
+    client.post(f"/api/v1/scaling/units/{n['id']}/terminate", headers=h, json={})
+    assert mesh.off == [n["name"]]
+    (gone,) = [a for a in activity.history(db, f"scale_node:{n['id']}", 20) if a["action"] == "scaling.terminate"]
+    assert gone["detail"]["off_mesh"] == [1]
+    fake.fail = "out of capacity"  # a launch that fails leaves no join token behind either
+    tick(db, cfg, NOW + dt.timedelta(minutes=1))
+    (failed,) = [x for x in scaling.nodes(db, gid) if x["state"] == "failed"]
+    assert mesh.off == [n["name"], failed["name"]]
+
+
 def test_the_settings_section(client, db, cfg, h):
     assert settings.effective(db, cfg)["scaling"]["enabled"] is False
     for bad in ({"tick_seconds": 1}, {"join_minutes": 500}, {"tag": "Not A Tag"}):
