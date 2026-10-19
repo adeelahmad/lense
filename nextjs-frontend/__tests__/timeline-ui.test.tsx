@@ -25,6 +25,10 @@ jest.mock("@/app/openapi-client", () => ({
     muteActivities: jest.fn(),
     activityCaused: jest.fn(),
     getActivity: jest.fn(),
+    listTimelineViews: jest.fn(),
+    createTimelineView: jest.fn(),
+    updateTimelineView: jest.fn(),
+    deleteTimelineView: jest.fn(),
   },
   Chats: { decideApproval: jest.fn() },
 }));
@@ -139,6 +143,7 @@ beforeEach(() => {
     ok({ reactions: body.on ? [{ emoji: body.emoji, count: 1, mine: true }] : [] }),
   );
   m(Activities.listActivityComments).mockReturnValue(ok([COMMENT]));
+  m(Activities.listTimelineViews).mockReturnValue(ok([]));
   m(Activities.listActivityMutes).mockReturnValue(ok({ mutes: [] }));
   m(Activities.activityCaused).mockReturnValue(ok({ runs: [], approvals: [] }));
   m(Activities.getActivity).mockImplementation(({ path }) => {
@@ -259,6 +264,60 @@ test("your comment is edited in place, and a thread you can resolve is resolved 
   await waitFor(() =>
     expect(m(Activities.updateActivityComment)).toHaveBeenLastCalledWith(
       expect.objectContaining({ body: { resolved: false } }),
+    ),
+  );
+});
+
+test("Views: one click shows a saved view, and the filters shown now are saved under a guessed name", async () => {
+  const WORK = { id: 1, name: "Work mail", state: { kinds: ["email.received"], namespace: ["work"] } };
+  m(Activities.listTimelineViews).mockReturnValue(ok([WORK]));
+  m(Activities.createTimelineView).mockImplementation(({ body }) => ok({ id: 2, ...body }));
+  m(Activities.deleteTimelineView).mockReturnValue(ok({ ok: true }));
+  search = "unreviewed=1&ns=family";
+  wrap(<TimelinePage />);
+  await screen.findByRole("list", { name: "Timeline" });
+  // pick a saved view: the address takes its filters
+  fireEvent.keyDown(await screen.findByRole("button", { name: "Views" }), { key: "Enter" });
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Work mail" }));
+  await waitFor(() => expect(replace).toHaveBeenLastCalledWith("/timeline?kinds=email.received&ns=work"));
+  // save what is shown now: the name is guessed from the filters, Enter saves
+  fireEvent.keyDown(screen.getByRole("button", { name: "Views" }), { key: "Enter" });
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Save these filters as a view" }));
+  const name = await screen.findByRole("textbox", { name: "View name" });
+  expect(name).toHaveValue("family · Unreviewed");
+  fireEvent.change(name, { target: { value: "Family to review" } });
+  fireEvent.submit(name.closest("form")!);
+  await waitFor(() =>
+    expect(m(Activities.createTimelineView)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: {
+          name: "Family to review",
+          state: expect.objectContaining({ namespace: ["family"], unreviewed: true, kinds: [], order: "latest" }),
+        },
+      }),
+    ),
+  );
+  await waitFor(() => expect(screen.queryByRole("textbox", { name: "View name" })).not.toBeInTheDocument());
+});
+
+test("Views: the view the filters match is named on the button, and deleting it can be undone", async () => {
+  const FAMILY = { id: 3, name: "Family to review", state: { namespace: ["family"], unreviewed: true } };
+  m(Activities.listTimelineViews).mockReturnValue(ok([FAMILY]));
+  m(Activities.deleteTimelineView).mockReturnValue(ok({ ok: true }));
+  m(Activities.createTimelineView).mockImplementation(({ body }) => ok({ id: 4, ...body }));
+  search = "unreviewed=1&ns=family";
+  wrap(<TimelinePage />);
+  const button = await screen.findByRole("button", { name: "Family to review" });
+  fireEvent.keyDown(button, { key: "Enter" });
+  expect(await screen.findByRole("menuitem", { name: "These filters are saved" })).toHaveAttribute("data-disabled");
+  fireEvent.click(screen.getByRole("menuitem", { name: "Delete “Family to review”" }));
+  await waitFor(() =>
+    expect(m(Activities.deleteTimelineView)).toHaveBeenCalledWith(expect.objectContaining({ path: { vid: 3 } })),
+  );
+  fireEvent.click(await screen.findByRole("button", { name: "Undo" }));
+  await waitFor(() =>
+    expect(m(Activities.createTimelineView)).toHaveBeenCalledWith(
+      expect.objectContaining({ body: expect.objectContaining({ name: "Family to review" }) }),
     ),
   );
 });

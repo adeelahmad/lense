@@ -14,8 +14,8 @@ checked, prices, launching, watching and deleting machines), and their machines 
 worker nodes that transcribe and tell voices apart; so are **Proxmox VE**, clones of a VM template on your own server,
 and **Linux hosts over SSH**, workers started on machines you have. They haven't been tried on a real cloud machine
 yet. Also in progress: **RunPod** GPUs, **Hugging Face** Inference Endpoints and **Amazon SageMaker** real-time
-endpoints, which serve a model with vLLM and take Lens's model calls while one runs. Planned: more model hosts
-(Lambda instances serving a model, Bedrock).
+endpoints, which serve a model with vLLM, and **Amazon Bedrock** provisioned throughput; each takes Lens's model calls
+while one runs. Planned: Lambda instances serving a model.
 
 Auto scaling is **off** until an admin turns it on, and a group launches nothing until a person approves its terms
 signed in to the web app. Agents can propose and manage groups, but never approve one.
@@ -80,6 +80,7 @@ carries none of them.
 | `proxmox` (Proxmox VE) | clones of a VM template on `node`, at `url` with an API token (`token_id`, `token_secret` sealed); `verify_tls` (on) and `ca_cert` for a private CA | nothing, unless you give it a price | `vm_template` (its id), `full_clone` (off: linked), `storage`, `pool`, `steps` |
 | `huggingface` (Hugging Face, a model host) | Inference Endpoints serving `model` with vLLM, with `token` (sealed, one that may manage endpoints); `namespace` (the user or organization; none: the token's user) | the hardware's `pricePerHour` in Hugging Face's list | `model`, `hardware` (`aws-us-east-1-nvidia-l4-x1`), `max_model_len`, `image` (vLLM's), `args`, `use_as_provider` (on) |
 | `sagemaker` (Amazon SageMaker, a model host) | real-time endpoints serving `model` with AWS's vLLM container, in `region` with `access_key_id` and `secret_access_key` (sealed) and `role_arn` (the execution role SageMaker runs them as); `hf_token` (sealed) for gated models | the instance type's hosting price in the AWS Price List, an estimate | `model`, `instance_type` (`ml.g5.xlarge`), `max_model_len`, `image` (AWS's vLLM container), `env`, `use_as_provider` (on) |
+| `bedrock` (Amazon Bedrock, a model host) | provisioned throughput of `model`, in `region` with `access_key_id` and `secret_access_key` (sealed) | nothing: give the provider Bedrock's price per unit-hour (one unit's `model_units`), or it launches nothing | `model` (a model id or ARN that takes provisioned throughput, or your custom or imported model's ARN), `model_units` (1), `use_as_provider` (on) |
 | `runpod` (RunPod, a model host) | GPU pods serving `model` with vLLM, with `token` (sealed); `cloud_type` (`SECURE` or `COMMUNITY`), `data_centers`, `hf_token` (sealed) for gated models | what RunPod charges for the pod it found | `model`, `gpu_types` (`NVIDIA L4`), `gpu_count` (1), `disk_gb` (60), `max_model_len`, `interruptible` (spot, off), `image` (vLLM's), `args`, `use_as_provider` (on) |
 | `ssh` (Linux hosts over SSH) | `lens worker` started on `hosts` (`user@host` or `user@host:port`), signed in with `private_key` (sealed; `passphrase` if it has one) | nothing, unless you give it a price | `per_host` (1): workers on each host; `steps` |
 | `hetzner` (Hetzner Cloud) | servers in `location`, with `token` (sealed), optional `ssh_keys` | Hetzner's hourly gross price in euros, times `usd_per_eur` (1.1; set your rate) | `server_type` (`cx22`), `image` (`ubuntu-24.04`), `steps` |
@@ -171,6 +172,19 @@ others. The keys need `sagemaker:ListEndpoints`, `sagemaker:DescribeEndpoint`, `
 is one SageMaker may assume (the `AmazonSageMakerFullAccess` managed policy, or one that only pulls from ECR and
 writes logs).
 
+A Bedrock unit is a provisioned throughput of the template's `model` with `model_units` model units, made with no
+commitment, so AWS bills it by the hour until Lens deletes it. It is named after the unit and tagged `lens-unit` with
+its name and `lens` with Lens's tag. The unit is running once Bedrock says it is in service; one that fails counts as
+gone, with Bedrock's `failureMessage` in the unit's `why`. While it serves, the LLM provider's address is Bedrock's
+runtime (`https://bedrock-runtime.<region>.amazonaws.com`), its model the provisioned throughput's ARN and its key the
+provider's AWS key; Lens's calls go to Bedrock's Converse API, signed ([LLM provider](configuration.md)). Bedrock
+doesn't list provisioned throughput in the AWS Price List, so the provider's price is yours to give, from Bedrock's
+pricing page, and no unit launches without it. Which models take provisioned throughput, and in which regions, is
+Bedrock's to say; a launch it refuses fails with its message. The keys need
+`bedrock:CreateProvisionedModelThroughput`, `bedrock:GetProvisionedModelThroughput`,
+`bedrock:ListProvisionedModelThroughputs`, `bedrock:DeleteProvisionedModelThroughput`, `bedrock:TagResource` and
+`bedrock:InvokeModel`.
+
 A unit that never comes up, whether it doesn't join within `join_minutes` or its provider reports it failed, counts
 as a failed launch: three in a row pause the group (with the reason in its `paused_why`), and a unit that comes up
 clears the count.
@@ -181,7 +195,9 @@ request the real API wouldn't take, an answer it couldn't give, or a field Lens 
 fails the test. AWS runs against [moto](https://github.com/getmoto/moto), which keeps EC2's instances, tags, volumes
 and spot markets and SageMaker's models, endpoint configurations and endpoints the way AWS does, so the drivers and the
 scaler go from launch to scale-in as they would on a real account; Lens's signed SageMaker calls are held to
-botocore's own model of SageMaker's runtime API.
+botocore's own model of SageMaker's runtime API. moto has no Bedrock provisioned throughput, so botocore's Stubber
+answers for Bedrock, holding each request and answer to AWS's model of Bedrock's API and each name Lens sends to the
+model's patterns; Lens's Converse calls are held to it the same way.
 Proxmox and SSH hosts have no published document to hold their fakes to yet.
 
 While a model group's unit runs, it is Lens's LLM provider (the template's `use_as_provider`, on by default): the
@@ -339,7 +355,8 @@ Turning scaling on (`change_settings scaling`) always asks.
 ## Refine later
 
 Spreading model calls across a group's units, and serving only some kinds of call (chat, decisions); more model
-hosts (Lambda instances serving a model, Bedrock); SageMaker's streamed invocations (`InvokeEndpointWithResponseStream`), so a SageMaker answer
+hosts (Lambda instances serving a model); Bedrock's price per unit-hour from AWS, its streamed answers
+(`ConverseStream`) and Bedrock API keys as the provider's key; SageMaker's streamed invocations (`InvokeEndpointWithResponseStream`), so a SageMaker answer
 streams as it is written; Hugging Face's scale to zero and private endpoints; RunPod network volumes, so a model is downloaded once; Proxmox LXC containers; revoking a unit's mesh
 certificate when it goes; reporting machines with Lens's tag that Lens has no unit for (`listing`); a live euro rate;
 preemptible and spot instances at clouds other than AWS and RunPod; draining an AWS spot unit on its two-minute notice
