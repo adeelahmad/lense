@@ -367,6 +367,9 @@ import type {
   DeleteCircleResponses,
   DeleteCollectionData,
   DeleteCollectionErrors,
+  DeleteCollectionFeedData,
+  DeleteCollectionFeedErrors,
+  DeleteCollectionFeedResponses,
   DeleteCollectionResponses,
   DeleteCommentData,
   DeleteCommentErrors,
@@ -628,6 +631,9 @@ import type {
   GetCircleResponses,
   GetCollectionData,
   GetCollectionErrors,
+  GetCollectionFeedData,
+  GetCollectionFeedErrors,
+  GetCollectionFeedResponses,
   GetCollectionFieldsData,
   GetCollectionFieldsErrors,
   GetCollectionFieldsResponses,
@@ -1655,6 +1661,9 @@ import type {
   RevokeTokenData,
   RevokeTokenErrors,
   RevokeTokenResponses,
+  RotateCollectionFeedData,
+  RotateCollectionFeedErrors,
+  RotateCollectionFeedResponses,
   RotateFeedTokenData,
   RotateFeedTokenErrors,
   RotateFeedTokenResponses,
@@ -12040,6 +12049,53 @@ export class Collections {
   ): RequestResult<CollectionEvidenceResponses, CollectionEvidenceErrors, ThrowOnError> {
     return (options.client ?? client).get<CollectionEvidenceResponses, CollectionEvidenceErrors, ThrowOnError>({
       url: "/api/v1/collections/{cid}/evidence.pdf",
+      ...options,
+    });
+  }
+
+  /**
+   * Delete Collection Feed
+   *
+   * Stop your podcast feed of the collection: its address stops working at once (asking for it again makes a new
+   * one). Audited as `feed.delete`.
+   */
+  public static deleteCollectionFeed<ThrowOnError extends boolean = false>(
+    options: Options<DeleteCollectionFeedData, ThrowOnError>,
+  ): RequestResult<DeleteCollectionFeedResponses, DeleteCollectionFeedErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteCollectionFeedResponses, DeleteCollectionFeedErrors, ThrowOnError>({
+      url: "/api/v1/collections/{cid}/feed",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Collection Feed
+   *
+   * Your private podcast feed of a collection you may read: its address, which a podcast app subscribes to with no
+   * session (the token in it is the credential), made the first time you ask (audited as `feed.create`) and the same
+   * one after. Its episodes are
+   * the collection's assets with audio or video that you can read, as they are when the app reads it.
+   */
+  public static getCollectionFeed<ThrowOnError extends boolean = false>(
+    options: Options<GetCollectionFeedData, ThrowOnError>,
+  ): RequestResult<GetCollectionFeedResponses, GetCollectionFeedErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetCollectionFeedResponses, GetCollectionFeedErrors, ThrowOnError>({
+      url: "/api/v1/collections/{cid}/feed",
+      ...options,
+    });
+  }
+
+  /**
+   * Rotate Collection Feed
+   *
+   * A new address for your podcast feed of the collection: the old one stops working at once, so a podcast app
+   * subscribed to it needs the new one. Audited as `feed.token`.
+   */
+  public static rotateCollectionFeed<ThrowOnError extends boolean = false>(
+    options: Options<RotateCollectionFeedData, ThrowOnError>,
+  ): RequestResult<RotateCollectionFeedResponses, RotateCollectionFeedErrors, ThrowOnError> {
+    return (options.client ?? client).post<RotateCollectionFeedResponses, RotateCollectionFeedErrors, ThrowOnError>({
+      url: "/api/v1/collections/{cid}/feed/token",
       ...options,
     });
   }

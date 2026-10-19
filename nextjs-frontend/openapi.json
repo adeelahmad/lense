@@ -29727,6 +29727,133 @@
         }
       }
     },
+    "/api/v1/collections/{cid}/feed": {
+      "get": {
+        "tags": [
+          "collections"
+        ],
+        "summary": "Get Collection Feed",
+        "description": "Your private podcast feed of a collection you may read: its address, which a podcast app subscribes to with no\nsession (the token in it is the credential), made the first time you ask (audited as `feed.create`) and the same\none after. Its episodes are\nthe collection's assets with audio or video that you can read, as they are when the app reads it.",
+        "operationId": "get_collection_feed",
+        "parameters": [
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionFeed"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "collections"
+        ],
+        "summary": "Delete Collection Feed",
+        "description": "Stop your podcast feed of the collection: its address stops working at once (asking for it again makes a new\none). Audited as `feed.delete`.",
+        "operationId": "delete_collection_feed",
+        "parameters": [
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/collections/{cid}/feed/token": {
+      "post": {
+        "tags": [
+          "collections"
+        ],
+        "summary": "Rotate Collection Feed",
+        "description": "A new address for your podcast feed of the collection: the old one stops working at once, so a podcast app\nsubscribed to it needs the new one. Audited as `feed.token`.",
+        "operationId": "rotate_collection_feed",
+        "parameters": [
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionFeed"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/batches/estimate": {
       "post": {
         "tags": [
@@ -45790,6 +45917,98 @@
           "recordings"
         ],
         "title": "CollectionDetail"
+      },
+      "CollectionFeed": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "collection": {
+            "type": "integer",
+            "title": "Collection"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "rss",
+              "podcast"
+            ],
+            "title": "Kind",
+            "default": "podcast"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "your private address for the collection's podcast feed: share it like a password"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path",
+            "description": "the address without the server"
+          },
+          "page": {
+            "type": "string",
+            "title": "Page",
+            "description": "the collection's page in the web app"
+          },
+          "episodes": {
+            "type": "integer",
+            "title": "Episodes",
+            "description": "how many episodes it lists now: the collection's assets with audio or video you can read"
+          },
+          "max_items": {
+            "type": "integer",
+            "title": "Max Items",
+            "description": "the most episodes it lists, newest first"
+          },
+          "fetched_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fetched At",
+            "description": "when a podcast app last read it"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "collection",
+          "url",
+          "path",
+          "page",
+          "episodes",
+          "max_items"
+        ],
+        "title": "CollectionFeed"
       },
       "CollectionMember": {
         "properties": {

@@ -1799,9 +1799,16 @@ GET    /api/v1/collections/{cid}
 PATCH  /api/v1/collections/{cid}
 DELETE /api/v1/collections/{cid}
 GET    /api/v1/collections/{cid}/evidence.pdf
+GET    /api/v1/collections/{cid}/feed
+POST   /api/v1/collections/{cid}/feed/token
+DELETE /api/v1/collections/{cid}/feed
 ```
 
-`GET /{cid}/evidence.pdf` is the collection as one [evidence PDF](#evidence-pdfs).
+`GET /{cid}/evidence.pdf` is the collection as one [evidence PDF](#evidence-pdfs). `GET /{cid}/feed` is your private
+podcast feed of it: its address (`url`, read by podcast apps with no session), how many `episodes` it lists (its
+assets with audio or video that you can read) and when an app last read it, made the first time you ask;
+`POST /{cid}/feed/token` gives it a new address and `DELETE /{cid}/feed` stops it
+([A collection's podcast feed](feeds.md#a-collections-podcast-feed)).
 
 ## views
 

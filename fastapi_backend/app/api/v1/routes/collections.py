@@ -1,21 +1,23 @@
 """Collections: a saved filter over the archive, or a fixed list of recordings. Yours, and others' shared ones.
 
-A collection only ever lists recordings the viewer can read, whoever saved it.
+A collection only ever lists recordings the viewer can read, whoever saved it. So does its podcast feed: each person
+who may read it has an address of their own (app/domain/syndication.py, docs/feeds.md).
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 
 from app.api import evidence as evidence_api
-from app.api.deps import Acl, Cfg, CurrentUser, Db, Principal, Writer
-from app.domain import evidence, recsets, store
+from app.api.deps import Acl, Cfg, CurrentUser, Db, Principal, Writer, web_origin
+from app.domain import auth, evidence, recsets, store, syndication
 from app.domain.store import DB
 from app.schemas.collections import Collection, CollectionCreate, CollectionDetail, CollectionUpdate
 from app.schemas.common import Created, Ok
+from app.schemas.feeds import CollectionFeed
 from app.schemas.recordings import EvidencePart
 
 router = APIRouter(prefix="/collections", tags=["collections"])
@@ -102,4 +104,50 @@ def update_collection(cid: int, body: CollectionUpdate, user: Writer, db: Db) ->
 def delete_collection(cid: int, user: Writer, db: Db) -> Ok:
     own_collection(db, cid, user, write=True)
     db.q("DELETE $r", r=store.R("saved_collection", cid))
+    syndication.drop_collection(db, cid)  # its podcast feeds' addresses stop working
+    return Ok()
+
+
+# ---------- its podcast feed (docs/feeds.md#a-collections-podcast-feed) ----------
+def _feed_id(db: DB, cfg: dict[str, Any], cid: int, user: Principal) -> int:
+    """This person's feed of the collection, made (and audited as `feed.create`) the first time they ask."""
+    fid, made = syndication.for_collection(db, cfg, cid, user.id, by=user.email)
+    if made:
+        auth.audit(db, user.as_audit(), "feed.create", f"feed:{fid}", {"kind": "podcast", "collection": cid})
+    return fid
+
+
+def _feed(db: DB, cfg: dict[str, Any], request: Request, cid: int, user: Principal) -> CollectionFeed:
+    fid = _feed_id(db, cfg, cid, user)
+    return CollectionFeed.model_validate(syndication.collection_feed(db, cfg, fid, web_origin(request)))
+
+
+@router.get("/{cid}/feed")
+def get_collection_feed(cid: int, request: Request, user: CurrentUser, db: Db, cfg: Cfg) -> CollectionFeed:
+    """Your private podcast feed of a collection you may read: its address, which a podcast app subscribes to with no
+    session (the token in it is the credential), made the first time you ask (audited as `feed.create`) and the same
+    one after. Its episodes are
+    the collection's assets with audio or video that you can read, as they are when the app reads it."""
+    own_collection(db, cid, user)
+    return _feed(db, cfg, request, cid, user)
+
+
+@router.post("/{cid}/feed/token")
+def rotate_collection_feed(cid: int, request: Request, user: Writer, db: Db, cfg: Cfg) -> CollectionFeed:
+    """A new address for your podcast feed of the collection: the old one stops working at once, so a podcast app
+    subscribed to it needs the new one. Audited as `feed.token`."""
+    own_collection(db, cid, user)
+    fid = _feed_id(db, cfg, cid, user)
+    syndication.rotate(db, cfg, fid)
+    auth.audit(db, user.as_audit(), "feed.token", f"feed:{fid}", {"collection": cid})
+    return _feed(db, cfg, request, cid, user)
+
+
+@router.delete("/{cid}/feed")
+def delete_collection_feed(cid: int, user: Writer, db: Db) -> Ok:
+    """Stop your podcast feed of the collection: its address stops working at once (asking for it again makes a new
+    one). Audited as `feed.delete`."""
+    own_collection(db, cid, user)
+    syndication.drop_collection(db, cid, user.id)
+    auth.audit(db, user.as_audit(), "feed.delete", f"saved_collection:{cid}")
     return Ok()

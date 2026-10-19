@@ -4925,6 +4925,69 @@ export type CollectionDetail = {
 };
 
 /**
+ * CollectionFeed
+ */
+export type CollectionFeed = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Collection
+   */
+  collection: number;
+  /**
+   * Kind
+   */
+  kind?: "rss" | "podcast";
+  /**
+   * Url
+   *
+   * your private address for the collection's podcast feed: share it like a password
+   */
+  url: string;
+  /**
+   * Path
+   *
+   * the address without the server
+   */
+  path: string;
+  /**
+   * Page
+   *
+   * the collection's page in the web app
+   */
+  page: string;
+  /**
+   * Episodes
+   *
+   * how many episodes it lists now: the collection's assets with audio or video you can read
+   */
+  episodes: number;
+  /**
+   * Max Items
+   *
+   * the most episodes it lists, newest first
+   */
+  max_items: number;
+  /**
+   * Fetched At
+   *
+   * when a podcast app last read it
+   */
+  fetched_at?: string | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * CollectionMember
  */
 export type CollectionMember = {
@@ -49057,6 +49120,96 @@ export type CollectionEvidenceResponses = {
 };
 
 export type CollectionEvidenceResponse = CollectionEvidenceResponses[keyof CollectionEvidenceResponses];
+
+export type DeleteCollectionFeedData = {
+  body?: never;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/collections/{cid}/feed";
+};
+
+export type DeleteCollectionFeedErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteCollectionFeedError = DeleteCollectionFeedErrors[keyof DeleteCollectionFeedErrors];
+
+export type DeleteCollectionFeedResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteCollectionFeedResponse = DeleteCollectionFeedResponses[keyof DeleteCollectionFeedResponses];
+
+export type GetCollectionFeedData = {
+  body?: never;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/collections/{cid}/feed";
+};
+
+export type GetCollectionFeedErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetCollectionFeedError = GetCollectionFeedErrors[keyof GetCollectionFeedErrors];
+
+export type GetCollectionFeedResponses = {
+  /**
+   * Successful Response
+   */
+  200: CollectionFeed;
+};
+
+export type GetCollectionFeedResponse = GetCollectionFeedResponses[keyof GetCollectionFeedResponses];
+
+export type RotateCollectionFeedData = {
+  body?: never;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/collections/{cid}/feed/token";
+};
+
+export type RotateCollectionFeedErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RotateCollectionFeedError = RotateCollectionFeedErrors[keyof RotateCollectionFeedErrors];
+
+export type RotateCollectionFeedResponses = {
+  /**
+   * Successful Response
+   */
+  200: CollectionFeed;
+};
+
+export type RotateCollectionFeedResponse = RotateCollectionFeedResponses[keyof RotateCollectionFeedResponses];
 
 export type EstimateBatchData = {
   body: BatchPlan;

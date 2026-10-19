@@ -1,7 +1,8 @@
 # Published feeds (RSS and podcasts)
 
 **Status: built.** Feeds, their private addresses, the API, the MCP tools, the workflow nodes that let a routine fill a
-feed or make an episode on a schedule, and the Feeds page in the web app.
+feed or make an episode on a schedule, the Feeds page in the web app, and a saved collection's podcast feed, with its
+address on the collection's page.
 
 A namespace can publish what's in it as a feed that any feed reader or podcast app follows: new resources, podcast
 episodes, things on the timeline, or text a person or an agent wrote. Each feed has a private address; add it to the
@@ -66,6 +67,33 @@ new address (the old token is gone for good). What a feed listed stays in Lens e
 On the canvas, a graph workflow's palette has the publishing nodes under Data (Select assets, Select activities) and
 Keep (Publish to feed, Podcast episode); a feed is picked from a list, and the canvas names it on the node.
 
+## A collection's podcast feed
+
+A saved collection ([collections](api.md#collections)) is a podcast of its own: its episodes are the assets in it
+with audio or video, newest first (the newest 50), and a filter's new matches arrive as new episodes. On the
+collection's page, **Podcast feed** shows your address for it with **Copy**: paste it into your podcast app as a show
+added by its address. Nothing has to be made first, and nobody but you has to do anything.
+
+- **One address per person.** Everyone who may read the collection (its owner, and everyone when it's shared) has
+  their own address, and it lists only what they can read when their podcast app reads it, so sharing a collection
+  never shows anyone else's assets. A vault's assets are never in it.
+- **The same private address as a namespace's feed.** It is an `lfd_` token under `/api/v1/feeds/public/`, kept
+  sealed and found by its hash, with the same RSS 2.0 and Apple Podcasts' tags, the same audio with byte ranges, and
+  the same requests to directories and search engines to keep out. **New address** (rotate) stops the old one at
+  once.
+- **It stops when it should.** Deleting the collection deletes its feeds. When the collection is no longer shared
+  with you, or your account is disabled, your address stops working.
+- Its title and description are the collection's, as they are when the app reads it.
+
+| | |
+|---|---|
+| `GET /api/v1/collections/{id}/feed` | your podcast feed of a collection you may read: its private address (`url`), how many `episodes` it lists now and when a podcast app last read it (`fetched_at`). Made the first time you ask (audited as `feed.create`), the same one after |
+| `POST /api/v1/collections/{id}/feed/token` | a new address; the old one stops working. Audited as `feed.token` |
+| `DELETE /api/v1/collections/{id}/feed` | stop it: its address stops working (asking again makes a new one). Audited as `feed.delete` |
+
+Agents get the address with the MCP tool `list_feeds` and `collection_id` (on the main MCP server, since a
+collection spans namespaces). A collection's feed isn't in `GET /api/v1/feeds`, which lists namespaces' feeds.
+
 ## From a routine
 
 A routine fills a feed on a schedule with a graph workflow ([Publishing from the graph](processing.md#publishing-from-the-graph)):
@@ -92,7 +120,8 @@ what's new, and what the feed's readers couldn't read is refused.
 Agents use the MCP tools `list_feeds` (each feed's address, or one feed with its newest items), `create_feed` and
 `publish_to_feed` ([MCP](mcp.md)).
 
-Refine later: artwork Lens makes for a feed without an `image`; Atom and JSON Feed alongside RSS; chapters and
+Refine later: a collection feed's settings (artwork, how many episodes, its author) in the web app; undo for a new
+address; artwork Lens makes for a feed without an `image`; Atom and JSON Feed alongside RSS; chapters and
 transcripts in a podcast feed (`podcast:transcript`); an automation action that publishes to a feed when something
 happens; a preview of the feed's XML on its page; Try on the canvas listing what Publish to feed would add, item by
 item.

@@ -93,3 +93,17 @@ class FeedItem(ResponseModel):
     origin: dict[str, Any] | None = Field(None, description="the routine run and workflow node that added it")
     by: str | None = None
     created_at: str | None = None
+
+
+class CollectionFeed(ResponseModel):
+    id: int
+    collection: int
+    kind: FeedKind = "podcast"
+    url: str = Field(description="your private address for the collection's podcast feed: share it like a password")
+    path: str = Field(description="the address without the server")
+    page: str = Field(description="the collection's page in the web app")
+    episodes: int = Field(description="how many episodes it lists now: the collection's assets with audio or video you can read")
+    max_items: int = Field(description="the most episodes it lists, newest first")
+    fetched_at: str | None = Field(None, description="when a podcast app last read it")
+    created_at: str | None = None
+    updated_at: str | None = None

@@ -8,6 +8,12 @@ key, so the namespace's readers can see the address again, and is found by its h
 old address stops working at once. A feed asks podcast directories not to list it (itunes:block, podcast:locked) and
 search engines not to index it.
 
+A saved collection (recsets.py) has a podcast feed of its own for each person who may read it (`collection` and
+`account` on the feed's row, no namespace): its episodes are the collection's assets with audio or video, as that
+person may read them now (the newest `max_items`), so each person's address lists only what they can read, and it
+stops when the collection is deleted or no longer shared with them, or their account is disabled. Its token is made,
+sealed, found and rotated as any feed's; the feeds' management (get, list_feeds) never sees these.
+
 An item (`feed_item:<n>`) is one of:
 
 - `asset`: a resource (a recording, a document, a page...): its title and summary, a link to its page in the web app,
@@ -39,7 +45,7 @@ import secrets
 import urllib.parse
 from xml.sax.saxutils import escape, quoteattr
 
-from . import events, keyring, podcasts, render, settings, store, video
+from . import events, keyring, podcasts, recsets, render, settings, store, video
 
 R = store.R
 KINDS = ("rss", "podcast")
@@ -183,18 +189,28 @@ def remove(db, fid):
     db.run(["DELETE feed_item WHERE feed = $f", "DELETE $r"], f=int(fid), r=R("feed", int(fid)))
 
 
-def get(db, fid):
-    """A feed's row (without its token); KeyError when there's none."""
-    row = db.one(f"SELECT {FIELDS} FROM $r", r=R("feed", int(fid)))
+def _row(db, fid):
+    """Any feed's row (a collection's too, with its `collection` and `account`), without its token; KeyError."""
+    row = db.one(f"SELECT {FIELDS}, collection, account FROM $r", r=R("feed", int(fid)))
     if not row:
         raise KeyError(fid)
     return row
 
 
+def get(db, fid):
+    """A namespace's feed's row (without its token); KeyError when there's none (or it's a collection's)."""
+    row = _row(db, fid)
+    if row.pop("collection", None) is not None:
+        raise KeyError(fid)
+    row.pop("account", None)
+    return row
+
+
 def list_feeds(db, spaces=None):
-    """Feeds in namespaces `spaces` (None: every one), oldest first, each with how many items it holds."""
+    """Namespaces' feeds in `spaces` (None: every one), oldest first, each with how many items it holds."""
     rows = db.rows(
-        f"SELECT {FIELDS} FROM feed" + (" WHERE space IN $s" if spaces is not None else "") + " ORDER BY id", s=sorted(spaces or [])
+        f"SELECT {FIELDS} FROM feed WHERE collection = NONE" + (" AND space IN $s" if spaces is not None else "") + " ORDER BY id",
+        s=sorted(spaces or []),
     )
     return [{**r, **_fill(db, r["id"])} for r in rows]
 
@@ -219,9 +235,16 @@ def view(db, cfg, row, base):
             "max_items": row.get("max_items") or DEFAULTS["max_items"],
             "url": address(base, token),
             "path": PATH + token,
-            "page": f"{base}/feeds/{row['id']}",
+            "page": _page(base, row),
         }
     )
+
+
+def _page(base, feed):
+    """Where a feed shows in the web app: its collection's page, or the feed's own."""
+    if feed.get("collection") is not None:
+        return f"{base}/collections/{feed['collection']}"
+    return f"{base}/feeds/{feed['id']}"
 
 
 def token_of(db, cfg, fid):
@@ -232,8 +255,8 @@ def token_of(db, cfg, fid):
 
 
 def rotate(db, cfg, fid):
-    """A new token for a feed: the old address stops working at once. The new token."""
-    get(db, fid)
+    """A new token for a feed (a collection's too): the old address stops working at once. The new token."""
+    _row(db, fid)
     token = TOKEN_PREFIX + secrets.token_urlsafe(32)
     db.q(
         "UPDATE $r SET token_hash = $h, token = $t, updated_at = $u",
@@ -253,8 +276,13 @@ def by_token(db, token):
     """The feed whose token this is; KeyError for any other."""
     if not isinstance(token, str) or not TOKEN_RX.match(token):
         raise KeyError("token")
-    row = db.one(f"SELECT {FIELDS} FROM feed WHERE token_hash = $h LIMIT 1", h=_hash(token))
-    if not row or podcasts._vault(db, row["space"]):  # a namespace made a vault since: its feeds stop
+    row = db.one(f"SELECT {FIELDS}, collection, account FROM feed WHERE token_hash = $h LIMIT 1", h=_hash(token))
+    if not row:
+        raise KeyError("token")
+    if row.get("collection") is not None:  # its collection's name and description, as they are now
+        col, _ = _reader(db, row)
+        return {**row, "title": _line(col["name"], TITLE_MAX) or "Collection", "description": col.get("description")}
+    if podcasts._vault(db, row["space"]):  # a namespace made a vault since: its feeds stop
         raise KeyError("token")
     return row
 
@@ -266,6 +294,139 @@ def seen(db, feed, now=None):
     if last and (now - events._parse(last)).total_seconds() < SEEN_SECONDS:
         return
     db.q("UPDATE $r SET fetched_at = $t", r=R("feed", feed["id"]), t=now.isoformat(timespec="seconds"))
+
+
+# ---------- a saved collection's podcast feed ----------
+def for_collection(db, cfg, cid, account, by=None):
+    """(the id of person `account`'s podcast feed of saved collection `cid`, whether it was made now): made the first
+    time they ask. Whether they may read the collection is the caller's to check."""
+    q = "SELECT VALUE record::id(id) FROM feed WHERE collection = $c AND account = $a"
+    have = sorted(db.values(q, c=int(cid), a=int(account)))
+    if have:
+        return have[0], False
+    fid, token, t = db.next_id("feed"), TOKEN_PREFIX + secrets.token_urlsafe(32), store.now()
+    db.q(
+        "CREATE $r CONTENT $d",
+        r=R("feed", fid),
+        d=store.clean(
+            {
+                **DEFAULTS,
+                "kind": "podcast",
+                "title": "Collection",  # read from the collection whenever the feed is
+                "collection": int(cid),
+                "account": int(account),
+                "token_hash": _hash(token),
+                "token": settings.seal(cfg, token, _context(fid)),
+                "created_by": by,
+                "created_at": t,
+                "updated_at": t,
+            }
+        ),
+    )
+    have = sorted(db.values(q, c=int(cid), a=int(account)))
+    for extra in have[1:]:  # two first asks at once: the first one made stays
+        db.q("DELETE $r", r=R("feed", extra))
+    return have[0], have[0] == fid
+
+
+def collection_feed(db, cfg, fid, base):
+    """A collection's feed as its person sees it: its address, how many episodes it lists now, and when a podcast app
+    last read it."""
+    row = _row(db, fid)
+    token = token_of(db, cfg, fid)
+    return store.clean(
+        {
+            "id": row["id"],
+            "collection": row["collection"],
+            "kind": row["kind"],
+            "url": address(base, token),
+            "path": PATH + token,
+            "page": _page(base, row),
+            "episodes": len(_episodes(db, cfg, row)),
+            "max_items": row.get("max_items") or DEFAULTS["max_items"],
+            "fetched_at": row.get("fetched_at"),
+            "created_at": row.get("created_at"),
+            "updated_at": row.get("updated_at"),
+        }
+    )
+
+
+def drop_collection(db, cid, account=None):
+    """Delete a collection's feeds (one person's, with `account`): their addresses stop working at once."""
+    if account is None:
+        db.q("DELETE feed WHERE collection = $c", c=int(cid))
+    else:
+        db.q("DELETE feed WHERE collection = $c AND account = $a", c=int(cid), a=int(account))
+
+
+def _reader(db, feed):
+    """(the collection, the namespaces its person may read now, vaults left out) for a collection's feed; KeyError
+    when the collection is gone or no longer shared with them, or their account is disabled."""
+    from . import auth  # auth reaches what imports this
+
+    who = auth.active_account(db, feed.get("account"))
+    if not who:
+        raise KeyError("account")
+    col = recsets.get(db, feed["collection"])
+    if col["account"] != who["id"] and not col.get("shared"):
+        raise KeyError("collection")
+    spaces = {s for s in auth.permissions(db, who) if not podcasts._vault(db, s)}
+    return col, spaces
+
+
+def _episodes(db, cfg, feed):
+    """A collection feed's episodes, newest first: [(the recording's row, (content type, size))] of its assets with
+    audio or video, the newest `max_items`. KeyError as _reader."""
+    col, spaces = _reader(db, feed)
+    ids = recsets.members(db, col, spaces)
+    if not ids:
+        return []
+    rows = db.rows(
+        "SELECT record::id(id) AS id, space, title, summary, duration_ms, recorded_at, created_at FROM recording "
+        "WHERE id IN $ids AND source = 'audio'",
+        ids=[R("recording", i) for i in ids],
+    )
+    rows.sort(key=lambda r: (str(r.get("recorded_at") or r.get("created_at") or ""), r["id"]), reverse=True)
+    out, limit = [], feed.get("max_items") or DEFAULTS["max_items"]
+    for r in rows:
+        if len(out) >= limit:
+            break
+        got = media(db, cfg, r["id"])
+        if got:
+            out.append((r, got))
+    return out
+
+
+def _when(*values):
+    """The first of these that is a time, as ISO 8601 in UTC; now when none is."""
+    for v in values:
+        if not v:
+            continue
+        try:
+            return events._parse(v).isoformat(timespec="seconds")
+        except (TypeError, ValueError):
+            continue
+    return store.now()
+
+
+def _collection_shown(db, cfg, feed, base, token):
+    """_shown for a collection's feed: each episode an asset of it with audio or video."""
+    out = []
+    for rec, (ctype, size) in _episodes(db, cfg, feed):
+        summary = rec.get("summary")
+        out.append(
+            {
+                "title": rec.get("title") or "Untitled",
+                "guid": f"lens:feed-{feed['id']}:recording/{rec['id']}",
+                "published": _when(rec.get("recorded_at"), rec.get("created_at"), feed.get("created_at")),
+                "categories": [],
+                "description": (summary.get("summary") if isinstance(summary, dict) else None) or "",
+                "link": f"{base}/resources/{rec['id']}",
+                "enclosure": {"url": f"{address(base, token)}/items/{rec['id']}/audio", "type": ctype, "length": size},
+                "duration_ms": rec.get("duration_ms"),
+            }
+        )
+    return out
 
 
 # ---------- what may go in ----------
@@ -473,7 +634,14 @@ def media(db, cfg, rid):
 
 
 def item_recording(db, feed, iid):
-    """The recording behind item `iid` of `feed`, for its enclosure; KeyError when it has none (or may not show)."""
+    """The recording behind item `iid` of `feed`, for its enclosure; KeyError when it has none (or may not show). A
+    collection's feed names its assets by their ids."""
+    if feed.get("collection") is not None:
+        col, spaces = _reader(db, feed)
+        rec = db.one("SELECT * FROM $r", r=R("recording", int(iid)))
+        if not rec or int(iid) not in recsets.members(db, col, spaces):
+            raise KeyError(iid)
+        return int(iid), rec
     it = db.one("SELECT recording FROM $r WHERE feed = $f", r=R("feed_item", int(iid)), f=feed["id"])
     if not it or it.get("recording") is None:
         raise KeyError(iid)
@@ -519,6 +687,8 @@ def _shown(db, cfg, feed, base, token):
     """The items a reader sees, newest first, each as {title, link, guid, published, description, categories,
     enclosure}: resources read as they are now, episodes once they're made, and only items with audio in a podcast
     feed."""
+    if feed.get("collection") is not None:
+        return _collection_shown(db, cfg, feed, base, token)
     fits, out = Fit(db, feed["space"]), []
     limit = feed.get("max_items") or DEFAULTS["max_items"]
     rows = items(db, feed["id"], limit=min(KEEP, limit * 3 if feed["kind"] == "podcast" else limit))
@@ -600,7 +770,7 @@ def render_xml(db, cfg, feed, base, token):
         f'<rss version="2.0"{ns}>',
         "<channel>",
         _el("title", feed["title"]),
-        _el("link", f"{base}/feeds/{feed['id']}"),
+        _el("link", _page(base, feed)),
         _el("description", _html(feed.get("description") or feed["title"])),
         _el("language", feed.get("language") or DEFAULTS["language"]),
         _el("lastBuildDate", _rfc822(built)),
@@ -609,7 +779,7 @@ def render_xml(db, cfg, feed, base, token):
         _el("atom:link", href=me, rel="self", type="application/rss+xml"),
     ]
     if feed.get("image"):
-        parts.append(f"<image>{_el('url', feed['image'])}{_el('title', feed['title'])}{_el('link', f'{base}/feeds/{feed["id"]}')}</image>")
+        parts.append(f"<image>{_el('url', feed['image'])}{_el('title', feed['title'])}{_el('link', _page(base, feed))}</image>")
     if pod:
         parts += [
             _el("itunes:author", feed.get("author") or "Lens"),
