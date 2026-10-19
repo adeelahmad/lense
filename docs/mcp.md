@@ -78,6 +78,8 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 | `budgets` | where spending stands: each namespace you can read this period against its budget, and for admins all of Lens and every other budget, each ok, near or over ([Asking the assistant or an agent](budgets.md#asking-the-assistant-or-an-agent)) |
 | `list_recordings` | assets, newest first, by namespace, title words, dates, person, tag or kind, and whether they're flagged NSFW (`sensitive`) |
 | `list_speakers` | the people of your namespaces, the ones with the most talk time first |
+| `list_unnamed_faces` | the faces nobody has named yet in your namespaces that recognise faces, the largest group first: a name to offer, how often each is seen and the assets it's in, with links ([Naming faces](video.md#naming-faces)) |
+| `name_face` | say who a face is: a name another face of its namespace has joins that person, any other becomes its own. Needs a write-scope token and editor access |
 | `get_recording` | one asset: when, how long, people, summary and key points, chapters, the entities and keywords most mentioned, its link, and whether it's flagged NSFW |
 | `get_transcript` | an asset's lines in order (who, time, text, link, and the words transcription wasn't sure of as `unsure`), a page at a time, from a line or a time window |
 | `fetch` | an asset's whole text at once, as `[m:ss] Speaker: …` lines |

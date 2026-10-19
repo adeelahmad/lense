@@ -909,6 +909,60 @@ def list_speakers(ctx: Context, namespace: str | None, query: str | None, limit:
     return {"total": len(rows), "speakers": rows[:limit]}
 
 
+@tool(
+    "list_unnamed_faces",
+    "List unnamed faces",
+    "The faces nobody has named yet in the namespaces you have a role in that recognise faces, the largest group "
+    "first: each face's id, what it's called until named, a name to offer (`guess`: the voice it's linked to or one "
+    "suggested), how often it's seen and the assets it's in, with links. Name them with name_face.",
+    Arg("namespace", "string", "only this namespace"),
+    Arg("limit", "integer", "how many", default=50, minimum=1, maximum=500),
+)
+def list_unnamed_faces(ctx: Context, namespace: str | None, limit: int) -> dict[str, Any]:
+    from app.domain import faces
+
+    spaces = [ctx.acl.namespace(namespace)] if namespace else ctx.acl.spaces()
+    names = store.space_names(ctx.db)
+    rows = [
+        store.clean(
+            {
+                "face_id": g["id"],
+                "label": g["label"],
+                "guess": g["guess"],
+                "namespace": names.get(sid),
+                "appearances": g["appearances"],
+                "screen_minutes": round(g["screen_ms"] / 60000, 1) if g["screen_ms"] else None,
+                "pages": g["pages"] or None,
+                "assets": [{"recording_id": r["id"], "title": r["title"], "url": ctx.link(r["id"])} for r in g["recordings"][:10]],
+                "more_assets": max(0, len(g["recordings"]) - 10) or None,
+            }
+        )
+        for sid in spaces
+        if faces.mode(ctx.db, sid) == "recognize"
+        for g in faces.unnamed(ctx.db, sid, thumbs=0)
+    ]
+    return {"total": len(rows), "faces": rows[:limit]}
+
+
+@tool(
+    "name_face",
+    "Name a face",
+    "Say who a face is (ids from list_unnamed_faces): a name another face of its namespace has joins it to that "
+    "person (a merge, which the web app can undo), any other name becomes its own. Needs a token with the write scope "
+    "and editor access.",
+    Arg("face_id", "integer", "the face", required=True),
+    Arg("name", "string", "who it is", required=True, max_length=80),
+    writes=True,
+)
+def name_face(ctx: Context, face_id: int, name: str) -> dict[str, Any]:
+    from app.api.v1.routes import video as video_routes
+    from app.schemas.video import FaceName
+
+    _writer(ctx, "name faces")
+    out = video_routes.name_face(face_id, FaceName(name=name), ctx.user, ctx.acl, ctx.db)
+    return store.clean({"face_id": face_id, "name": out.name, "joined_face_id": out.into, "merge_id": out.merge})
+
+
 # ---------- reading ----------
 @tool(
     "get_recording",

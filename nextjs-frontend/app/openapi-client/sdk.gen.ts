@@ -846,6 +846,9 @@ import type {
   GetTopicData,
   GetTopicErrors,
   GetTopicResponses,
+  GetUnnamedFacesData,
+  GetUnnamedFacesErrors,
+  GetUnnamedFacesResponses,
   GetUpdatesData,
   GetUpdatesResponses,
   GetUploadData,
@@ -1349,6 +1352,9 @@ import type {
   MuteActivitiesData,
   MuteActivitiesErrors,
   MuteActivitiesResponses,
+  NameFaceData,
+  NameFaceErrors,
+  NameFaceResponses,
   NewImportHookTokenData,
   NewImportHookTokenErrors,
   NewImportHookTokenResponses,
@@ -9648,6 +9654,21 @@ export class Video {
   }
 
   /**
+   * Get Unnamed Faces
+   *
+   * The faces nobody has named yet, grouped across the namespace (recognize mode), the largest group first: each
+   * with a few signed crops, the assets it's in and a name to offer. Name them with POST /faces/{fid}/name.
+   */
+  public static getUnnamedFaces<ThrowOnError extends boolean = false>(
+    options: Options<GetUnnamedFacesData, ThrowOnError>,
+  ): RequestResult<GetUnnamedFacesResponses, GetUnnamedFacesErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetUnnamedFacesResponses, GetUnnamedFacesErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/faces/unnamed",
+      ...options,
+    });
+  }
+
+  /**
    * Set Namespace Faces Mode
    *
    * off, detect or recognize (which needs a purpose), and whether faces are pixelated for visitors. Owners only.
@@ -9700,6 +9721,25 @@ export class Video {
   ): RequestResult<RenameFaceResponses, RenameFaceErrors, ThrowOnError> {
     return (options.client ?? client).post<RenameFaceResponses, RenameFaceErrors, ThrowOnError>({
       url: "/api/v1/faces/{fid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Name Face
+   *
+   * Name a face: a name another face of the namespace has joins it to that person (a merge: undo it with POST
+   * /faces/merges/{merge}/undo); any other name is its own (undo: POST /faces/{fid} with no name).
+   */
+  public static nameFace<ThrowOnError extends boolean = false>(
+    options: Options<NameFaceData, ThrowOnError>,
+  ): RequestResult<NameFaceResponses, NameFaceErrors, ThrowOnError> {
+    return (options.client ?? client).post<NameFaceResponses, NameFaceErrors, ThrowOnError>({
+      url: "/api/v1/faces/{fid}/name",
       ...options,
       headers: {
         "Content-Type": "application/json",

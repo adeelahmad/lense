@@ -6,6 +6,7 @@ import { useMemo } from "react";
 
 import { useRecordingIndex } from "@/components/search/data";
 import { MergeHistory, OtherNamespaces } from "@/components/speakers/history";
+import { NameFaces, useUnnamedFaces } from "@/components/speakers/name-faces";
 import { useNamespaceSpeakers } from "@/components/speakers/parts";
 import { lastHeard, reviewPairs } from "@/components/speakers/derive";
 import { Registry } from "@/components/speakers/registry";
@@ -19,10 +20,11 @@ import { Tabs } from "@/components/ui/tabs";
 import { plural } from "@/lib/format";
 import { useArchive } from "@/lib/hooks/session";
 
-const TABS = ["registry", "review", "history", "links"] as const;
+const TABS = ["registry", "review", "faces", "history", "links"] as const;
 type Tab = (typeof TABS)[number];
 
-/** SP1–SP3: the speakers of one namespace — registry, review queue, merge history, links to other namespaces. */
+/** SP1–SP3: the speakers of one namespace — registry, review queue, merge history, links to other namespaces — and,
+ * where it recognises faces, the faces waiting for a name. */
 export function SpeakersPage() {
   const params = useSearchParams();
   const router = useRouter();
@@ -36,6 +38,8 @@ export function SpeakersPage() {
     ? (params.get("tab") as Tab)
     : "registry";
   const dir = useNamespaceSpeakers(ns);
+  const unnamed = useUnnamedFaces(ns);
+  const faces = unnamed.data?.mode === "recognize" || tab === "faces"; // the tab shows where faces are recognised
   const index = useRecordingIndex();
 
   const set = (k: string, v: string | null) => {
@@ -102,6 +106,9 @@ export function SpeakersPage() {
             label: "Review queue",
             count: dir.data ? pairs.length : undefined,
           },
+          ...(faces
+            ? [{ value: "faces", label: "Unnamed faces", count: unnamed.data ? unnamed.data.total : undefined }]
+            : []),
           { value: "history", label: "Merge history" },
           {
             value: "links",
@@ -146,6 +153,7 @@ export function SpeakersPage() {
           </div>
         )}
         {dir.data && ns && tab === "review" && <ReviewQueue pairs={pairs} ns={ns} />}
+        {ns && tab === "faces" && <NameFaces ns={ns} />}
         {dir.data && ns && tab === "history" && <MergeHistory merges={dir.data.merges} ns={ns} />}
         {dir.data && ns && tab === "links" && <OtherNamespaces links={links} cross={cross} />}
       </div>

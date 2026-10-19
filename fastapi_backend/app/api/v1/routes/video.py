@@ -12,7 +12,7 @@ import pathlib
 import re
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import FileResponse, Response
 
 from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Writer, domain_errors
@@ -27,12 +27,15 @@ from app.schemas.video import (
     FaceDismiss,
     FaceMerge,
     FaceMerged,
+    FaceName,
+    FaceNamed,
     FaceRename,
     FacesMode,
     FacesModeSet,
     FaceSpeaker,
     NamespaceFaces,
     OcrFix,
+    UnnamedFaces,
 )
 
 router = APIRouter(tags=["video"])
@@ -190,6 +193,21 @@ def get_namespace_faces(name: str, user: CurrentUser, acl: Acl, db: Db) -> Names
     return NamespaceFaces.model_validate(sign_urls(out, full=True))
 
 
+@router.get("/namespaces/{name}/faces/unnamed")
+def get_unnamed_faces(name: str, user: CurrentUser, acl: Acl, db: Db, limit: int = Query(100, ge=1, le=500)) -> UnnamedFaces:
+    """The faces nobody has named yet, grouped across the namespace (recognize mode), the largest group first: each
+    with a few signed crops, the assets it's in and a name to offer. Name them with POST /faces/{fid}/name."""
+    sid = acl.namespace(name)
+    mode = facemod.mode(db, sid)
+    groups = facemod.unnamed(db, sid) if mode == "recognize" else []
+    for g in groups:
+        g["thumbnails"] = [
+            {"recording": t["recording"], "cover_url": f"{API}/recordings/{t['recording']}/frames/{t['file']}"} for t in g["thumbnails"]
+        ]
+    out = {"mode": mode, "total": len(groups), "groups": groups[:limit]}
+    return UnnamedFaces.model_validate(sign_urls(out, full=True))
+
+
 @router.put("/namespaces/{name}/faces/mode")
 def set_namespace_faces_mode(name: str, body: FacesMode, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> FacesModeSet:
     """off, detect or recognize (which needs a purpose), and whether faces are pixelated for visitors. Owners only.
@@ -240,6 +258,20 @@ def rename_face(fid: int, body: FaceRename, user: Writer, acl: Acl, db: Db) -> O
     facemod.rename(db, fid, body.name)
     auth.audit(db, user.as_audit(), "face.rename", f"face:{fid}")
     return Ok()
+
+
+@router.post("/faces/{fid}/name")
+def name_face(fid: int, body: FaceName, user: Writer, acl: Acl, db: Db) -> FaceNamed:
+    """Name a face: a name another face of the namespace has joins it to that person (a merge: undo it with POST
+    /faces/merges/{merge}/undo); any other name is its own (undo: POST /faces/{fid} with no name)."""
+    _face_space(db, acl, fid, "curate")
+    with domain_errors():
+        out = facemod.name_face(db, fid, body.name, user.email)
+    if out["merge"]:
+        auth.audit(db, user.as_audit(), "face.merge", f"face:{fid}", {"into": out["into"]})
+    else:
+        auth.audit(db, user.as_audit(), "face.rename", f"face:{fid}")
+    return FaceNamed(**out)
 
 
 @router.post("/faces/{fid}/merge")

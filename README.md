@@ -167,7 +167,7 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   ([Web clipper](docs/web-clipper.md), [setting it up](docs/web-clipper.md#setting-it-up),
   [the assistant in your browser](docs/browser-assistant.md); [checks](docs/requirements.md#clip-from-the-browser))
 - **Understand it.** Transcription, which can expect the names your namespace knows (off by default), people
-  recognised by voice (an owner can keep voices to each recording instead; long recordings go to a speech provider in pieces that fit its limits), text on screen and in scans, faces (off by default), NSFW pictures flagged by a model on your own
+  recognised by voice (an owner can keep voices to each recording instead; long recordings go to a speech provider in pieces that fit its limits), text on screen and in scans, faces (off by default; the ones nobody has named yet are named in a row, the most seen first, with Undo), NSFW pictures flagged by a model on your own
   server (off by default, per namespace), low quality images enhanced before they're read (off by default), entities
   and topics in a knowledge graph you can explore, query with Cypher or
   SPARQL, and see as it was at any version, where every source, sensor, person and agent is a node linked to what it
@@ -192,7 +192,7 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   itself shows (its captions menu, full screen, picture in picture), in the workspace and on public pages.
   ([Graph](docs/graph.md), [entity pages](docs/notes.md#entity-pages),
   [similar content](docs/processing.md#similar-content), [graph history](docs/graph-history.md),
-  [topics](docs/topics.md), [video](docs/video.md), [NSFW classification](docs/nsfw.md),
+  [topics](docs/topics.md), [video](docs/video.md), [naming faces](docs/video.md#naming-faces), [NSFW classification](docs/nsfw.md),
   [enhancing images](docs/enhance.md), [long recordings](docs/speech-providers.md#long-recordings),
   [cleaning up audio](docs/processing.md#cleaning-up-audio),
   [your own names](docs/processing.md#your-own-names-in-transcription),
