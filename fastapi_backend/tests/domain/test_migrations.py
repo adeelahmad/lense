@@ -24,6 +24,7 @@ SHIPPED = [
     "entity-types",
     "generated-search",
     "speaker-not-same-merged",
+    "estimated-times",
 ]
 
 

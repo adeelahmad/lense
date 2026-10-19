@@ -1030,6 +1030,7 @@ def get_recording(ctx: Context, recording_id: int) -> dict[str, Any]:
         "pages": raw.get("pages"),
         "language": raw.get("language"),
         "language_set": bool(raw.get("language_set")) or None,  # a person set it; transcription leaves it
+        "times": rec.times,  # an imported transcript's line times: estimated from the text, or aligned with its audio
         "status": rec.status,
         "tags": rec.tags or None,
         "your_role": rec.role,
@@ -3174,6 +3175,27 @@ def set_face_blur_for_visitors(ctx: Context, recording_id: int, on: bool) -> dic
         raise ToolError("this token is read-only: ask for a token with the write scope to change what visitors play")
     video_routes.set_face_blur_visitors(recording_id, FaceBlurVisitors(on=on), ctx.acl, ctx.user, ctx.db, ctx.cfg)
     return _face_blur_out(ctx, recording_id)
+
+
+# ---------- an imported transcript lined up with its audio (docs/processing.md#aligning) ----------
+@tool(
+    "align_transcript",
+    "Line up a transcript with its audio",
+    "Give an imported transcript's lines real times from its audio: a transcript imported without times (plain text, "
+    "Word, PDF, Markdown) has times estimated from the text (get_recording says times: estimated), and attaching its "
+    "audio keeps them. This transcribes the audio in the background, matches the transcript's words to the words "
+    "heard, and gives each line the times of its words; the text and speakers stay as they are, and times becomes "
+    "aligned. It costs a transcription (a cloud speech engine's call goes in the activity ledger). Check on it with "
+    "runs. Needs a token with the write scope and the right to process the recording; refused when it has no audio, "
+    "or its lines' times came with it or from transcription.",
+    Arg("recording_id", "integer", "the asset", required=True),
+    writes=True,
+)
+def align_transcript(ctx: Context, recording_id: int) -> dict[str, Any]:
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to line up transcripts")
+    out = recording_routes.align_transcript(recording_id, ctx.acl, ctx.user, ctx.db)
+    return {"job": out.job, "status": "aligning", "recording_url": ctx.link(recording_id)}
 
 
 # ---------- a namespace's own ways in for other apps (integrations.py) ----------

@@ -575,7 +575,10 @@ def write_transcript(db, rid, nid, segs, patch):
         rec=store.R("recording", rid),
         patch=patch,
     )
-    db.q("UPDATE $rec SET error = NONE, diarized_at = NONE, analyzed_at = NONE", rec=store.R("recording", rid))
+    # new lines: their times are their own (an import without times says so after, align.py)
+    db.q(
+        "UPDATE $rec SET error = NONE, diarized_at = NONE, analyzed_at = NONE, times = NONE, aligned = NONE", rec=store.R("recording", rid)
+    )
 
 
 def audio_path(db, cfg, rec, plain=True):
@@ -603,9 +606,14 @@ def add_envelope(db, cfg, rid):
     db.q("UPDATE $r SET envelope = $e", r=store.R("recording", rid), e=envelope(decode(audio_path(db, cfg, rec))))
 
 
-def transcribe_one(db, cfg, rid, log=print, engine=None):
-    r = db.one("SELECT record::id(id) AS id, space, path, title, remote, channels, audio_cleanup FROM $r", r=store.R("recording", rid))
-    engine, t = engine or get_engine(cfg, log), time.time()
+HEAR_FIELDS = "record::id(id) AS id, space, path, title, remote, channels, audio_cleanup"  # what hear() reads of a recording
+
+
+def hear(db, cfg, r, log=print, engine=None):
+    """What the speech engine hears in a recording's audio (`r`, its HEAR_FIELDS): (segments, the engine, the
+    waveform). The configured engine or the one it falls back to, the namespace's vocabulary as hints, and the sound
+    as its clean_audio step asked for it to be heard; a cloud engine's call goes in the activity ledger."""
+    engine = engine or get_engine(cfg, log)
     path = audio_path(db, cfg, r)
     audio, joins = decode(path), None
     env = envelope(audio)  # the player's waveform is the recording's own
@@ -618,6 +626,13 @@ def transcribe_one(db, cfg, rid, log=print, engine=None):
     del audio
     if joins:
         segs = audio_cleanup.remap(segs, joins)
+    return segs, engine, env
+
+
+def transcribe_one(db, cfg, rid, log=print, engine=None):
+    r = db.one(f"SELECT {HEAR_FIELDS} FROM $r", r=store.R("recording", rid))
+    t = time.time()
+    segs, engine, env = hear(db, cfg, r, log, engine)
     write_transcript(
         db,
         rid,
@@ -1187,6 +1202,8 @@ def _store_import(db, cfg, ns, t, title, fp, src, st, audio, speaker_names, engi
             }
         ),
     )
+    if not t.get("timed"):  # every line's time is a speaking-rate estimate, until it's lined up with audio (align.py)
+        db.q("UPDATE $r SET times = 'estimated'", r=store.R("recording", rid))
     names = {**(t.get("speakers") or {}), **(speaker_names or {})}
     locals_ = {s["speaker"] for s in segs if s.get("speaker")}
     if locals_:

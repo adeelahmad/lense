@@ -356,6 +356,14 @@ class ConvertedFrom(ResponseModel):
     title: str | None = None
 
 
+class Aligned(ResponseModel):
+    """An imported transcript lined up with its audio (docs/processing.md#aligning)."""
+
+    at: str | None = Field(None, description="when")
+    matched: float | None = Field(None, description="the share of the transcript's words heard in the audio, 0 to 1")
+    engine: str | None = Field(None, description="the speech engine that heard them")
+
+
 class Recording(ResponseModel):
     """The asset row (less its envelope) plus what the asset page needs."""
 
@@ -383,6 +391,12 @@ class Recording(ResponseModel):
     tags: list[str] = Field(default_factory=list)
     language: str | None = Field(None, description="its language: a BCP 47 tag such as en or en-GB, when known")
     language_set: bool = Field(False, description="a person set its language; transcription doesn't change it")
+    times: Literal["estimated", "aligned"] | None = Field(
+        None,
+        description="an imported transcript's line times: estimated from the text (it had none), or aligned with its "
+        "audio (POST /resources/{rid}/align); none when they came with it or from transcription",
+    )
+    aligned: Aligned | None = Field(None, description="with times aligned: when, and how many of its words were heard")
     email: EmailInfo | None = Field(None, description="an email: its subject, sender, recipients and date")
     rendition: Rendition | None = Field(None, description="a document that isn't a PDF: how the PDF it's read from was made")
     awaits_pdf: AwaitsPdf | None = Field(None, description="waiting for the PDF the import webhook that sent it hands back")

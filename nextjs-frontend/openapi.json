@@ -11930,6 +11930,49 @@
         }
       }
     },
+    "/api/v1/resources/{rid}/align": {
+      "post": {
+        "tags": [
+          "resources"
+        ],
+        "summary": "Align Transcript",
+        "description": "Line an imported transcript up with its audio (docs/processing.md#aligning): the audio is transcribed in the\nbackground as the transcribe step does (the same engine, ledger and budgets; a heavy step, so quiet processing\nhours apply), the transcript's words are matched to the words heard, and each line takes the times of its words;\nthen analyze, embed and report run again. The text and speakers stay as they are; `times` becomes aligned. Asking\nwhile it runs gives the same job. Needs the right to process the asset; 400 when it has no audio, or its lines'\ntimes came with it or from transcription (`times` is neither estimated nor aligned). Audited as\n`recording.align`.",
+        "operationId": "align_transcript",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobQueued"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/resources/{rid}/share": {
       "post": {
         "tags": [
@@ -39405,6 +39448,50 @@
           "sources"
         ],
         "title": "AgentAnswer"
+      },
+      "Aligned": {
+        "properties": {
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At",
+            "description": "when"
+          },
+          "matched": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matched",
+            "description": "the share of the transcript's words heard in the audio, 0 to 1"
+          },
+          "engine": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engine",
+            "description": "the speech engine that heard them"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "Aligned",
+        "description": "An imported transcript lined up with its audio (docs/processing.md#aligning)."
       },
       "AnalyticsChurn": {
         "properties": {
@@ -75506,6 +75593,33 @@
             "title": "Language Set",
             "description": "a person set its language; transcription doesn't change it",
             "default": false
+          },
+          "times": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "estimated",
+                  "aligned"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Times",
+            "description": "an imported transcript's line times: estimated from the text (it had none), or aligned with its audio (POST /resources/{rid}/align); none when they came with it or from transcription"
+          },
+          "aligned": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Aligned"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "with times aligned: when, and how many of its words were heard"
           },
           "email": {
             "anyOf": [

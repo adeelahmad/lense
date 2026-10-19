@@ -19,6 +19,7 @@ from app.api.media import sign_tracks, sign_url, sign_urls
 from app.api.streaming import LOCKED, file_response, range_response
 from app.domain import access as acc
 from app.domain import (
+    align,
     analyze,
     auth,
     deletion,
@@ -749,6 +750,22 @@ def enhance_recording(rid: int, acl: Acl, user: Writer, db: Db) -> JobQueued:
         job = enhance.queue(db, rid, user.email)
     auth.audit(db, user.as_audit(), "recording.enhance", f"recording:{rid}", {"job": job})
     return JobQueued(job=job)
+
+
+@router.post("/{rid}/align", status_code=202)
+def align_transcript(rid: int, acl: Acl, user: Writer, db: Db) -> JobQueued:
+    """Line an imported transcript up with its audio (docs/processing.md#aligning): the audio is transcribed in the
+    background as the transcribe step does (the same engine, ledger and budgets; a heavy step, so quiet processing
+    hours apply), the transcript's words are matched to the words heard, and each line takes the times of its words;
+    then analyze, embed and report run again. The text and speakers stay as they are; `times` becomes aligned. Asking
+    while it runs gives the same job. Needs the right to process the asset; 400 when it has no audio, or its lines'
+    times came with it or from transcription (`times` is neither estimated nor aligned). Audited as
+    `recording.align`."""
+    acl.recording(rid, "process")
+    with domain_errors():
+        jid = align.queue(db, rid, by=user.email)
+    auth.audit(db, user.as_audit(), "recording.align", f"recording:{rid}", {"job": jid})
+    return JobQueued(job=jid)
 
 
 @router.post("/{rid}/share")

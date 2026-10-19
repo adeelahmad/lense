@@ -226,7 +226,8 @@ on a text-only asset's page. The file is uploaded and becomes the asset's media;
 speakers stay. Then these steps run, after anything the asset's job still had to do: transcribe (which keeps the
 transcript and draws the waveform), diarize (speakers by voice, unless the transcript named them), shots, text on screen
 and faces (video only), analyze and report. The asset takes the file's fingerprint, so scans and uploads of the
-same file find it, unless another asset in the namespace has it already.
+same file find it, unless another asset in the namespace has it already. A transcript that came without times keeps
+its estimated ones until you [line it up with the audio](#aligning).
 
 Speakers are recognised from `Name: text`, `[12:30] Name: text`, `Name (12:30): text`, Otter/Zoom/Teams exports (a
 `Name  12:30` line, then what they said), `speaker|emotion|text` lines, and the speakers in SRT/VTT and JSON. In
@@ -237,6 +238,22 @@ else becomes paragraphs split into segments of about 40 words with estimated tim
 first: front matter or the first heading becomes the title; imports, exports, JSX and code blocks are dropped. A PDF
 imported as a transcript needs a text layer; import a scan as a document instead, and its pages are read by OCR. Named speakers are matched to the namespace's people by name; generic labels (SPEAKER_00, S1, CH0)
 become new people.
+
+### Lining up a transcript with its audio {#aligning}
+
+A transcript imported without times keeps its estimated times when its audio is attached, and its page says "Times
+estimated". **Line up with the audio** on that page (editors; the API's `POST /resources/{rid}/align`, or the MCP tool `align_transcript`) gives its lines real times, in the
+background: the audio is transcribed by the same engine the transcribe step uses (its fallbacks, your vocabulary,
+the activity ledger and budgets apply, and it is a heavy step, so quiet processing hours apply), the transcript's words
+are matched to the words heard (rare words first, then the words between them), and each line runs from its first
+matched word to its last, keeping those words' times so the player follows along word by word. A line none of whose
+words were heard shares the time between the lines either side by how many words each has. The text and the
+speakers stay exactly as they are; only the times change. Then analyze, embed and report run again, so chapters,
+search passages and the report follow the new times; a summary's key points keep their times until it's summarised
+again. The page then says "Times from the audio" and how many of the words were heard. When none were (the wrong file,
+or another language), the step fails, saying so, and the estimated times stay. Nothing is lined up unless someone
+asks: it costs a transcription. Forcing the transcribe step to run again replaces the imported lines with the
+engine's own.
 
 ## People and namespaces
 

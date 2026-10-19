@@ -639,6 +639,7 @@ GET    /api/v1/resources/{rid}/embed-link
 GET    /api/v1/resources/{rid}/audio
 GET    /api/v1/resources/{rid}/wordcloud.svg
 POST   /api/v1/resources/{rid}/reprocess
+POST   /api/v1/resources/{rid}/align
 POST   /api/v1/resources/{rid}/share
 DELETE /api/v1/resources/{rid}/share
 GET    /api/v1/resources/{rid}/shares
@@ -806,6 +807,19 @@ are audited as `recording.language`, and a published asset shows up as an Update
 manifest and Dublin Core record give the tag). The MCP tool `set_language` does the same, and the asset's Details tab
 in the web app shows the language by name with its tag, which editors change there. The Language filter counts `en-GB`
 apart from `en`; a pipeline step's `languages` condition of `en` takes `en-GB` and `en-US` too.
+
+### Lining up a transcript with its audio
+
+A transcript imported without times (plain text, Word, PDF, Markdown, `Name: text` lines without times) has times
+estimated from the text, and `GET /resources/{rid}` says so: `times` is `estimated`. Attaching its audio keeps them.
+`POST /resources/{rid}/align` (the process permission) lines the transcript up with its audio in the background:
+202 with the job, which transcribes the audio as the transcribe step does (the same engine, activity ledger and
+budgets; a heavy step, so quiet processing hours apply), gives each line the times of its words, then runs analyze,
+embed and report again. The text and speakers stay as they are. Afterwards `times` is `aligned` and `aligned` is
+`{at, matched, engine}`: when, the share of the transcript's words heard (0 to 1) and the engine that heard them.
+Asking while it runs gives the same job; 400 when the resource has no audio, or its lines' times came with it or from
+transcription (`times` is null). Audited as `recording.align`; the MCP tool `align_transcript` does the same
+([Lining up a transcript with its audio](processing.md#aligning)).
 
 ### Documents and images
 
