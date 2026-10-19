@@ -299,6 +299,32 @@ def test_documents_in_iiif(app, client, env, db, cfg):
 
 
 @POPPLER
+def test_notes_on_a_documents_pages(client, env, db, cfg):
+    """On a document, the notes-and-comments layer is per page: a note about a moment is on the page its text then is,
+    one about the whole document on the first page."""
+    from app.domain import comments, iiif, notes
+
+    rid = _upload(client, env["he"], text_pdf(HARBOUR), "harbour.pdf", title="Harbour report")["recording"]
+    drain(db, cfg)
+    sid = store.ns_id(db, "pods")
+    ed = db.values("SELECT VALUE record::id(id) FROM account WHERE email = 'ed@x.io'")[0]
+    second = db.one("SELECT t0, idx FROM segment WHERE recording = $r AND page = 1 ORDER BY idx LIMIT 1", r=rid)["t0"]
+    notes.create(db, rid, sid, ed, "The keeper's name?", t0=second, t1=second + 500, shared=True)
+    comments.create(db, rid, sid, ed, "Whole report looks right")
+    layers = ["transcript", "entities", "chapters", "notes"]
+    assert client.put("/api/v1/settings/iiif", headers=env["ha"], json={"layers": layers}).status_code == 200
+    m = f"http://127.0.0.1/iiif/{rid}"
+    doc = client.get(f"/iiif/{rid}/manifest", headers=env["hv"]).json()
+    assert iiif.validate(doc) in (None, [])
+    on = [[a["id"] for a in c.get("annotations", []) if "/notes" in a["id"]] for c in doc["items"]]
+    assert on == [[f"{m}/annotations/notes?page=1"], [f"{m}/annotations/notes?page=2"]]
+    two = client.get(f"/iiif/{rid}/annotations/notes", params={"page": 2}, headers=env["hv"]).json()
+    assert [(a["body"]["value"], a["target"]) for a in two["items"]] == [("The keeper's name?", f"{m}/canvas/2")]
+    one = client.get(f"/iiif/{rid}/annotations/notes", params={"page": 1}, headers=env["hv"]).json()
+    assert [(a["body"]["value"], a["target"]) for a in one["items"]] == [("Whole report looks right", f"{m}/canvas/1")]
+
+
+@POPPLER
 def test_documents_on_public_pages(client, new_client, env, db, cfg):
     """A public document's page shows its pages (signed, like a recording's media), its text page by page and the file
     to save; with its pages closed, none of that is signed for visitors."""

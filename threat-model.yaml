@@ -987,6 +987,14 @@ outputs:
     downstream_must_not_assume:
       - {id: dmna-playlist-name-private, statement: "that a shared playlist's name and description stay among the people who can read its clips", provenance: {kind: documented, source: 'docs/api.md "whoever made it"'}}
   - component: authz
+    channel: "IIIF notes layer (/iiif/<id>/annotations/notes; api/iiif.py, domain/iiif.py)"
+    taint: same-as-input
+    x-taint-note: "with notes in iiif.layers (off by default), shared notes and comments as Web Annotations, with their writers' names, only to someone with a role on the asset (their sign-in or the IIIF cookie); never unshared notes, never to public access, share, signed or IP-group links; sent Cache-Control: private, no-store"
+    taint_provenance: {kind: documented, source: 'docs/iiif.md "Unshared notes are their writer''s alone"'}
+    invariants: []
+    downstream_must_not_assume:
+      - {id: dmna-iiif-notes-kept-private, statement: "that a viewer that fetched the layer keeps it among the people with a role", provenance: {kind: documented, source: 'docs/iiif.md "Unshared notes are their writer''s alone"'}}
+  - component: authz
     channel: "Recording description (IIIF, public pages)"
     taint: same-as-input
     x-taint-note: "never a closed part; anyone who may see the page sees it"

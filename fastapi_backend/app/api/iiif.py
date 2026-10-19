@@ -103,6 +103,34 @@ def _member(request: Request, db: DB, user: Principal | None, space: int) -> boo
     return bool(acct and auth.allows(auth.roles(db, acct), space))
 
 
+def _on_asset(request: Request, db: DB, cfg: Config, user: Principal | None, rid: int) -> bool:
+    """Whether the asset's notes and comments are published to this request: iiif.layers has `notes`, and the requester
+    (or the IIIF access cookie's account) has a role on the asset, in its namespace or on its collection, as the API
+    asks of them (docs/api.md#notes). Public access, share, signed and IP-group links never reach them."""
+    if iiif.NOTES not in (cfg["iiif"].get("layers") or []):
+        return False
+    rec = db.one("SELECT space, collection FROM $r", r=R("recording", rid))
+    if not rec:
+        return False
+    space: int = rec["space"]
+    cid = rec.get("collection")
+
+    def role(roles: dict[int, str], collections: dict[int, dict[int, str]]) -> bool:
+        return auth.allows(roles, space) or (cid is not None and bool(collections.get(space, {}).get(cid)))
+
+    if user and role(user.roles, user.collections):
+        return True
+    acct, _ = iiif_auth.cookie_account(db, request.cookies.get(iiif_auth.COOKIE))
+    return bool(acct and role(auth.roles(db, acct), hierarchy.roles_of(db, acct["id"])))
+
+
+def _personal(resp: JSONResponse) -> JSONResponse:
+    """A response that carries notes and comments differs by who asks: no shared cache keeps it."""
+    resp.headers["Cache-Control"] = "private, no-store"
+    resp.headers["Vary"] = "Authorization, Cookie"
+    return resp
+
+
 def _picture(db: DB, cfg: dict[str, Any], rec: dict[str, Any], rid: int, name: str, path: pathlib.Path, member: bool) -> Response:
     """A frame or a page: where the namespace pixelates faces, visitors get the faces found on it pixelated."""
     if not member and faces.pixelates(db, rec["space"]):
@@ -414,7 +442,9 @@ def iiif_logout(request: Request, db: Db, cfg: Cfg) -> HTMLResponse:
 @router.get("/iiif/{rid}/manifest")
 def iiif_manifest(rid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> JSONResponse:
     _rec(request, db, cfg, user, rid)
-    return _ld(iiif.manifest(db, cfg, rid, base_url(request, cfg)))
+    notes = _on_asset(request, db, cfg, user, rid)
+    resp = _ld(iiif.manifest(db, cfg, rid, base_url(request, cfg), notes=notes))
+    return _personal(resp) if notes else resp
 
 
 @router.get("/iiif/{rid}/annotations/{layer}")
@@ -427,6 +457,11 @@ def iiif_annotations(
     cfg: Cfg,
     page: int | None = Query(None, ge=1, description="a document's page (from 1): only the annotations on it"),
 ) -> JSONResponse:
+    if layer == iiif.NOTES:  # people's notes and comments: for those with a role on the asset only
+        _rec(request, db, cfg, user, rid)
+        if not _on_asset(request, db, cfg, user, rid):
+            raise HTTPException(404, "not found")
+        return _personal(_ld(iiif.notes_page(db, rid, base_url(request, cfg), page)))
     rec, a = _rec(request, db, cfg, user, rid, "transcript")
     if layer not in iiif.LAYERS or not _content_ok(request, db, cfg, user, rec, rid, a, "transcript"):
         raise HTTPException(404, "not found")

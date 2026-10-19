@@ -513,6 +513,7 @@ export const LAYERS: Opt[] = [
   { value: "chapters", label: "Chapters" },
   { value: "screen", label: "Text on screen" },
   { value: "faces", label: "People on screen" },
+  { value: "notes", label: "Notes and comments (people with a role only)" },
 ];
 
 /** The chat assistant's tools (app/domain/ai_tools.py), with whether they change anything. */

@@ -55,6 +55,15 @@ def visible(db, rid, account):
     """This person's notes on the recording and the ones shared on it: notes about the whole recording first, then by
     moment; the earliest written first."""
     rows = db.rows(f"SELECT {FIELDS} FROM note WHERE recording = $r AND (account = $a OR shared = true)", r=int(rid), a=account)
+    return _order(rows)
+
+
+def shared(db, rid):
+    """Just the notes shared on the recording (everyone who can read it sees them), in the same order."""
+    return _order(db.rows(f"SELECT {FIELDS} FROM note WHERE recording = $r AND shared = true", r=int(rid)))
+
+
+def _order(rows):
     return sorted(rows, key=lambda n: (n.get("t0") is not None, n.get("t0") or 0, n.get("created_at") or "", n["id"]))
 
 
