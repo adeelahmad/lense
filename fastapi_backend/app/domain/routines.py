@@ -27,6 +27,7 @@ from . import (
     analytics,
     backups,
     budgets,
+    event_marks,
     events,
     fedora,
     jobs,
@@ -611,6 +612,7 @@ def run_due(db, cfg, log=print, now=None):
     try:
         events.tidy(db, cfg)  # the event log past events.keep_days and claims past a day, once an hour
         match.tidy(db, cfg)  # what automations kept between activities, past its expires_at, once an hour
+        event_marks.tidy(db, cfg)  # marks and reactions on activities that are gone, once an hour
     except Exception as e:  # noqa: BLE001 - the schedule carries on
         if log:
             log(f"events: {type(e).__name__}: {e}")
