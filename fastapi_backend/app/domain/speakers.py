@@ -523,6 +523,58 @@ def undo(db, merge_id, by=None):
     db.run(stmts, **params)
 
 
+def _recentre(db, sid):
+    """A person's voice again from the voices of the recordings they're still in (each weighted by how long they
+    talk there); kept as it was when none of them has one."""
+    rows = db.rows("SELECT recording, embedding FROM appearance WHERE speaker = $s AND embedding != NONE", s=sid)
+    if not rows:
+        return
+    secs = {
+        r["recording"]: r["ms"] / 1000
+        for r in db.rows("SELECT recording, math::sum(dur) AS ms FROM segment WHERE speaker = $s GROUP BY recording", s=sid)
+    }
+    w = [max(secs.get(r["recording"], 0.0), 1.0) for r in rows]
+    v = sum(np.asarray(r["embedding"], dtype=np.float64) * x for r, x in zip(rows, w))
+    db.q(
+        "UPDATE $r SET embedding = $e, n_obs = $n",
+        r=R("speaker", sid),
+        e=_vec(v / (np.linalg.norm(v) + 1e-9)),
+        n=float(sum(w)),
+    )
+
+
+def detach(db, sid, rid, by=None):
+    """The voice heard as `sid` in recording `rid` is someone else: their lines there go to a new person, `sid`'s
+    voice is worked out again without them, and the two are never suggested as the same. Returns the new person's id
+    (merge it back into `sid` to undo)."""
+    sp = db.one("SELECT space FROM $r", r=R("speaker", sid))
+    if not sp:
+        raise KeyError("speaker")
+    here = db.rows("SELECT record::id(id) AS id, embedding FROM appearance WHERE speaker = $s AND recording = $rid", s=sid, rid=rid)
+    segs = db.values("SELECT VALUE record::id(id) FROM segment WHERE speaker = $s AND recording = $rid", s=sid, rid=rid)
+    if not segs:
+        raise ValueError("they aren't heard in that asset")
+    if not db.values("SELECT VALUE id FROM segment WHERE speaker = $s AND recording != $rid LIMIT 1", s=sid, rid=rid):
+        raise ValueError("they're only heard in this asset: rename them instead")
+    emb = next((a["embedding"] for a in here if a.get("embedding") is not None), None)
+    new = new_speaker(db, sp["space"], emb=emb, weight=1.0 if emb is not None else 0.0)
+    db.run(
+        [
+            "UPDATE $segs SET speaker = $new",
+            "UPDATE $apps SET speaker = $new, method = 'detached', score = NONE",
+            "UPDATE mentions SET speaker = $new WHERE in IN $segs",
+            "UPDATE $rec SET embedded = NONE",
+        ],
+        segs=[R("segment", i) for i in segs],
+        apps=[R("appearance", a["id"]) for a in here],
+        new=new,
+        rec=R("recording", rid),
+    )
+    _recentre(db, sid)
+    not_same(db, sid, new, by=by)
+    return new
+
+
 def link(db, a, b):
     ra, rb = db.one("SELECT space FROM $r", r=R("speaker", a)), db.one("SELECT space FROM $r", r=R("speaker", b))
     if not ra or not rb:

@@ -26030,6 +26030,35 @@ export type SpeakerCandidate = {
 };
 
 /**
+ * SpeakerDetachRequest
+ */
+export type SpeakerDetachRequest = {
+  /**
+   * Recording
+   *
+   * the asset where the voice heard as this person is someone else
+   */
+  recording: number;
+};
+
+/**
+ * SpeakerDetached
+ */
+export type SpeakerDetached = {
+  /**
+   * Ok
+   */
+  ok?: boolean;
+  /**
+   * Speaker
+   *
+   * the new person heard in that asset (merge them back to undo)
+   */
+  speaker: number;
+  [key: string]: unknown;
+};
+
+/**
  * SpeakerDirectory
  */
 export type SpeakerDirectory = {
@@ -40843,6 +40872,36 @@ export type MergeSpeakerResponses = {
 };
 
 export type MergeSpeakerResponse = MergeSpeakerResponses[keyof MergeSpeakerResponses];
+
+export type DetachSpeakerData = {
+  body: SpeakerDetachRequest;
+  path: {
+    /**
+     * Sid
+     */
+    sid: number;
+  };
+  query?: never;
+  url: "/api/v1/speakers/{sid}/detach";
+};
+
+export type DetachSpeakerErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DetachSpeakerError = DetachSpeakerErrors[keyof DetachSpeakerErrors];
+
+export type DetachSpeakerResponses = {
+  /**
+   * Successful Response
+   */
+  200: SpeakerDetached;
+};
+
+export type DetachSpeakerResponse = DetachSpeakerResponses[keyof DetachSpeakerResponses];
 
 export type UndoSpeakerMergeData = {
   body?: never;

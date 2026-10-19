@@ -574,6 +574,30 @@ export function useRecordingActions(id: number) {
     },
     onError: fail("Couldn't merge the people"),
   });
+  // "Not them here": this asset's voice heard as them goes to a new person; Undo merges it back.
+  const detachSpeaker = useMutation({
+    mutationFn: (v: { sid: number; name: string }) =>
+      data(Speakers.detachSpeaker({ client, path: { sid: v.sid }, body: { recording: id } })),
+    onSuccess: (r, v) => {
+      const done = () => {
+        void refresh();
+        void qc.invalidateQueries({ queryKey: ["speakers"] });
+      };
+      done();
+      toast({
+        title: `Not ${v.name} here: a new person now`,
+        tone: "green",
+        action: {
+          label: "Undo",
+          onClick: () =>
+            void data(Speakers.mergeSpeaker({ client, path: { sid: r.speaker }, body: { into: v.sid } }))
+              .then(done)
+              .catch(fail("Couldn't undo it")),
+        },
+      });
+    },
+    onError: fail("Couldn't separate the voice"),
+  });
   return {
     reprocess,
     writeSpec,
@@ -584,6 +608,7 @@ export function useRecordingActions(id: number) {
     rename,
     renameSpeaker,
     mergeSpeaker,
+    detachSpeaker,
     refresh,
   };
 }

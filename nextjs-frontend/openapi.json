@@ -17149,6 +17149,59 @@
         }
       }
     },
+    "/api/v1/speakers/{sid}/detach": {
+      "post": {
+        "tags": [
+          "speakers"
+        ],
+        "summary": "Detach Speaker",
+        "description": "The voice heard as this person in one asset is someone else: its lines there go to a new person, this person's\nvoice is worked out again without them, and the two are never suggested as the same. Undo by merging the new person\nback (POST /speakers/{speaker}/merge with ``into`` this one). Audited as speaker.detach.",
+        "operationId": "detach_speaker",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Sid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpeakerDetachRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpeakerDetached"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/merges/{mid}/undo": {
       "post": {
         "tags": [
@@ -81540,6 +81593,41 @@
           "score"
         ],
         "title": "SpeakerCandidate"
+      },
+      "SpeakerDetachRequest": {
+        "properties": {
+          "recording": {
+            "type": "integer",
+            "title": "Recording",
+            "description": "the asset where the voice heard as this person is someone else"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "recording"
+        ],
+        "title": "SpeakerDetachRequest"
+      },
+      "SpeakerDetached": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          },
+          "speaker": {
+            "type": "integer",
+            "title": "Speaker",
+            "description": "the new person heard in that asset (merge them back to undo)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "speaker"
+        ],
+        "title": "SpeakerDetached"
       },
       "SpeakerDirectory": {
         "properties": {

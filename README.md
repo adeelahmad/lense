@@ -169,7 +169,7 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   SPARQL, and see as it was at any version, where every source, sensor, person and agent is a node linked to what it
   brought in. Every entity has its own page at a wiki address
   (`/wiki/<namespace>/<Name>`), and entities, topics and people are edited and merged from their lists, the graph or an
-  asset, with Undo instead of a confirm. Names get their real types (people, places, organisations, events, works) by
+  asset, with Undo instead of a confirm (and a voice matched to the wrong person split off). Names get their real types (people, places, organisations, events, works) by
   rules, without a model, and a decision model types the ones the rules can't. Find what is most like a passage, an
   asset, a topic or an entity, in a Similar tab on every asset or by selecting text anywhere, and, with anytopdf, photos
   by what they show. Pages and shots are described in words by the model provider's vision model or, off by default, by

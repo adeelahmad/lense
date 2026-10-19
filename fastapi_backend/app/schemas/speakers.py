@@ -98,6 +98,10 @@ class SpeakerMergeRequest(RequestModel):
     into: int = Field(description="the person that remains")
 
 
+class SpeakerDetachRequest(RequestModel):
+    recording: int = Field(description="the asset where the voice heard as this person is someone else")
+
+
 class SpeakerLinkRequest(RequestModel):
     # ``with`` is a Python keyword. (FastAPI re-wraps aliased body fields and pydantic warns about it; harmless.)
     with_: int = Field(alias="with", description="a person in another namespace: the same person")
@@ -109,3 +113,7 @@ class SpeakerPair(RequestModel):
 
 class SpeakerMerged(Ok):
     merge_id: int
+
+
+class SpeakerDetached(Ok):
+    speaker: int = Field(description="the new person heard in that asset (merge them back to undo)")

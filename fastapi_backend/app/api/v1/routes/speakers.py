@@ -13,6 +13,8 @@ from app.domain import speakers as spk
 from app.domain.store import DB
 from app.schemas.common import Ok
 from app.schemas.speakers import (
+    SpeakerDetached,
+    SpeakerDetachRequest,
     SpeakerDirectory,
     SpeakerLinkRequest,
     SpeakerMerged,
@@ -155,6 +157,23 @@ def merge_speaker(sid: int, body: SpeakerMergeRequest, request: Request, acl: Ac
     auth.audit(db, user.as_audit(), "speaker.merge", f"speaker:{sid}", {"into": body.into})
     request.app.state.graph_cache.clear()
     return SpeakerMerged(merge_id=mid)
+
+
+@router.post("/speakers/{sid}/detach")
+def detach_speaker(sid: int, body: SpeakerDetachRequest, request: Request, acl: Acl, user: Writer, db: Db) -> SpeakerDetached:
+    """The voice heard as this person in one asset is someone else: its lines there go to a new person, this person's
+    voice is worked out again without them, and the two are never suggested as the same. Undo by merging the new person
+    back (POST /speakers/{speaker}/merge with ``into`` this one). Audited as speaker.detach."""
+    acl.need(speaker_space(db, sid), "curate")
+    try:
+        new = spk.detach(db, sid, body.recording, by=user.email)
+    except KeyError:
+        raise HTTPException(404, "not found") from None
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    auth.audit(db, user.as_audit(), "speaker.detach", f"speaker:{sid}", {"recording": body.recording, "to": new})
+    request.app.state.graph_cache.clear()
+    return SpeakerDetached(speaker=new)
 
 
 @router.post("/merges/{mid}/undo")

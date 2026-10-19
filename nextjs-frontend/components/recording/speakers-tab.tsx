@@ -94,6 +94,7 @@ export function SpeakersTab() {
             canEdit={canEdit}
             ns={ns}
             recId={id}
+            elsewhere={(dir.data?.speakers.find((d) => d.id === p.id)?.recordings ?? 0) > 1}
           />
         );
       })}
@@ -157,6 +158,7 @@ function SpeakerCard({
   canEdit,
   ns,
   recId,
+  elsewhere,
 }: {
   id: number;
   name: string;
@@ -166,10 +168,12 @@ function SpeakerCard({
   canEdit: boolean;
   ns: string | null;
   recId: number;
+  /** Heard in other assets too: the voice here can be split off as someone else. */
+  elsewhere?: boolean;
 }) {
   const [renaming, setRenaming] = useState(false);
   const [value, setValue] = useState(name);
-  const { renameSpeaker } = useRecordingActions(recId);
+  const { renameSpeaker, detachSpeaker } = useRecordingActions(recId);
   const submit = (e: FormEvent) => {
     e.preventDefault();
     renameSpeaker.mutate({ sid: id, name: value.trim() }, { onSuccess: () => setRenaming(false) });
@@ -221,6 +225,17 @@ function SpeakerCard({
             >
               Rename
             </Button>
+            {elsewhere && (
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={!canEdit || detachSpeaker.isPending}
+                disabledReason={!canEdit ? needRole("editor", ns) : undefined}
+                onClick={() => detachSpeaker.mutate({ sid: id, name })}
+              >
+                Not them here
+              </Button>
+            )}
           </>
         )}
       </div>

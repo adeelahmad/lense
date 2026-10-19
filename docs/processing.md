@@ -193,7 +193,9 @@ You can rename and merge people in the web app or the CLI (`lens speakers …`),
 keep who made them and how many assets moved. People in different namespaces are never merged. You can link them
 as the same person (and unlink them), and with `speakers.cross_namespace: suggest` the graph shows likely voice matches
 as dashed edges and People lists them with how alike the voices are. Saying a suggested pair is "not the same", in one
-namespace or across two, removes the suggestion for good.
+namespace or across two, removes the suggestion for good. When a voice was matched to the wrong person in one asset,
+**Not them here** on that person's card in the asset's Speakers tab gives its lines there to a new person and works out
+the first person's voice again without it, with Undo; the two aren't suggested as the same again.
 
 **Voice recognition off.** Voiceprints are biometric data. An owner can turn off People › Recognise voices across
 recordings for their namespace (`PUT /api/v1/namespaces/<ns>/voices/mode {"mode": "separate"}`; `GET /speakers` says
