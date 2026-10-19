@@ -12,6 +12,7 @@ import {
   NO_FILTERS,
   objectFields,
   objectHref,
+  snoozeUntil,
   toParams,
   toQuery,
   unseen,
@@ -185,4 +186,11 @@ test("a saved view keeps the filters and order as they are, and offers a name fr
   expect(sameFilters(f, { ...f, order: "latest" })).toBe(false);
   expect(viewName(f, { "email.received": "Email received" })).toBe("work · Email received · Important · For you");
   expect(viewName(NO_FILTERS)).toBe("My view");
+});
+
+test("a snooze ends an hour, a day or a week from now", () => {
+  const now = Date.parse("2026-10-19T09:00:00Z");
+  expect(snoozeUntil("an hour", now)).toBe("2026-10-19T10:00:00.000Z");
+  expect(snoozeUntil("a day", now)).toBe("2026-10-20T09:00:00.000Z");
+  expect(snoozeUntil("a week", now)).toBe("2026-10-26T09:00:00.000Z");
 });

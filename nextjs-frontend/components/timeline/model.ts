@@ -416,3 +416,13 @@ export function viewName(f: Filters, labels: Record<string, string> = {}): strin
   ];
   return (parts.join(" · ") || "My view").slice(0, 60);
 }
+
+// ---------- snoozes ----------
+/** How long a snooze from the page lasts, by how the menu says it ("Mute Work Gmail for a week"). */
+export const SNOOZES = { "an hour": 3_600_000, "a day": 86_400_000, "a week": 7 * 86_400_000 } as const;
+export type Snooze = keyof typeof SNOOZES;
+
+/** A snooze's end from now, as the `until` of a mute. */
+export function snoozeUntil(span: Snooze, now = Date.now()): string {
+  return new Date(now + SNOOZES[span]).toISOString();
+}

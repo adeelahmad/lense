@@ -12,7 +12,16 @@ import type {
   Mute,
   MutesOut,
 } from "@/app/openapi-client/types.gen";
-import { markOf, toQuery, type Activity, type Filters, type ListQuery, type Mark } from "@/components/timeline/model";
+import {
+  markOf,
+  snoozeUntil,
+  toQuery,
+  type Activity,
+  type Filters,
+  type ListQuery,
+  type Mark,
+  type Snooze,
+} from "@/components/timeline/model";
 import { useToast } from "@/components/ui/toast";
 import { data, useApiClient } from "@/lib/api/browser";
 
@@ -130,13 +139,8 @@ export function useMarks(server: Record<string, ActivityMark | undefined>) {
 
 export type { Activity };
 
-/** A day from now, as the `until` of a mute that is a snooze. */
-export function aDay(now = Date.now()): string {
-  return new Date(now + 86_400_000).toISOString();
-}
-
 /** The person's mutes (docs/timeline.md, Muting): the sources, people and kinds the timeline leaves out for them.
- * `mute` mutes an actor (with its name, for the chips) or a kind, for good or `until` a time, says so with an Undo,
+ * `mute` mutes an actor (with its name, for the chips) or a kind, for good or for a snooze, says so with an Undo,
  * and `unmute` lifts one; both reload the timeline, which leaves muted activities out on the server. */
 export function useMutes() {
   const client = useApiClient();
@@ -158,14 +162,14 @@ export function useMutes() {
     onError: (e) => toast({ tone: "red", title: "Couldn’t save the mute", body: (e as Error).message }),
   });
   const mute = useCallback(
-    (target: { actor: string; name: string } | { kind: string; name: string }, until?: string) => {
+    (target: { actor: string; name: string } | { kind: string; name: string }, span?: Snooze) => {
       mutate(
-        { ...target, until, on: true },
+        { ...target, until: span ? snoozeUntil(span) : undefined, on: true },
         {
           onSuccess: () =>
             toast({
               tone: "green",
-              title: until ? `Muted ${target.name} for a day` : `Muted ${target.name}`,
+              title: span ? `Muted ${target.name} for ${span}` : `Muted ${target.name}`,
               body: "Its activities stay, for everyone else and for your automations; hidden=true shows them to you.",
               action: { label: "Undo", onClick: () => mutate({ ...target, on: false }) },
             }),
