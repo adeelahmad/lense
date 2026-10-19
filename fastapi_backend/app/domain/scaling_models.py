@@ -12,16 +12,23 @@ Hugging Face: an Inference Endpoint serving the model with vLLM on hardware from
 public at Hugging Face's address and vLLM asks for the unit's own key, kept as an encrypted secret of the endpoint, so
 Lens's model calls never carry the Hugging Face token.
 
+Lambda: a GPU instance whose first boot runs vLLM's image with Docker (which Lambda's image has), serving HTTPS on
+port 8000 with a certificate the group's own CA signed (scaling.unit_tls), so Lens trusts it without a name a public
+CA vouches for (`llm.tls_ca`), and the unit's key. A firewall ruleset Lens makes once per region opens that port.
+
 They call the hosts' REST APIs with httpx, which Lens already has, so a provider of these kinds installs nothing.
 """
 
 from __future__ import annotations
 
+import re
 import secrets
+import shlex
+import ssl
 
 import httpx
 
-from .scaling_clouds import Rest
+from .scaling_clouds import Lambda, Rest
 from .scaling_drivers import DriverError, _field, register
 
 VLLM_IMAGE = "vllm/vllm-openai:v0.10.1"
@@ -137,6 +144,108 @@ class RunPod(Rest):
     def listing(self, p, tag):
         pods = self.call(p, "GET", "/pods") or []
         return [{"id": x.get("id"), "name": x.get("name")} for x in pods if (x.get("name") or "").startswith(f"{tag}-")]
+
+
+class LambdaModels(Lambda):
+    id = "lambda-models"
+    kind = "model"
+    label = "Lambda (models)"
+    about = (
+        "GPU instances running a model with vLLM, reached over HTTPS with a key of their own and a certificate Lens "
+        "signs. Billed by the minute by Lambda."
+    )
+    needs_join = False
+    tls = True
+    fields = {
+        **Lambda.fields,
+        "hf_token": _field("Hugging Face token", secret=True, help="for gated models; it goes into each instance's first-boot script"),
+    }
+    template = {
+        "model": RunPod.template["model"],
+        "instance_type": Lambda.template["instance_type"],
+        "max_model_len": RunPod.template["max_model_len"],
+        "image": RunPod.template["image"],
+        "args": RunPod.template["args"],
+        "use_as_provider": USE_AS_PROVIDER,
+    }
+    probe: httpx.BaseTransport | None = None  # tests hand in an httpx.MockTransport for the instances' own addresses
+
+    def firewall(self, p, tag):
+        """The ruleset that opens vLLM's port on Lens's model instances in the provider's region, made once."""
+        name, region = f"{tag}-models", p["settings"]["region"]
+        for r in self.call(p, "GET", "/firewall-rulesets").get("data") or []:
+            if r.get("name") == name and (r.get("region") or {}).get("name") == region:
+                return r["id"]
+        rule = {
+            "protocol": "tcp",
+            "port_range": [PORT, PORT],
+            "source_network": "0.0.0.0/0",
+            "description": "vLLM over HTTPS behind its key (Lens auto scaling)",
+        }
+        made = self.call(p, "POST", "/firewall-rulesets", json={"name": name, "region": region, "rules": [rule]}).get("data") or {}
+        if not made.get("id"):
+            raise DriverError("Lambda made no firewall ruleset")
+        return made["id"]
+
+    def script(self, p, template, boot):
+        """The first-boot script: the unit's certificate and key in /opt/lens, then vLLM's container serving HTTPS."""
+        tls, model = boot["tls"], template["model"]
+        args = ["--model", model, "--served-model-name", model, "--port", str(PORT)]
+        args += ["--ssl-certfile", "/tls/cert.pem", "--ssl-keyfile", "/tls/key.pem"]
+        gpus = re.match(r"gpu_(\d+)x_", template.get("instance_type") or "")
+        if gpus and int(gpus[1]) > 1:
+            args += ["--tensor-parallel-size", gpus[1]]
+        if template.get("max_model_len"):
+            args += ["--max-model-len", str(template["max_model_len"])]
+        args += [str(a) for a in template.get("args") or []]
+        env = {"VLLM_API_KEY": boot["key"], "LENS_SCALING_UNIT": boot["env"]["LENS_SCALING_UNIT"]}
+        if p["secrets"].get("hf_token"):
+            env["HF_TOKEN"] = p["secrets"]["hf_token"]
+        docker = ["docker", "run", "-d", "--restart", "unless-stopped", "--gpus", "all", "--ipc=host", "--name", "lens-model"]
+        docker += ["-p", f"{PORT}:{PORT}", "-v", "/opt/lens:/tls:ro", "-v", "/opt/lens/hf:/root/.cache/huggingface"]
+        for k, v in sorted(env.items()):
+            docker += ["-e", f"{k}={v}"]
+        docker += [template.get("image") or VLLM_IMAGE, *args]
+        return "\n".join(
+            [
+                "#!/bin/sh",
+                "set -e",
+                "umask 077",
+                "mkdir -p /opt/lens/hf",
+                f"printf '%s' {shlex.quote(tls['cert'])} > /opt/lens/cert.pem",
+                f"printf '%s' {shlex.quote(tls['key'])} > /opt/lens/key.pem",
+                "chmod 644 /opt/lens/cert.pem",
+                " ".join(shlex.quote(a) for a in docker),
+                "",
+            ]
+        )
+
+    def launch(self, p, template, name, boot):
+        if not boot.get("tls") or not boot.get("key"):
+            raise DriverError("a Lambda model unit needs the certificate and key Lens makes for it")
+        rules = [{"id": self.firewall(p, boot["tag"])}]
+        iid = self._launch(p, template, name, boot, self.script(p, template, boot), firewall_rulesets=rules)
+        return {"id": iid, "endpoint": {"model": template["model"], "api_key": boot["key"], "ca": boot["tls"]["ca"]}}
+
+    def _ready(self, url, ca):
+        """vLLM answers its /health (no key needed) over HTTPS with the unit's certificate once the model is loaded."""
+        ctx = ssl.create_default_context(cadata=ca)
+        ctx.check_hostname = False  # the group's own CA signed it for this unit; it names no address
+        try:
+            with httpx.Client(timeout=10.0, verify=ctx, transport=self.probe) as c:
+                return c.get(url + "/health").status_code == 200
+        except httpx.HTTPError:
+            return False
+
+    def describe(self, p, node):
+        d = super().describe(p, node)
+        e = node.get("endpoint") or {}
+        if d["state"] != "running" or not d.get("address") or not e.get("ca"):
+            return {**d, "state": "pending"} if d["state"] == "running" else d
+        url = f"https://{d['address']}:{PORT}"
+        if not self._ready(url, e["ca"]):
+            return {**d, "state": "pending"}
+        return {**d, "endpoint": {"base_url": url + "/v1", "model": e.get("model"), "ca": e["ca"]}}
 
 
 register(RunPod())
@@ -272,3 +381,4 @@ class HuggingFace(Rest):
 
 
 register(HuggingFace())
+register(LambdaModels())

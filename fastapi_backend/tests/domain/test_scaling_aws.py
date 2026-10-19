@@ -263,7 +263,9 @@ def test_the_scaler_replaces_a_spot_unit_aws_took_back(client, db, cfg, h, aws, 
     monkeypatch.setitem(drivers.DRIVERS, "aws", aws.drv)
     monkeypatch.setattr(scaling, "can_join", lambda cfg: True)  # the mesh is on and has its install line
     monkeypatch.setattr(
-        scaling, "bootstrap", lambda db, cfg, g, name: {"env": {"LENS_SCALING_UNIT": name}, "line": LINE, "token_id": None, "tag": "lens"}
+        scaling,
+        "bootstrap",
+        lambda db, cfg, g, name, **_: {"env": {"LENS_SCALING_UNIT": name}, "line": LINE, "token_id": None, "tag": "lens"},
     )
     settings.save(db, cfg, "scaling", {"enabled": True}, "root@x.io")
     cfg = settings.effective(db, cfg)

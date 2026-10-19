@@ -218,6 +218,11 @@ of their own then: they never borrow the AWS key. The keys need `bedrock:InvokeM
 and others serving the same model with the same key. It is used only while `llm.base_url` is that `base_url`, and
 auto scaling keeps it while a group's units serve ([Auto scaling](scaling.md)).
 
+`llm.tls_ca` is the one certificate authority (PEM) the provider's certificate must be signed by, whatever name the
+certificate carries; the usual public authorities are then not trusted for it. Auto scaling sets it while a Lambda
+model unit serves (its group's own authority, [Auto scaling](scaling.md)); search by meaning and the voice don't borrow
+such a provider.
+
 ## Chat models
 
 People can choose the model a conversation uses, and ask a question again with another (Retry with another model).

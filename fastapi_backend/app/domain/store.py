@@ -212,6 +212,9 @@ DEFAULTS = {
         # more addresses serving the model at base_url with the same key, which chat calls go to in turn:
         # {base_url, urls}, used only while base_url is still the provider's (auto scaling keeps it: scaling.py)
         "spread": None,
+        # the one CA the provider's certificate must be signed by (PEM), whatever name it carries: auto scaling's
+        # units that serve HTTPS themselves (scaling.unit_tls); none: the usual public CAs and the address's name
+        "tls_ca": None,
     },
     "graph": {"max_nodes": 150, "min_edge_weight": 2},
     "search": {

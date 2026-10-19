@@ -14,8 +14,8 @@ checked, prices, launching, watching and deleting machines), and their machines 
 worker nodes that transcribe and tell voices apart; so are **Proxmox VE**, clones of a VM template on your own server,
 and **Linux hosts over SSH**, workers started on machines you have. They haven't been tried on a real cloud machine
 yet. Also in progress: **RunPod** GPUs, **Hugging Face** Inference Endpoints and **Amazon SageMaker** real-time
-endpoints, which serve a model with vLLM, and **Amazon Bedrock** provisioned throughput; each takes Lens's model calls
-while one runs. Planned: Lambda instances serving a model.
+endpoints and **Lambda** GPU instances, which serve a model with vLLM, and **Amazon Bedrock** provisioned throughput;
+each takes Lens's model calls while one runs.
 
 Auto scaling is **off** until an admin turns it on, and a group launches nothing until a person approves its terms
 signed in to the web app. Agents can propose and manage groups, but never approve one.
@@ -85,6 +85,7 @@ carries none of them.
 | `ssh` (Linux hosts over SSH) | `lens worker` started on `hosts` (`user@host` or `user@host:port`), signed in with `private_key` (sealed; `passphrase` if it has one) | nothing, unless you give it a price | `per_host` (1): workers on each host; `steps` |
 | `hetzner` (Hetzner Cloud) | servers in `location`, with `token` (sealed), optional `ssh_keys` | Hetzner's hourly gross price in euros, times `usd_per_eur` (1.1; set your rate) | `server_type` (`cx22`), `image` (`ubuntu-24.04`), `steps` |
 | `lambda` (Lambda, GPU instances) | instances in `region` (`us-east-1`), with `token` (a Lambda Cloud API key, sealed) and `ssh_key` (the name of a key in your Lambda account; none: its first) | Lambda's `price_cents_per_hour` for the type | `instance_type` (`gpu_1x_a10`), `steps` |
+| `lambda-models` (Lambda, a model host) | GPU instances serving `model` with vLLM over HTTPS, in `region` with `token` (sealed) and `ssh_key` as `lambda`; `hf_token` (sealed) for gated models | Lambda's `price_cents_per_hour` for the type | `model`, `instance_type` (`gpu_1x_a10`), `max_model_len`, `image` (vLLM's), `args`, `use_as_provider` (on) |
 
 A worker on This machine stops with the process that started it, and the scaler that takes over starts them again where
 it runs.
@@ -100,7 +101,9 @@ go itself, since it may not have started them: a person signed in to the web app
 stays a few seconds) or `POST /api/v1/scaling/providers/{id}/strays/let-go` with the stray's `id`, which terminates it
 at the provider. An agent asks for that (`let_go_scaling_stray` in the assistant), and the ask waits for the person's
 yes on the Approvals page; an API key or an app gets 403. A unit Lens let go within the last hour isn't counted, since a provider may
-still show it while it goes. When the provider can't be asked, `list_error` says why.
+still show it while it goes. A unit of any of Lens's providers counts, so two providers on one account (Lambda's
+workers and its model hosts) don't take each other's units for strays. When the provider can't be asked, `list_error`
+says why.
 
 ### Machines elsewhere
 
@@ -163,6 +166,15 @@ Face's address, and vLLM asks for the unit's own key, which goes to the endpoint
 Face says the endpoint runs. One that fails, is paused or scaled to zero at Hugging Face counts as gone and is
 deleted, with Hugging Face's reason (a gated model it may not download, say) in the unit's `why`.
 
+A Lambda model unit is a GPU instance whose first boot runs vLLM's image with Docker (which Lambda's image comes with),
+serving the template's `model` over HTTPS on port 8000, split across the instance's GPUs (`gpu_8x_...` runs eight
+tensor-parallel shards). Lambda gives an instance no name a public certificate authority would vouch for, so each
+group has a certificate authority of its own: Lens makes it once, keeps its key sealed on the group, and signs a
+certificate for each unit, which goes to the instance in its first-boot script with the unit's key. While the unit
+serves, `llm.tls_ca` holds the group's certificate, and Lens's calls trust only a certificate it signed. A firewall
+ruleset Lens makes once per region (`<tag>-models`) opens port 8000 on the instances launched with it; vLLM asks every
+call for the group's key. The unit is running once vLLM answers its health check over HTTPS.
+
 A SageMaker unit is a real-time endpoint in your AWS account serving the template's `model` with AWS's vLLM container
 for SageMaker on one `instance_type` instance. It is three things at SageMaker, a model, an endpoint configuration and
 the endpoint, all named after the unit and tagged `lens-unit` with its name and `lens` with Lens's tag; terminating a
@@ -216,7 +228,9 @@ answers for Bedrock, holding each request and answer to AWS's model of Bedrock's
 model's patterns; Lens's Converse calls are held to it the same way.
 Proxmox's fake is held the same way to Proxmox's own schema of its API, converted from its API viewer (forms
 read by the types the schema gives). SSH hosts have no API document: each test host is a real SSH server (Paramiko's, a
-test-only dependency) that checks the client's key and runs the driver's commands in a real shell.
+test-only dependency) that checks the client's key and runs the driver's commands in a real shell. A Lambda model
+unit's certificate is tried against a real HTTPS server on the test machine: Lens's calls go through with the group's
+certificate authority and fail with no `llm.tls_ca` or another group's.
 
 While a model group's unit runs, it is Lens's LLM provider (the template's `use_as_provider`, on by default): the
 scaler points Settings › LLM provider at the unit's address, model and key, keeping the provider that was there
@@ -382,7 +396,7 @@ which only that yes in the web app does.
 ## Refine later
 
 Serving only some kinds of call (chat, decisions); more model
-hosts (Lambda instances serving a model); Bedrock's price per unit-hour from AWS and Bedrock API keys as the
+hosts; Bedrock's price per unit-hour from AWS and Bedrock API keys as the
 provider's key; Hugging Face's scale to zero and private endpoints; RunPod network volumes, so a model is downloaded once; Proxmox LXC containers; a live euro rate;
 preemptible and spot instances at clouds other than AWS and RunPod; draining an AWS spot unit on its two-minute notice
 (the node agent reading the instance's metadata) and handing its job back at once; following the spot price as it

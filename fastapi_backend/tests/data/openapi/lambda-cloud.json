@@ -121,6 +121,32 @@
     "title": "ApiErrorInsufficientCapacity",
     "type": "object"
    },
+   "ApiErrorInternal": {
+    "properties": {
+     "code": {
+      "const": "global/internal-error",
+      "type": "string"
+     },
+     "message": {
+      "default": "An internal server error occurred.",
+      "type": "string"
+     },
+     "request_id": {
+      "type": "string"
+     },
+     "suggestion": {
+      "default": "Try again later. Contact Support if the problem persists.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "code",
+     "message",
+     "suggestion"
+    ],
+    "title": "ApiErrorInternal",
+    "type": "object"
+   },
    "ApiErrorInvalidBillingAddress": {
     "properties": {
      "code": {
@@ -311,6 +337,78 @@
      "file_system_id"
     ],
     "title": "FilesystemMountEntry",
+    "type": "object"
+   },
+   "FirewallRule": {
+    "properties": {
+     "description": {
+      "maxLength": 128,
+      "minLength": 0,
+      "type": "string"
+     },
+     "port_range": {
+      "items": {
+       "maximum": 65535,
+       "minimum": 1,
+       "type": "integer"
+      },
+      "maxItems": 2,
+      "minItems": 2,
+      "type": "array"
+     },
+     "protocol": {
+      "$ref": "#/components/schemas/NetworkProtocol"
+     },
+     "source_network": {
+      "format": "ipv4network",
+      "type": "string"
+     }
+    },
+    "required": [
+     "protocol",
+     "source_network",
+     "description"
+    ],
+    "title": "FirewallRule",
+    "type": "object"
+   },
+   "FirewallRuleset": {
+    "properties": {
+     "created": {
+      "format": "date-time",
+      "type": "string"
+     },
+     "id": {
+      "type": "string"
+     },
+     "instance_ids": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "name": {
+      "type": "string"
+     },
+     "region": {
+      "$ref": "#/components/schemas/Region"
+     },
+     "rules": {
+      "items": {
+       "$ref": "#/components/schemas/FirewallRule"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "region",
+     "rules",
+     "created",
+     "instance_ids"
+    ],
+    "title": "FirewallRuleset",
     "type": "object"
    },
    "FirewallRulesetEntry": {
@@ -661,6 +759,16 @@
     "title": "InstanceTypesItem",
     "type": "object"
    },
+   "NetworkProtocol": {
+    "enum": [
+     "tcp",
+     "udp",
+     "icmp",
+     "all"
+    ],
+    "title": "NetworkProtocol",
+    "type": "string"
+   },
    "Region": {
     "properties": {
      "description": {
@@ -759,11 +867,304 @@
  "info": {
   "title": "Lambda Cloud API",
   "version": "1.10.0",
-  "x-lens-fetched": "2026-10-18",
+  "x-lens-fetched": "2026-10-19",
   "x-lens-source": "https://cloud.lambda.ai/api/v1/openapi.json"
  },
  "openapi": "3.1.0",
  "paths": {
+  "/api/v1/firewall-rulesets": {
+   "get": {
+    "operationId": "firewallRulesetsList",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "data": {
+           "items": {
+            "$ref": "#/components/schemas/FirewallRuleset"
+           },
+           "type": "array"
+          }
+         },
+         "required": [
+          "data"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorInvalidParameters"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "401": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorUnauthorized"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "403": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorAccountInactive"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "404": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorNotFound"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "429": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorRateLimited"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     }
+    },
+    "tags": [
+     "Firewalls"
+    ]
+   },
+   "post": {
+    "operationId": "createFirewallRuleset",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "name": {
+          "maxLength": 64,
+          "type": "string"
+         },
+         "region": {
+          "type": "string"
+         },
+         "rules": {
+          "items": {
+           "$ref": "#/components/schemas/FirewallRule"
+          },
+          "type": "array"
+         }
+        },
+        "required": [
+         "name",
+         "region",
+         "rules"
+        ],
+        "title": "FirewallRulesetCreateRequest",
+        "type": "object"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "data": {
+           "$ref": "#/components/schemas/FirewallRuleset"
+          }
+         },
+         "required": [
+          "data"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "anyOf": [
+            {
+             "$ref": "#/components/schemas/ApiErrorQuotaExceeded"
+            },
+            {
+             "$ref": "#/components/schemas/ApiErrorInvalidParameters"
+            }
+           ]
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "401": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorUnauthorized"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "403": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorAccountInactive"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "404": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorNotFound"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "409": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorInternal"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "429": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "error": {
+           "$ref": "#/components/schemas/ApiErrorRateLimited"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     }
+    },
+    "tags": [
+     "Firewalls"
+    ]
+   }
+  },
   "/api/v1/instance-operations/launch": {
    "post": {
     "operationId": "launchInstance",
@@ -1259,6 +1660,7 @@
       }
      },
      {
+      "example": "abCdEFg0h1I2jKlm34n5O6Pq78r=",
       "in": "query",
       "name": "page_token",
       "required": false,
@@ -1267,6 +1669,7 @@
       }
      },
      {
+      "example": "ddaedf1b7a0e41ac981711504493b242",
       "in": "query",
       "name": "cluster_id",
       "required": false,
@@ -1416,6 +1819,7 @@
     "operationId": "getInstance",
     "parameters": [
      {
+      "example": "ddaedf1b7a0e41ac981711504493b242",
       "in": "path",
       "name": "id",
       "required": true,

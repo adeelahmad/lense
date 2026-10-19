@@ -262,6 +262,9 @@ class Lambda(Rest):
         return round(cents / 100, 6) if isinstance(cents, (int, float)) else None
 
     def launch(self, p, template, name, boot):
+        return {"id": self._launch(p, template, name, boot, user_data(boot, template))}
+
+    def _launch(self, p, template, name, boot, script, **more):
         key = p["settings"].get("ssh_key")
         if not key:
             keys = [k.get("name") for k in self.call(p, "GET", "/ssh-keys").get("data") or [] if k.get("name")]
@@ -273,13 +276,14 @@ class Lambda(Rest):
             "instance_type_name": template["instance_type"],
             "ssh_key_names": [key],  # Lambda takes exactly one
             "name": name,
-            "user_data": user_data(boot, template),
+            "user_data": script,
             "tags": [{"key": "lens", "value": boot["tag"]}, {"key": "lens-unit", "value": name}],
+            **more,
         }
         ids = (self.call(p, "POST", "/instance-operations/launch", json=body).get("data") or {}).get("instance_ids") or []
         if not ids:
             raise DriverError("Lambda launched no instance")
-        return {"id": ids[0]}
+        return ids[0]
 
     def describe(self, p, node):
         i = (self.call(p, "GET", f"/instances/{node['external_id']}", ok404=True) or {}).get("data")
