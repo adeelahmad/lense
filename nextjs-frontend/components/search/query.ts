@@ -84,6 +84,22 @@ export function tokens(text: string): string[] {
   return text.match(/-?"[^"]+"|\S+/g) ?? [];
 }
 
+/** The words a search looks for, as text to find in an asset (?q= on its page): without typed filters, left-out
+ * words (-word, NOT word), OR, quotes or a trailing *. Empty when nothing is left. */
+export function findText(input: string): string {
+  const ts = tokens(parseQuery(input).text);
+  const out: string[] = [];
+  for (let i = 0; i < ts.length; i++) {
+    const up = ts[i].toUpperCase();
+    if (up === "NOT") i++;
+    else if (up !== "OR" && up !== "AND" && !ts[i].startsWith("-")) {
+      const w = ts[i].replace(/^"|"$/g, "").replace(/\*+$/, "").trim();
+      if (/[\p{L}\p{N}]/u.test(w)) out.push(w);
+    }
+  }
+  return out.join(" ");
+}
+
 /** True when there is anything to search for (not just OR or punctuation). */
 export function hasTerms(text: string): boolean {
   let negate = false;

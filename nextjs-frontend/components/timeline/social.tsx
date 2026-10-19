@@ -7,7 +7,7 @@ import type { Comment, Reaction } from "@/app/openapi-client/types.gen";
 import { threads, type Thread } from "@/components/recording/comments-model";
 import { writer } from "@/components/recording/notes-model";
 import type { Activity } from "@/components/timeline/model";
-import { EMOJIS, EMOJI_LABEL, commentsLabel, linked } from "@/components/timeline/social-model";
+import { EMOJIS, EMOJI_LABEL, commentsLabel, linked, reactedBy } from "@/components/timeline/social-model";
 import { useActivityCommentActions, useActivityComments } from "@/components/timeline/use-social";
 import { Button, IconButton } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/field";
@@ -37,7 +37,7 @@ export function ReactionBar({
           type="button"
           aria-pressed={r.mine}
           aria-label={`${EMOJI_LABEL[r.emoji] ?? r.emoji} ${r.count}${r.mine ? ", yours" : ""}`}
-          title={r.mine ? "Take yours back" : "React too"}
+          title={`${reactedBy(r)}. ${r.mine ? "Take yours back" : "React too"}`}
           disabled={!onReact}
           onClick={(e) => {
             e.stopPropagation();
@@ -101,6 +101,7 @@ export function SocialSummary({ reactions, comments }: { reactions: Reaction[]; 
       {reactions.map((r) => (
         <span
           key={r.emoji}
+          title={reactedBy(r)}
           className={cn(chip, r.mine ? "border-blue-border bg-blue-surface text-blue-dark" : "border-border")}
         >
           <span aria-hidden>{r.emoji}</span>

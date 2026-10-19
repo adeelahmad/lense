@@ -1,4 +1,4 @@
-"""Auto scaling on DigitalOcean and Hetzner Cloud (docs/scaling.md "Providers"): the drivers against their REST APIs
+"""Auto scaling on DigitalOcean, Hetzner Cloud and Lambda (docs/scaling.md "Providers"): the drivers against their REST APIs
 (an httpx MockTransport for each cloud), and a group on another machine waiting for the mesh before it
 launches anything, and counting only the jobs a worker node takes."""
 
@@ -93,6 +93,54 @@ class Hz(Cloud):
         return 200, {"server": self.machines[sid]}
 
 
+class Lam(Cloud):
+    spec = contract.load("lambda-cloud")
+
+    def __init__(self, keys=("ada-laptop",)):
+        super().__init__()
+        self.keys = list(keys)
+
+    def _type(self, name, cents, regions):
+        item = {"instance_type": {"name": name, "price_cents_per_hour": cents}, "regions_with_capacity_available": regions}
+        return contract._sample(self.spec, {"$ref": "#/components/schemas/InstanceTypesItem"}, item)
+
+    def answer(self, method, path, params, body):
+        path = path.removeprefix("/api/v1")
+        if path == "/instance-types":
+            here = [{"name": "us-east-1", "description": "Virginia, USA"}]
+            return 200, {
+                "data": {"gpu_1x_a10": self._type("gpu_1x_a10", 75, here), "gpu_8x_h100_sxm5": self._type("gpu_8x_h100_sxm5", 2392, [])}
+            }
+        if path == "/ssh-keys":
+            return 200, {"data": [{"id": str(i), "name": k, "public_key": "ssh-ed25519 AAAA"} for i, k in enumerate(self.keys)]}
+        if path == "/instance-operations/launch":
+            self.next += 1
+            iid = f"0920582c7ff041399e34823a0be{self.next}"
+            self.machines[iid] = {"id": iid, "name": body["name"], "status": "booting", "tags": body["tags"], "body": body}
+            return 200, {"data": {"instance_ids": [iid]}}
+        if path == "/instance-operations/terminate":
+            gone = [i for i in body["instance_ids"] if i in self.machines]
+            if not gone:
+                return 404, {"error": {"code": "global/object-does-not-exist", "message": "Specified instance does not exist."}}
+            for i in gone:
+                self.machines[i]["status"] = "terminating"
+            return 200, {"data": {"terminated_instances": [self._shown(self.machines[i]) for i in gone]}}
+        if path == "/instances":
+            ids = sorted(self.machines)
+            start = int(params.get("page_token") or 0)
+            size = int(params.get("page_size") or 100)
+            more = start + size < len(ids)
+            page = [self._shown(self.machines[i]) for i in ids[start : start + size]]
+            return 200, {"data": page, "page_token": str(start + size) if more else None}
+        iid = path.rsplit("/", 1)[1]
+        if iid not in self.machines:
+            return 404, {"error": {"code": "global/object-does-not-exist", "message": "Specified instance does not exist."}}
+        return 200, {"data": self._shown(self.machines[iid])}
+
+    def _shown(self, m):
+        return contract._sample(self.spec, {"$ref": "#/components/schemas/Instance"}, {k: v for k, v in m.items() if k != "body"})
+
+
 @pytest.fixture
 def do(monkeypatch):
     cloud = DO()
@@ -104,6 +152,13 @@ def do(monkeypatch):
 def hz(monkeypatch):
     cloud = Hz()
     monkeypatch.setattr(drivers.get("hetzner"), "transport", httpx.MockTransport(cloud))
+    return cloud
+
+
+@pytest.fixture
+def lam(monkeypatch):
+    cloud = Lam()
+    monkeypatch.setattr(drivers.get("lambda"), "transport", httpx.MockTransport(cloud))
     return cloud
 
 
@@ -207,10 +262,70 @@ def test_hetzner_prices_in_euros_and_its_errors_read_as_hetzners(client, db, cfg
         drv.call(opened, "GET", f"/servers/{got['id']}")
 
 
+def test_a_lambda_group_launches_gpu_instances_that_join_over_the_mesh(client, db, cfg, h, lam, monkeypatch):
+    settings.save(db, cfg, "scaling", {"enabled": True}, "root@x.io")
+    cfg = settings.effective(db, cfg)
+    monkeypatch.setattr(scaling, "mesh_module", lambda: Mesh())
+    body = {"name": "Lambda", "driver": "lambda", "settings": {}, "secrets": {"token": "secret_lens_abc"}}
+    p = client.post("/api/v1/scaling/providers", headers=h, json=body).json()
+    assert p["check"] == {"ok": True, "instance_types": 2, "with_capacity_here": 1} and p["settings"]["region"] == "us-east-1"
+    assert lam.calls[0][4] == "Bearer secret_lens_abc"
+    g = client.post(
+        "/api/v1/scaling/groups",
+        headers=h,
+        json={"name": "GPUs", "provider": p["id"], "min": 1, "max": 1, "budget": 30, "template": {"steps": ["transcribe"]}},
+    ).json()
+    assert g["template"]["instance_type"] == "gpu_1x_a10" and g["needs_join"] is True
+    assert tick(db, cfg)["launched"] == 1
+    ((iid, m),) = lam.machines.items()
+    (n,) = scaling.nodes(db, g["id"])
+    assert n["external_id"] == iid and n["price"] == pytest.approx(0.75)  # Lambda's cents an hour
+    sent = m["body"]
+    assert sent["region_name"] == "us-east-1" and sent["instance_type_name"] == "gpu_1x_a10" and sent["name"] == n["name"]
+    assert sent["ssh_key_names"] == ["ada-laptop"]  # the account's first key: Lambda puts one on every instance
+    assert sent["tags"] == [{"key": "lens", "value": "lens"}, {"key": "lens-unit", "value": n["name"]}]
+    assert "LENS_JOIN_TOKEN=lensjoin1.1.secret" in sent["user_data"] and "export LENS_WORKER_STEPS=transcribe" in sent["user_data"]
+
+    drv, opened = drivers.get("lambda"), scaling.opened(db, cfg, p["id"])
+    assert drv.describe(opened, n)["state"] == "pending"
+    lam.machines[iid].update(status="active", ip="198.51.100.9")
+    assert drv.describe(opened, n) == {"state": "running", "address": "198.51.100.9"}
+    assert drv.listing(opened, "lens") == [{"id": iid, "name": n["name"]}] and drv.listing(opened, "other") == []
+    lam.machines[iid]["status"] = "preempted"
+    assert drv.describe(opened, n) == {"state": "gone", "why": "Lambda took the instance back"}
+    assert drv.listing(opened, "lens") == []
+    lam.machines[iid]["status"] = "active"
+    drv.terminate(opened, n)
+    assert drv.describe(opened, n) == {"state": "gone"} and drv.listing(opened, "lens") == []
+    drv.terminate(opened, {"external_id": "nope"})  # already gone: no error
+    with pytest.raises(drivers.DriverError, match=r"Lambda said 404: Specified instance does not exist. \(global/object-does-not-exist\)"):
+        drv.call(opened, "GET", "/instances/nope")
+
+
+def test_lambda_needs_an_ssh_key_and_pages_through_instances(client, db, cfg, h, lam):
+    lam.keys = []
+    body = {"name": "Lambda", "driver": "lambda", "settings": {"ssh_key": "ops"}, "secrets": {"token": "t"}}
+    p = client.post("/api/v1/scaling/providers", headers=h, json=body).json()
+    assert "add one to your Lambda account" in p["check"]["error"]
+    drv, opened = drivers.get("lambda"), scaling.opened(db, cfg, p["id"])
+    boot = {"env": {}, "line": "echo join", "tag": "lens"}
+    names = [f"lens-g-{i}" for i in range(102)]
+    for name in names:  # a key named in settings needs no lookup
+        drv.launch(opened, {"instance_type": "gpu_1x_a10"}, name, boot)
+    assert {m["body"]["ssh_key_names"][0] for m in lam.machines.values()} == {"ops"}
+    assert sorted(x["name"] for x in drv.listing(opened, "lens")) == sorted(names)  # two pages of 100
+    assert [c[2] for c in lam.calls if c[1] == "/api/v1/instances"] == [{"page_size": "100"}, {"page_size": "100", "page_token": "100"}]
+    opened["settings"].pop("ssh_key")
+    with pytest.raises(drivers.DriverError, match="add one to your Lambda account"):
+        drv.launch(opened, {"instance_type": "gpu_1x_a10"}, "lens-g-x", boot)
+    assert drv.price(opened, {"instance_type": "gpu_8x_h100_sxm5"}) == pytest.approx(23.92)
+    assert drv.price(opened, {"instance_type": "gpu_0x_none"}) is None
+
+
 def test_the_cloud_drivers_are_listed_and_need_the_mesh(client, h):
     ds = {d["id"]: d for d in client.get("/api/v1/scaling", headers=h).json()["drivers"]}
     assert ds["digitalocean"]["needs_join"] is True and ds["hetzner"]["priced"] is True
-    assert ds["local"]["needs_join"] is False
+    assert ds["local"]["needs_join"] is False and ds["lambda"]["needs_join"] is True and ds["lambda"]["priced"] is True
     assert ds["hetzner"]["fields"]["token"]["secret"] is True and ds["digitalocean"]["extra"] is None  # nothing to install
 
 
@@ -251,3 +366,13 @@ def test_lens_reads_only_fields_the_clouds_answer_with():
     contract.check_answer_fields(hz, "POST", "/servers", 201, "server.id", "server.public_net.ipv4.ip")
     contract.check_answer_fields(hz, "GET", "/servers/{id}", 200, "server.status", "server.public_net.ipv4.ip")
     contract.check_answer_fields(hz, "GET", "/servers", 200, "servers.id", "servers.name")
+    lm = Lam.spec
+    contract.check_answer_fields(lm, "GET", "/api/v1/instance-types", 200, "data")
+    contract.check_fields(lm, "InstanceTypesItem", "instance_type.price_cents_per_hour", "regions_with_capacity_available.name")
+    contract.check_answer_fields(lm, "GET", "/api/v1/ssh-keys", 200, "data.name")
+    contract.check_answer_fields(lm, "POST", "/api/v1/instance-operations/launch", 200, "data.instance_ids")
+    contract.check_answer_fields(lm, "GET", "/api/v1/instances/{id}", 200, "data.status", "data.ip")
+    contract.check_answer_fields(
+        lm, "GET", "/api/v1/instances", 200, "data.id", "data.name", "data.status", "data.tags.key", "data.tags.value"
+    )
+    contract.check_answer_fields(lm, "GET", "/api/v1/instances", 200, "page_token")

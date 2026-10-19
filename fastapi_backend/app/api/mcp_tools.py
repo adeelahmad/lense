@@ -3897,7 +3897,8 @@ def mute_activities(
     "React to an activity",
     "Put an emoji on an activity of the timeline, as on a post in a feed, for the person you act for: one of 👍 ❤️ 🎉 👀 "
     "😂 😮 😢 🙏; on false takes theirs back. Everyone who sees the activity sees the reactions, and a new one is a "
-    "reaction.added activity automations can act on. The answer is the reactions on it now (emoji, count, mine). "
+    "reaction.added activity automations can act on. The answer is the reactions on it now (emoji, count, mine, and "
+    "who else gave it). "
     "Needs a token with the write scope.",
     Arg("id", "string", "the activity's id, like create-recording-7", required=True, max_length=120),
     Arg("emoji", "string", "the emoji, from the palette", required=True, enum=event_reactions.EMOJIS),

@@ -61,11 +61,12 @@ class ActivityMark(ResponseModel):
 
 
 class Reaction(ResponseModel):
-    """One emoji on an activity: how many people gave it, and whether you did."""
+    """One emoji on an activity: how many people gave it, whether you did, and who else did."""
 
     emoji: str
     count: int
     mine: bool = False
+    who: list[str] = Field(default_factory=list, description="up to five of the others who gave it, by name, earliest first")
 
 
 class ActivityPage(ResponseModel):

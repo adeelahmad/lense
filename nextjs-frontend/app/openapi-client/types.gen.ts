@@ -20144,7 +20144,7 @@ export type ReactIn = {
 /**
  * Reaction
  *
- * One emoji on an activity: how many people gave it, and whether you did.
+ * One emoji on an activity: how many people gave it, whether you did, and who else did.
  */
 export type Reaction = {
   /**
@@ -20159,6 +20159,12 @@ export type Reaction = {
    * Mine
    */
   mine?: boolean;
+  /**
+   * Who
+   *
+   * up to five of the others who gave it, by name, earliest first
+   */
+  who?: Array<string>;
   [key: string]: unknown;
 };
 

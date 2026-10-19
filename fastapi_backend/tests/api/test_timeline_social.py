@@ -32,20 +32,29 @@ def test_reactions_are_shared_counted_and_taken_back(client, db, cfg, folder):
     assert client.get(URL, headers=hr).json()["reactions"] == {}
     # the admin and the viewer both 👍 the first episode; the viewer ❤️s it too
     got = client.post(f"{URL}/{pods1}/react", json={"emoji": "👍"}, headers=hr).json()
-    assert got == {"reactions": [{"emoji": "👍", "count": 1, "mine": True}]}
+    assert got == {"reactions": [{"emoji": "👍", "count": 1, "mine": True, "who": []}]}
     client.post(f"{URL}/{pods1}/react", json={"emoji": "👍"}, headers=hv)
     got = client.post(f"{URL}/{pods1}/react", json={"emoji": "❤️"}, headers=hv).json()["reactions"]
-    assert got == [{"emoji": "👍", "count": 2, "mine": True}, {"emoji": "❤️", "count": 1, "mine": True}]
-    # everyone sees the same counts on the page, each with their own `mine`
+    assert got == [
+        {"emoji": "👍", "count": 2, "mine": True, "who": ["root"]},
+        {"emoji": "❤️", "count": 1, "mine": True, "who": []},
+    ]
+    # everyone sees the same counts on the page, each with their own `mine`, and who else gave each
     page = client.get(URL, params=ASSETS, headers=hr).json()
     assert list(page["reactions"]) == [pods1]
-    assert page["reactions"][pods1] == [{"emoji": "👍", "count": 2, "mine": True}, {"emoji": "❤️", "count": 1, "mine": False}]
+    assert page["reactions"][pods1] == [
+        {"emoji": "👍", "count": 2, "mine": True, "who": ["vi"]},
+        {"emoji": "❤️", "count": 1, "mine": False, "who": ["vi"]},
+    ]
     assert client.get(URL, params=ASSETS, headers=hv).json()["reactions"][pods1][1]["mine"] is True
     # giving one again changes nothing; taking it back drops it, and the row goes when nothing is left
     assert client.post(f"{URL}/{pods1}/react", json={"emoji": "👍"}, headers=hr).json()["reactions"][0]["count"] == 2
     assert db.one("SELECT count() AS n FROM event_reaction GROUP ALL")["n"] == 2
     got = client.post(f"{URL}/{pods1}/react", json={"emoji": "👍", "on": False}, headers=hr).json()["reactions"]
-    assert got == [{"emoji": "👍", "count": 1, "mine": False}, {"emoji": "❤️", "count": 1, "mine": False}]
+    assert got == [
+        {"emoji": "👍", "count": 1, "mine": False, "who": ["vi"]},
+        {"emoji": "❤️", "count": 1, "mine": False, "who": ["vi"]},
+    ]
     assert db.values("SELECT VALUE account FROM event_reaction") == [env["vi"]]
     # each new reaction is a reaction.added activity on the stream (noisy: asked for by kind), by the person
     liked = client.get(URL, params={"kinds": "reaction.added"}, headers=hr).json()["items"]
@@ -159,7 +168,7 @@ def test_agents_react_and_comment_too(client, db, cfg, folder):
     pods1, pods2, call = env["ids"]
     hv = env["hv"]
     got = tool(client, hv, "react_to_activity", id=pods1, emoji="🎉")
-    assert got == {"reactions": [{"emoji": "🎉", "count": 1, "mine": True}]}
+    assert got == {"reactions": [{"emoji": "🎉", "count": 1, "mine": True, "who": []}]}
     assert tool(client, hv, "react_to_activity", id=pods1, emoji="🎉", on=False) == {"reactions": []}
     assert "not found" in tool_error(client, hv, "react_to_activity", id=call, emoji="🎉")
     c = tool(client, hv, "comment_on_activity", id=pods1, text="Listen to this one")
@@ -171,3 +180,14 @@ def test_agents_react_and_comment_too(client, db, cfg, folder):
     assert "text is required" in tool_error(client, hv, "comment_on_activity", id=pods1, text=" ")
     assert tool(client, hv, "timeline", kinds=["asset.added"])["comments"] == {pods1: 2}
     assert event_reactions.check("👍") == "👍"
+
+
+def test_a_reaction_names_who_else_gave_it_earliest_first_up_to_five(db, cfg, folder):
+    [first, *_] = [f"create-recording-{i}" for i in seed(db, cfg, folder)]
+    people = [make_user(db, f"p{n}@x.io", f"person password {n}") for n in range(7)]
+    for p in people:
+        event_reactions.react(db, p, first, "🎉")
+    [mine] = event_reactions.of(db, people[0], [first])[first]
+    assert mine == {"emoji": "🎉", "count": 7, "mine": True, "who": ["p1", "p2", "p3", "p4", "p5"]}
+    [theirs] = event_reactions.of(db, None, [first])[first]
+    assert theirs["mine"] is False and theirs["who"] == ["p0", "p1", "p2", "p3", "p4"]
