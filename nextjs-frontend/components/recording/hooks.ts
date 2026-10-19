@@ -492,6 +492,31 @@ export function useSetLanguage(id: number) {
   });
 }
 
+/** Line an imported transcript up with its audio, in the background (docs/processing.md, Lining up a transcript with
+ * its audio); the job's banner shows how it goes, and the page refreshes when it finishes. */
+export function useAlign(id: number) {
+  const client = useApiClient();
+  const qc = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: () => data(Resources.alignTranscript({ client, path: { rid: id } })),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: rk.jobs(id) });
+      toast({
+        title: "Lining up with the audio",
+        body: "The lines move to where they’re said when it finishes; the job is in Activity.",
+        tone: "intent",
+      });
+    },
+    onError: (e: unknown) =>
+      toast({
+        title: "Couldn’t line up the transcript",
+        body: e instanceof ApiError ? e.message : "Please try again.",
+        tone: "red",
+      }),
+  });
+}
+
 /** A video's copy with the faces blurred for sharing, and the job making one: asked again every few seconds while it
  * runs, so its progress shows (docs/video.md, Blurring faces for sharing). */
 export function useFaceBlur(id: number, enabled = true) {

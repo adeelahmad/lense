@@ -40,6 +40,7 @@ MEDIA_STEPS = {
     "nsfw",
     "describe",
     "blur_faces",
+    "align",
 }  # they take longer the longer the recording
 FILED = ("audio", "document", "image")  # sources with a file of their own for the steps to work on
 TIMINGS = 25  # recent timings kept per kind of step, for estimates
@@ -289,6 +290,13 @@ def _blur_faces(db, cfg, rid, say, spec=None):
     face_blur.step(db, cfg, rid, say, spec)
 
 
+def _align(db, cfg, rid, say, spec=None):
+    """An imported transcript's lines given times from its audio (align.py); only when someone asks."""
+    from . import align
+
+    align.step(db, cfg, rid, say, spec)
+
+
 def _convert(db, cfg, rid, say, spec=None):
     """New assets made from this one: a video's soundtrack as audio, a document's pages as images (conversions.py)."""
     from . import conversions
@@ -329,6 +337,7 @@ STEPS = {
     "reply": _draft_reply,
     "translate": _translate,
     "blur_faces": _blur_faces,
+    "align": _align,
 }
 
 
@@ -1184,6 +1193,8 @@ class Worker:
             self.can.add("clean")
         if not steps and self.can & {"transcribe", "read"}:  # converting needs what they need; older lists run it too
             self.can.add("convert")
+        if not steps and "transcribe" in self.can:  # lining a transcript up with its audio needs no more; older lists run it
+            self.can.add("align")
         if not steps and "faces" in self.can:  # blurring faces needs no more than finding them; older lists run it too
             self.can.add("blur_faces")
         if not steps and "objects" in self.can:  # NSFW classification runs on ONNX Runtime too; older lists run it as well

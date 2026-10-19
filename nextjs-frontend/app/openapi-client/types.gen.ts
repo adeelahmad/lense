@@ -639,6 +639,33 @@ export type AgentAnswer = {
 };
 
 /**
+ * Aligned
+ *
+ * An imported transcript lined up with its audio (docs/processing.md#aligning).
+ */
+export type Aligned = {
+  /**
+   * At
+   *
+   * when
+   */
+  at?: string | null;
+  /**
+   * Matched
+   *
+   * the share of the transcript's words heard in the audio, 0 to 1
+   */
+  matched?: number | null;
+  /**
+   * Engine
+   *
+   * the speech engine that heard them
+   */
+  engine?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * AnalyticsChurn
  */
 export type AnalyticsChurn = {
@@ -21704,6 +21731,16 @@ export type Recording = {
    */
   language_set?: boolean;
   /**
+   * Times
+   *
+   * an imported transcript's line times: estimated from the text (it had none), or aligned with its audio (POST /resources/{rid}/align); none when they came with it or from transcription
+   */
+  times?: "estimated" | "aligned" | null;
+  /**
+   * with times aligned: when, and how many of its words were heard
+   */
+  aligned?: Aligned | null;
+  /**
    * an email: its subject, sender, recipients and date
    */
   email?: EmailInfo | null;
@@ -39293,6 +39330,36 @@ export type EnhanceRecordingResponses = {
 };
 
 export type EnhanceRecordingResponse = EnhanceRecordingResponses[keyof EnhanceRecordingResponses];
+
+export type AlignTranscriptData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/align";
+};
+
+export type AlignTranscriptErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type AlignTranscriptError = AlignTranscriptErrors[keyof AlignTranscriptErrors];
+
+export type AlignTranscriptResponses = {
+  /**
+   * Successful Response
+   */
+  202: JobQueued;
+};
+
+export type AlignTranscriptResponse = AlignTranscriptResponses[keyof AlignTranscriptResponses];
 
 export type RevokeSharesData = {
   body?: never;

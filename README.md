@@ -145,7 +145,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   Drive can sign in through rclone on the Lens server, with no app of your own to register. Upload audio, video, PDFs,
   Office files, photos, JSON and zip or tar archives (photos and videos dated by when they were taken, from the file
   itself, and photos placed by their GPS on the Library's map, by API and MCP too), and transcripts made elsewhere
-  (SRT, WebVTT, text, Word, PDF), each line credited to the speaker the file names; and, with an Apache Tika server (an
+  (SRT, WebVTT, text, Word, PDF), each line credited to the speaker the file names, and one that came without times
+  lined up with its audio when you ask; and, with an Apache Tika server (an
   opt-in extra), documents nothing else here can read; capture web pages one at a time, from a link list or a
   bookmarks file, by API or by asking the assistant, from private networks you allow in Settings too; and import
   videos and podcasts by their address (off by default), taking a video's own captions as its transcript when people
@@ -156,7 +157,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   files, a link list, a source's files) is one run: the toast after it, and the Import screen's list of recent runs,
   undo it whole.
   ([Sensors](docs/sensors.md), [processing](docs/processing.md), [Apache Tika](docs/configuration.md#apache-tika),
-  [import webhooks](docs/api.md#import-webhooks), [playable copies](docs/video.md#playable-copies),
+  [import webhooks](docs/api.md#import-webhooks), [lining up a transcript](docs/processing.md#aligning),
+  [playable copies](docs/video.md#playable-copies),
   [where an asset was taken](docs/processing.md#where-an-asset-was-taken),
   [import runs](docs/api.md#import-runs);
   [checks](docs/requirements.md#bring-in-everything))

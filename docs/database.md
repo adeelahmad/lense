@@ -133,6 +133,10 @@ The steps so far, in the order they run:
   merges carried them over (the `not_same` table) get a pair naming the person they were merged into, following merges
   of merges; a pair that would name one person twice is dropped. The old rows stay, so undoing such a merge brings
   them back, and a pair already there isn't made again, so it's safe to run twice.
+* `estimated-times`: transcripts imported before an asset said its lines' times were estimated (`times`,
+  [Lining up a transcript with its audio](processing.md#aligning)) say so now, where their lines are spaced as the
+  estimate spaces them (the first at 0, each 250 ms after the one before ends). Only assets without `times` are
+  looked at, so it's safe to run twice.
 
 To add a step:
 

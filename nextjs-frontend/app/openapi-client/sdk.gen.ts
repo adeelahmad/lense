@@ -52,6 +52,9 @@ import type {
   AddVaultPasskeyData,
   AddVaultPasskeyErrors,
   AddVaultPasskeyResponses,
+  AlignTranscriptData,
+  AlignTranscriptErrors,
+  AlignTranscriptResponses,
   AllS3KeysData,
   AllS3KeysResponses,
   AnalyticsStatusData,
@@ -6496,6 +6499,26 @@ export class Resources {
   ): RequestResult<EnhanceRecordingResponses, EnhanceRecordingErrors, ThrowOnError> {
     return (options.client ?? client).post<EnhanceRecordingResponses, EnhanceRecordingErrors, ThrowOnError>({
       url: "/api/v1/resources/{rid}/enhance",
+      ...options,
+    });
+  }
+
+  /**
+   * Align Transcript
+   *
+   * Line an imported transcript up with its audio (docs/processing.md#aligning): the audio is transcribed in the
+   * background as the transcribe step does (the same engine, ledger and budgets; a heavy step, so quiet processing
+   * hours apply), the transcript's words are matched to the words heard, and each line takes the times of its words;
+   * then analyze, embed and report run again. The text and speakers stay as they are; `times` becomes aligned. Asking
+   * while it runs gives the same job. Needs the right to process the asset; 400 when it has no audio, or its lines'
+   * times came with it or from transcription (`times` is neither estimated nor aligned). Audited as
+   * `recording.align`.
+   */
+  public static alignTranscript<ThrowOnError extends boolean = false>(
+    options: Options<AlignTranscriptData, ThrowOnError>,
+  ): RequestResult<AlignTranscriptResponses, AlignTranscriptErrors, ThrowOnError> {
+    return (options.client ?? client).post<AlignTranscriptResponses, AlignTranscriptErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/align",
       ...options,
     });
   }

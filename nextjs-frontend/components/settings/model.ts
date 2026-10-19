@@ -2988,6 +2988,7 @@ export const FIELDS: FieldSpec[] = [
       "objects",
       "nsfw",
       "blur_faces",
+      "align",
       "describe",
       "embed",
     ].map((s) => ({

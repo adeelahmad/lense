@@ -41,6 +41,8 @@ import { usePlayerApi } from "@/components/player/media";
 import { EvidencePartsDialog } from "@/components/evidence/parts-dialog";
 import { NsfwNotice } from "@/components/nsfw/nsfw";
 import { CreatePodcastDialog } from "@/components/podcasts/create-dialog";
+import { AlignBanner } from "@/components/recording/align";
+import { timesLabel } from "@/components/recording/align-model";
 import { useRec } from "@/components/recording/context";
 import { pageAt, pagesSummary } from "@/components/recording/document/model";
 import { useEvidence, useExport, usePipelines, useRecordingActions, useSpec } from "@/components/recording/hooks";
@@ -199,6 +201,7 @@ export function RecordingHeader() {
         <StatusChip status={status} label={status ? status[0].toUpperCase() + status.slice(1) : "Unknown"} />
         <AccessBadge value={rec} onClick={openAccess} />
         {transcriptOnly && <Badge tone="neutral">Text only</Badge>}
+        {!transcriptOnly && timesLabel(rec) && <Badge tone="neutral">{timesLabel(rec)}</Badge>}
       </div>
       <Banners />
     </header>
@@ -516,10 +519,20 @@ function MoreMenu({ compact }: { compact?: boolean }) {
 
 /** R8 (running, just imported) and R6 (a step failed) banners under the meta line. */
 export function Banners({ className }: { className?: string }) {
+  const { id, rec, model, jobs, canEdit, ns } = useRec();
   return (
     <>
       <NsfwNotice className={className} />
       <JobBanners className={className} />
+      <AlignBanner
+        rid={id}
+        rec={rec}
+        hasAudio={Boolean(model.audio)}
+        jobs={jobs}
+        editable={canEdit}
+        reason={needRole("editor", ns)}
+        className={cn("mt-1.5", className)}
+      />
     </>
   );
 }
