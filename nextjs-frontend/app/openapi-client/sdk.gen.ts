@@ -1333,6 +1333,9 @@ import type {
   NsfwCountsData,
   NsfwCountsErrors,
   NsfwCountsResponses,
+  OpenActivityData,
+  OpenActivityErrors,
+  OpenActivityResponses,
   OpenRecordingToIpGroupData,
   OpenRecordingToIpGroupErrors,
   OpenRecordingToIpGroupResponses,
@@ -4538,6 +4541,21 @@ export class Activities {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Open Activity
+   *
+   * Say you opened an activity (its own page, or what it is about), so your For you order counts it: each open
+   * lifts its actor, kind and entities a little for you alone (docs/timeline.md, For you). The page sends it.
+   */
+  public static openActivity<ThrowOnError extends boolean = false>(
+    options: Options<OpenActivityData, ThrowOnError>,
+  ): RequestResult<OpenActivityResponses, OpenActivityErrors, ThrowOnError> {
+    return (options.client ?? client).post<OpenActivityResponses, OpenActivityErrors, ThrowOnError>({
+      url: "/api/v1/activities/{activity_id}/open",
+      ...options,
     });
   }
 

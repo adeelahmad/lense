@@ -322,6 +322,15 @@ def mark_activity(activity_id: str, body: MarkIn, user: Writer, acl: Acl, db: Db
     return ActivityMark(**got["marks"][activity_id])
 
 
+@router.post("/{activity_id}/open")
+def open_activity(activity_id: str, user: CurrentUser, acl: Acl, db: Db, cfg: Cfg) -> Ok:
+    """Say you opened an activity (its own page, or what it is about), so your For you order counts it: each open
+    lifts its actor, kind and entities a little for you alone (docs/timeline.md, For you). The page sends it."""
+    a = _seen(db, cfg, activity_id, viewer(db, user, acl))
+    for_you.opened(db, user.id, a["id"])
+    return Ok()
+
+
 # ---------- reactions and comments: a feed everyone who sees an activity talks on (docs/timeline.md) ----------
 def _seen(db: Any, cfg: dict[str, Any], activity_id: str, who: dict[str, Any]) -> dict[str, Any]:
     a = events.get(db, cfg, activity_id, who)

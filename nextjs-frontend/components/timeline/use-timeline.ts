@@ -28,6 +28,20 @@ import { data, useApiClient } from "@/lib/api/browser";
 export const PAGE = 50;
 export const POLL_MS = 15_000;
 
+/** Tell the server the person opened an item (its own line in the address, or what it is about), so their For you
+ * order counts it (POST /api/v1/activities/{id}/open). Fire and forget: a failed count changes nothing they see. */
+export function useOpened() {
+  const client = useApiClient();
+  return useCallback(
+    (id: string) => {
+      Promise.resolve()
+        .then(() => Activities.openActivity({ client, path: { activity_id: id } }))
+        .catch(() => undefined);
+    },
+    [client],
+  );
+}
+
 /** The timeline for these filters, newest first, a page at a time ("Older" reads the next by `before`). */
 export function useTimeline(filters: Filters) {
   const client = useApiClient();

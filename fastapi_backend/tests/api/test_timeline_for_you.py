@@ -69,6 +69,24 @@ def test_for_you_learns_from_reactions_comments_and_marks_and_says_why(client, d
     assert abs(s - 0.5) < 1e-9 and why is None
 
 
+def test_opening_an_item_counts_for_you_a_little_each_time_up_to_a_few(client, db, cfg, folder):
+    env = _env(client, db, cfg, folder)
+    pods1, pods2, call = env["ids"]
+    h = env["hr"]
+    # one open of the first episode lifts what Vi brought in, as a 👍 does, for the one who opened it alone
+    assert client.post(f"{URL}/{pods1}/open", headers=h).json() == {"ok": True}
+    page = client.get(URL, params={**ASSETS, "order": "for_you"}, headers=h).json()
+    assert _ids(page) == [pods2, pods1, call] and page["why"][pods2] == "You often react to vi"
+    assert _ids(client.get(URL, params={**ASSETS, "order": "for_you"}, headers=env["hv"]).json()) == [pods2, pods1]
+    # each open counts, up to OPENS of one item; a reader may say they opened what they see, and nothing else
+    for _ in range(for_you.OPENS + 2):
+        client.post(f"{URL}/{pods1}/open", headers=h)
+    assert dict(for_you.signals(db, env["root"]))[pods1] == for_you.WEIGHTS["open"] * for_you.OPENS
+    assert client.post(f"{URL}/{call}/open", headers=env["hv"]).status_code == 404
+    assert client.post(f"{URL}/{pods2}/open", headers=env["hv"]).status_code == 200
+    assert client.post(f"{URL}/no-such-thing/open", headers=h).status_code == 404
+
+
 def test_agents_read_for_you_too(client, db, cfg, folder):
     from tests.api.test_mcp import tool
 

@@ -5891,6 +5891,49 @@
         }
       }
     },
+    "/api/v1/activities/{activity_id}/open": {
+      "post": {
+        "tags": [
+          "activities"
+        ],
+        "summary": "Open Activity",
+        "description": "Say you opened an activity (its own page, or what it is about), so your For you order counts it: each open\nlifts its actor, kind and entities a little for you alone (docs/timeline.md, For you). The page sends it.",
+        "operationId": "open_activity",
+        "parameters": [
+          {
+            "name": "activity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Activity Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/activities/{activity_id}/react": {
       "post": {
         "tags": [

@@ -20,7 +20,7 @@ FLAGS = ("reviewed", "important", "hidden")
 MAX_IDS = 500  # activities one call marks at most
 TIDY_BATCH = 500  # activities one tidy looks up at most
 TIDY_SECONDS = 3600
-TIDY_TABLES = ("event_mark", "event_reaction")
+TIDY_TABLES = ("event_mark", "event_reaction", "event_open")
 _tidied = {"at": 0.0, "after": ""}
 
 
@@ -106,7 +106,7 @@ def keeper(db, account, wanted):
 
 
 def tidy(db, cfg, now=None):
-    """Drop the marks and reactions left on activities that are gone (an event log entry past events.keep_days, a
+    """Drop the marks, reactions and opens left on activities that are gone (an event log entry past events.keep_days, a
     deleted asset): up to TIDY_BATCH activities marked or reacted to over a day ago are looked up, in id order from
     where the last tidy stopped, at most once an hour per process (routines.run_due calls it). How many activities it
     found gone. Comments on them stay: they are what people wrote, and the asset's page still shows them."""

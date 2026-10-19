@@ -43,6 +43,7 @@ import {
   type Snooze,
 } from "@/components/timeline/model";
 import { SocialSummary } from "@/components/timeline/social";
+import { useOpened } from "@/components/timeline/use-timeline";
 import { sumReactions } from "@/components/timeline/social-model";
 import { Badge } from "@/components/ui/badge";
 import { Button, IconButton } from "@/components/ui/button";
@@ -150,6 +151,7 @@ export function ActivityDetail({
 }) {
   const fields = objectFields(a);
   const href = objectHref(a);
+  const opened = useOpened();
   const cause = a.lens?.cause as { automation?: number; run?: number } | null | undefined;
   const [sharing, setSharing] = useState(false);
   return (
@@ -176,7 +178,9 @@ export function ActivityDetail({
       <div className="flex flex-wrap gap-2">
         {href && (
           <Button asChild size="xs" variant="secondary">
-            <Link href={href}>Open</Link>
+            <Link href={href} onClick={() => opened(a.id)}>
+              Open
+            </Link>
           </Button>
         )}
         <AskButton items={[a]} />
@@ -320,6 +324,7 @@ export const TimelineRow = forwardRef<HTMLLIElement, RowProps>(function Timeline
   const mark = groupMark(group, markOf);
   const ns = first.space != null ? namespaces[String(first.space)] : undefined;
   const href = !many ? objectHref(first) : null;
+  const opened = useOpened();
   const summary = groupSummary(group, labels[first.kind]);
   const reactions = reactionsOf ? sumReactions(group.items.map((a) => reactionsOf(a.id))) : [];
   const comments = commentsOf ? group.items.reduce((n, a) => n + commentsOf(a.id), 0) : 0;
@@ -365,6 +370,7 @@ export const TimelineRow = forwardRef<HTMLLIElement, RowProps>(function Timeline
             {href ? (
               <Link
                 href={href}
+                onClick={() => opened(first.id)}
                 className={cn(
                   "truncate text-[13.5px] font-semibold leading-tight text-fg hover:underline",
                   !mark.reviewed && "font-bold",
@@ -459,12 +465,17 @@ function SubItem({
   social?: ReactNode;
 }) {
   const href = objectHref(a);
+  const opened = useOpened();
   return (
     <li className="group flex flex-col gap-1 py-1.5">
       <div className="flex items-center gap-2">
         <span className="flex min-w-0 flex-1 flex-col">
           {href ? (
-            <Link href={href} className="truncate text-[13px] font-medium text-fg hover:underline">
+            <Link
+              href={href}
+              onClick={() => opened(a.id)}
+              className="truncate text-[13px] font-medium text-fg hover:underline"
+            >
               {a.summary}
             </Link>
           ) : (

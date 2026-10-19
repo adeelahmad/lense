@@ -34031,6 +34031,36 @@ export type MarkActivityResponses = {
 
 export type MarkActivityResponse = MarkActivityResponses[keyof MarkActivityResponses];
 
+export type OpenActivityData = {
+  body?: never;
+  path: {
+    /**
+     * Activity Id
+     */
+    activity_id: string;
+  };
+  query?: never;
+  url: "/api/v1/activities/{activity_id}/open";
+};
+
+export type OpenActivityErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type OpenActivityError = OpenActivityErrors[keyof OpenActivityErrors];
+
+export type OpenActivityResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type OpenActivityResponse = OpenActivityResponses[keyof OpenActivityResponses];
+
 export type ReactToActivityData = {
   body: ReactIn;
   path: {

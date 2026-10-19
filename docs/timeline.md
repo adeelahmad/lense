@@ -17,7 +17,7 @@ Status: in progress. The studio's timeline is built in steps; only what is merge
 | What each item caused (the automation runs it started, the approvals they asked for), with Approve and Decline on waiting approvals from the item; `activity_caused` for agents | built |
 | Tagging the agent in a comment, so it answers in the thread | built |
 | Sources, sensors, people and agents as actors in the graph: a Source node with ADDED links, on the canvas, in the explorer and in Cypher | built |
-| A For you order learned from what each person reacts to, comments on, marks important and hides, each item saying why | built |
+| A For you order learned from what each person reacts to, comments on, marks important, opens and hides, each item saying why | built |
 | Muting a source, person or kind, for good or until a time, for yourself alone; `mute_activities` for agents | built |
 | Moves and switches as their own verbs: an asset moved to another namespace (`asset.moved`, a Move), a sensor paused, ignored or resumed (`sensor.changed`, an Update with what it was), and a file changed in its source and read again (`file.changed`, an Update linking the asset it was before) | built |
 | Saved views: the filters and order under a name, one click away in the page's Views menu, each person's own; `timeline_views`, `save_timeline_view` and `delete_timeline_view` for agents | built |
@@ -239,8 +239,11 @@ Unreviewed), so a timeline you read often is one click away. Views are each pers
 For you is a cheap, explainable order of the timeline, learned from each person's own signals and nothing else:
 nobody's reactions or marks change anyone else's order, and no model is called.
 
-- The signals are your own reactions (+1 each), comments (+2), important marks (+2) and hidden marks (−3), the most
-  recent 200 of each. Each is summed over the actor, the kind and the tagged entities of the activity it was on, so
+- The signals are your own reactions (+1 each), comments (+2), important marks (+2), opens (+½ each time, up to 4
+  times one item) and hidden marks (−3), the most recent 200 of each. An open is following a line to what it is
+  about, or opening the item by its address (`/timeline?item=`); the page sends it
+  (`POST /api/v1/activities/{id}/open`), and each person's counts are theirs alone (`event_open`, dropped with the
+  marks when the activity is gone). Each is summed over the actor, the kind and the tagged entities of the activity it was on, so
   a 👍 on an email from Work Gmail about St Mary's School counts for Work Gmail, for emails and for the school.
 - An item's score is its recency (halving every two days) times 1 + tanh(affinity ÷ 4), with affinity the sum of
   your weights on its actor, kind and entities: a strong affinity doubles its score, a strongly negative one halves
@@ -267,10 +270,10 @@ counts are two grouped queries. Mutes are one `event_mute` row per person and ta
 the name shown, `until` and when it was set, read once per page and applied with the mark filters in the same query
 per source page; they go when the person is removed. Nothing of this costs a model call.
 
-Marks and reactions left on an activity that is gone (an event log entry past `events.keep_days`, a deleted asset) are
-dropped by a tidy that runs with the other hourly ones: each time it looks up to 500 activities marked or reacted to
-over a day ago, in id order from where it stopped last, and deletes the rows of those no source has any more. Comments
-on them stay, since they are what people wrote, and an asset's page still shows its own.
+Marks, reactions and opens left on an activity that is gone (an event log entry past `events.keep_days`, a deleted
+asset) are dropped by a tidy that runs with the other hourly ones: each time it looks up to 500 activities marked,
+reacted to or opened over a day ago, in id order from where it stopped last, and deletes the rows of those no source
+has any more. Comments on them stay, since they are what people wrote, and an asset's page still shows its own.
 
 ## Refine later
 
@@ -278,8 +281,7 @@ on them stay, since they are what people wrote, and an asset's page still shows 
   back to it.
 
 - Server-sent updates instead of the page polling for new items.
-- For you counts opens too, once the page reports them, and could cache each person's affinity for a minute rather
-  than summing it on every read.
+- For you could cache each person's affinity for a minute rather than summing it on every read.
 - A muted actor's own line in the Filters, and a snooze to a time you pick from the page (the API takes any `until`).
 - A file changed in its source is read again as a new asset beside the earlier one (`file.changed` links them);
   reading the change into the same asset is to come. A file in a namespace's own folders changed in place is read

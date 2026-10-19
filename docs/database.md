@@ -74,7 +74,8 @@ kept anyway, such as `recording.created_at`. What no row records goes in `event_
 of the stream keeps where its next look starts in `event_cursor:<consumer>` (a position per source), and claims what
 it handles in `event_claim:<hash of consumer and key>`; a claim is a `CREATE` only one process wins, and claims go
 after a day. Each person's review marks on the timeline ([Timeline](timeline.md#review-marks)) are
-`event_mark:<hash of account and activity>`, a row only while one of its flags is set. An automation trigger's
+`event_mark:<hash of account and activity>`, a row only while one of its flags is set, and how often each opened an
+activity, for their For you order, `event_open:<hash of account and activity>`. An automation trigger's
 webhook is `automation_hook:<n>` (its automation and trigger, the hash of its token, its signing secret sealed).
 Automations' timers ([Time](automations.md#time)) are `timer:<hash of key>` (by `status` and `at`, and by
 `automation`); one that ended goes after 7 days. Saved variables ([Saved variables](automations.md#saved-variables))
