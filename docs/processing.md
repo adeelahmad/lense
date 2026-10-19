@@ -235,7 +235,10 @@ as the same person (and unlink them), and with `speakers.cross_namespace: sugges
 as dashed edges and People lists them with how alike the voices are. Saying a suggested pair is "not the same", in one
 namespace or across two, removes the suggestion for good. When a voice was matched to the wrong person in one asset,
 **Not them here** on that person's card in the asset's Speakers tab gives its lines there to a new person and works out
-the first person's voice again without it, with Undo; the two aren't suggested as the same again.
+the first person's voice again without it, with Undo; the two aren't suggested as the same again. Of two people said
+not to be the same, either way, a voice in a new asset (or one transcribed again) goes to, or is suggested as, only the
+one it sounds more like, by their voice overall or in any one asset they're in. So a voice split off or turned down
+isn't given back to the person it was taken from just because it sits near their average voice.
 
 **Voice recognition off.** Voiceprints are biometric data. An owner can turn off People › Recognise voices across
 recordings for their namespace (`PUT /api/v1/namespaces/<ns>/voices/mode {"mode": "separate"}`; `GET /speakers` says

@@ -55,3 +55,31 @@ def test_channels_and_clustering():
     c = rng.normal(size=(3, 64))
     E = np.stack([c[i] + 0.05 * rng.normal(size=64) for i in (0, 1, 0, 2, 1)])
     assert list(speakers.cluster(E, 0.3)) == [0, 1, 0, 2, 1]
+
+
+def _basis(n, seed=5):
+    q, _ = np.linalg.qr(np.random.default_rng(seed).normal(size=(192, n)))
+    return [q[:, i] for i in range(n)]
+
+
+def test_a_voice_never_goes_to_someone_it_was_said_not_to_be(db, cfg):
+    e1, e2, e3, e4 = _basis(4)
+    pods = store.ns_id(db, "pods")
+    sa, sx = speakers.new_speaker(db, pods, emb=e1, weight=40.0), speakers.new_speaker(db, pods, emb=e2, weight=40.0)
+    # X's voice in one recording, split off from A (or turned down as A): not A's average, nor quite X's
+    db.q("CREATE appearance CONTENT $a", a={"recording": 1, "speaker": sx, "local_label": "S0", "space": pods, "embedding": list(e3)})
+    sure = unit(0.7 * e1 + 0.714 * e3)  # above match_threshold for A, nearer that recording than anything of A's
+    unsure = unit(0.45 * e1 + 0.40 * e2 + 0.6 * e3 + 0.527 * e4)  # unsure of A and X both, A's average nearer
+    before = speakers.match(db, cfg, pods, {"S0": (sure, 1.0)})
+    assert before["S0"][0] == sa  # nobody said otherwise yet
+    db.q("UPDATE $r SET embedding = $e, n_obs = 40.0", r=store.R("speaker", sa), e=list(e1))
+    speakers.not_same(db, sa, sx)
+    got = speakers.match(db, cfg, pods, {"S0": (sure, 1.0), "S1": (unsure, 1.0)})
+    assert got["S0"][0] not in (sa, sx) and got["S0"][2] == "new"
+    assert got["S1"][2] == "new"
+    sug = {s["id"]: [g["id"] for g in s["suggestions"]] for s in speakers.list_speakers(db, pods)}
+    assert sug[got["S0"][0]] == [] and sug[got["S1"][0]] == [sx]  # suggested as X, never as A
+    # a voice that sounds more like A still goes to A, and two voices nearest X don't spill over to A
+    assert speakers.match(db, cfg, pods, {"S0": (unit(0.9 * e1 + 0.1 * e3), 1.0)})["S0"][0] == sa
+    two = speakers.match(db, cfg, pods, {"S0": (e2, 1.0), "S1": (unit(0.8 * e2 + 0.6 * e1), 1.0)})
+    assert two["S0"][0] == sx and two["S1"][0] != sa
