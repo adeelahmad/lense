@@ -58,7 +58,8 @@
         "lens help tool",
         "microsandbox program requests",
         "POST /circles and /circles/shares, MCP save_circle and share_with_circle, the assistant's and automations' share_with_circle (circles and sharing with them)",
-        "POST /circles/when-free, MCP when_free, the assistant's when_free (when people in your circles are free)"
+        "POST /circles/when-free, MCP when_free, the assistant's when_free (when people in your circles are free)",
+        "the Library's map: GET /resources?located=true&bbox=..., GET /resources/map-tiles, MCP list_recordings located and bbox, maps.tile_url"
       ],
       "touches": [
         "filesystem"
@@ -480,6 +481,15 @@
       "caller_must_enforce": "none — P-SSRF-GUARD",
       "provenance": "documented",
       "source": "maintainer ruling, 2026-10"
+    },
+    {
+      "entry_point": "the Library's map: GET /resources?located=true&bbox=..., GET /resources/map-tiles, MCP list_recordings located and bbox, maps.tile_url",
+      "parameter": "a bounding box (four numbers); the tile address and its credit (admins)",
+      "attacker_controllable": "yes",
+      "component": "authz",
+      "caller_must_enforce": "none; a place is listed only to members of its asset's namespace or collection, as GET /resources/{rid} already gives it; tiles are fetched by each viewer's browser, never by Lens, so the tile server sees the area looked at (N-MAP-TILES); Leaflet shows the credit as HTML, so the web app escapes it",
+      "provenance": "documented",
+      "source": "docs/processing.md \"the tile server sees the area being looked at\""
     },
     {
       "entry_point": "the assistant's web_search and web_read",
@@ -2010,6 +2020,13 @@
       "false_friend": true,
       "provenance": "documented",
       "source": "docs/nsfw.md \"display preferences, not access control\""
+    },
+    {
+      "property": "N-MAP-TILES",
+      "reason": "privacy from the map's tile server: each member's browser fetches the Library map's tiles from maps.tile_url (OpenStreetMap's by default), so the tile server learns the tiles asked for (the area around where their assets were taken), the viewer's address and Lens's origin (Referer); no asset ids, titles or coordinates go to it. An empty maps.tile_url fetches nothing; a tile server of the operator's own keeps it on their hardware",
+      "false_friend": true,
+      "provenance": "documented",
+      "source": "docs/configuration.md \"The tile server sees which tiles are asked for\""
     },
     {
       "property": "N-RDF-XML",

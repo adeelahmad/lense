@@ -10231,6 +10231,37 @@
             "description": "with `field`: text that its value contains, the number, a date it starts with (1998, 1998-05), true/false, or one of its options"
           },
           {
+            "name": "located",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "only assets known to have been taken somewhere (a GPS fix: `place`)",
+              "default": false,
+              "title": "Located"
+            },
+            "description": "only assets known to have been taken somewhere (a GPS fix: `place`)"
+          },
+          {
+            "name": "bbox",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "only assets taken inside this box: west,south,east,north in degrees (GeoJSON's order); west past east crosses the antimeridian",
+              "title": "Bbox"
+            },
+            "description": "only assets taken inside this box: west,south,east,north in degrees (GeoJSON's order); west past east crosses the antimeridian"
+          },
+          {
             "name": "sort",
             "in": "query",
             "required": false,
@@ -10529,6 +10560,28 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/map-tiles": {
+      "get": {
+        "tags": [
+          "resources"
+        ],
+        "summary": "Get Map Tiles",
+        "description": "The tiles the web app draws its map of where assets were taken on (`GET /resources?located=true` lists them):\nSettings \u2192 Maps, OpenStreetMap's unless an admin changed it.",
+        "operationId": "get_map_tiles",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MapTiles"
                 }
               }
             }
@@ -55075,6 +55128,17 @@
             ],
             "description": "NSFW classification, where it's on in its namespace and it was classified"
           },
+          "place": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GeoPoint"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "where it was taken: its file's GPS fix, or the one anytopdf read from a photo; none when not known"
+          },
           "why": {
             "items": {
               "$ref": "#/components/schemas/FindReason"
@@ -55810,7 +55874,7 @@
           "lon"
         ],
         "title": "GeoPoint",
-        "description": "Where a photo was taken, from its own file (its EXIF GPS fix), in WGS 84 degrees."
+        "description": "Where an asset was taken, from its own file (a photo's EXIF GPS fix, a video's ISO 6709 location), in WGS 84\ndegrees."
       },
       "GoogleClient": {
         "properties": {
@@ -61751,6 +61815,38 @@
           "manifest"
         ],
         "title": "ManifestChecked"
+      },
+      "MapTiles": {
+        "properties": {
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url",
+            "description": "where each viewer's browser fetches them, with {z}, {x} and {y} (XYZ tiles); none: draw no tiles"
+          },
+          "attribution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attribution",
+            "description": "the credit the tiles' terms ask to be shown on the map"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "MapTiles",
+        "description": "The tiles a map of where assets were taken is drawn on (Settings \u2192 Maps)."
       },
       "MarkIn": {
         "properties": {
@@ -75183,7 +75279,7 @@
                 "type": "null"
               }
             ],
-            "description": "a photo: where it was taken, from its EXIF GPS (members of its namespace only)"
+            "description": "where it was taken, from its file: a photo's EXIF GPS, a video's location (members of its namespace only)"
           },
           "nsfw": {
             "anyOf": [
@@ -75939,6 +76035,17 @@
               }
             ],
             "description": "NSFW classification, where it's on in its namespace and it was classified"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GeoPoint"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "where it was taken: its file's GPS fix, or the one anytopdf read from a photo; none when not known"
           }
         },
         "additionalProperties": true,

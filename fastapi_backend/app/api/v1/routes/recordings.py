@@ -51,6 +51,7 @@ from app.schemas.recordings import (
     EvidencePart,
     JobQueued,
     LanguageCount,
+    MapTiles,
     MediaKind,
     NamespaceAccess,
     NsfwCounts,
@@ -168,6 +169,13 @@ def list_recordings(
         description="with `field`: text that its value contains, the number, a date it starts with (1998, 1998-05), "
         "true/false, or one of its options",
     ),
+    located: bool = Query(False, description="only assets known to have been taken somewhere (a GPS fix: `place`)"),
+    bbox: str | None = Query(
+        None,
+        max_length=100,
+        description="only assets taken inside this box: west,south,east,north in degrees (GeoJSON's order); west past "
+        "east crosses the antimeridian",
+    ),
     sort: RecordingSort = Query(
         "-date", description="date, title, duration, speakers (number of people), status or importance; prefix - for descending"
     ),
@@ -194,6 +202,7 @@ def list_recordings(
             raise HTTPException(404, "not found")
         by_field = fieldmod.filter_condition(f, value)
     with domain_errors():
+        box = library.bbox(bbox) if bbox else None
         rows, total = library.list_recordings(
             db,
             spaces,
@@ -227,6 +236,8 @@ def list_recordings(
             topics=topic,
             content_types=content_type,
             emotions=emotion,
+            located=located,
+            box=box,
         )
     response.headers["X-Total-Count"] = str(total)
     for r in rows:
@@ -262,6 +273,14 @@ def list_languages(acl: Acl, user: CurrentUser, db: Db, ns: str | None = Query(N
     """The languages of the assets you can read (or one namespace's), with how many are in each; null: not known."""
     spaces, within = acl.scope(ns)
     return [LanguageCount.model_validate(x) for x in library.language_counts(db, spaces, within)]
+
+
+@router.get("/map-tiles")
+def get_map_tiles(user: CurrentUser, cfg: Cfg) -> MapTiles:
+    """The tiles the web app draws its map of where assets were taken on (`GET /resources?located=true` lists them):
+    Settings → Maps, OpenStreetMap's unless an admin changed it."""
+    m = cfg.get("maps") or {}
+    return MapTiles(url=m.get("tile_url") or None, attribution=m.get("attribution") or None)
 
 
 @router.get("/objects")
@@ -342,8 +361,9 @@ def get_recording(rid: int, acl: Acl, db: Db, cfg: Cfg) -> Recording:
     d["converted_from"] = _attached_to(acl, db, r.get("converted_from"))
     if r.get("enrichment") and acl.member(r):  # where a photo was taken: members only
         d["enrichment"] = {k: v for k, v in r["enrichment"].items() if k != "photo_fp"}
-    if r.get("place") and acl.member(r):  # its file's GPS fix, likewise
-        d["place"] = r["place"]
+    place = library.place_of({"place": r.get("place"), "_gps": (r.get("enrichment") or {}).get("place")})
+    if place and acl.member(r):  # where it was taken, likewise
+        d["place"] = place
     d["nsfw"] = _nsfw(db, cfg, r, rid)
     d["enhanced"] = enhance.brief(r.get("enhanced"), rid)
     waiting = r.get("awaits_pdf") or None

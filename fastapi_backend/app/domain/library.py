@@ -26,8 +26,10 @@ SORTS = {
 }
 FIELDS = (
     "record::id(id) AS id, title, recorded_at, duration_ms, status, error, source, stats, summary, space, collection, media, "
-    "access, access_parts, featured, tags, language, path, remote, engine, nsfw"
+    "access, access_parts, featured, tags, language, path, remote, engine, nsfw, place, enrichment.place AS _gps"
 )
+# where an asset was taken: its file's own GPS fix (ingest.taken), else the one anytopdf read from a photo (enrich.py)
+LAT, LON = "(place.lat ?? enrichment.place.lat)", "(place.lon ?? enrichment.place.lon)"
 # where a recording came from (origin_of): a connected source (source:<id>), or one of these
 ORIGINS = {
     "upload": "Uploaded",
@@ -192,6 +194,26 @@ def check_origins(origins):
             raise ValueError(f"origin is one of {', '.join(ORIGINS)} or source:<id>")
 
 
+def bbox(text):
+    """A bounding box given as "west,south,east,north" in degrees (GeoJSON's order, RFC 7946), as those four numbers. West
+    past east crosses the antimeridian (170,-50,-170,-30 is the Pacific around Fiji). ValueError for anything else."""
+    try:
+        w, s, e, n = (float(x) for x in str(text).split(","))
+    except ValueError:
+        raise ValueError("bbox is west,south,east,north in degrees, such as 2.2,48.8,2.4,48.9") from None
+    if not all(-180 <= x <= 180 for x in (w, e)) or not -90 <= s <= n <= 90:
+        raise ValueError("bbox is west,south,east,north: longitudes from -180 to 180, latitudes from -90 to 90, south first")
+    return w, s, e, n
+
+
+def place_of(rec):
+    """Where an asset was taken ({lat, lon}), from a row that selected FIELDS; None when it isn't known."""
+    for p in (rec.get("place"), rec.get("_gps")):
+        if isinstance(p, dict) and p.get("lat") is not None and p.get("lon") is not None:
+            return {"lat": p["lat"], "lon": p["lon"]}
+    return None
+
+
 def in_scope(spaces, within=None):
     """The WHERE clause, with its parameters, for the recordings of these namespaces and of the collections in
     `within` ({namespace: collection ids}: namespaces someone sees only some collections of)."""
@@ -256,6 +278,8 @@ def where(
     content_types=None,
     emotions=None,
     only=None,
+    located=False,
+    box=None,
 ):
     """The WHERE clause and its parameters for these filters. Filters combine with AND, the values of one filter with OR.
 
@@ -273,7 +297,9 @@ def where(
     without it (and with cfg), flagged ones are left out where their namespace hides them.
     faces: face identity ids, seen in it (faces.py). entities: entity ids, mentioned in it. topics: topic ids, that it
     was accepted as about (topics.py). content_types: subtype keys, its content type (content_types.py). emotions:
-    emotions heard in it (ignoring case). only: recording ids (such as those another search found).
+    emotions heard in it (ignoring case). only: recording ids (such as those another search found). located: only
+    those known to have been taken somewhere (a GPS fix: LAT, LON). box: only those taken inside this bounding box
+    (west, south, east, north, as bbox() gives it).
     """
     base, p = in_scope(spaces, within)
     w = [base]
@@ -405,6 +431,12 @@ def where(
     if collections is not None:
         p["cols"] = sorted(collections)
         w.append("collection IN $cols")
+    if located or box:
+        w.append(f"{LAT} != NONE AND {LON} != NONE")
+    if box:
+        p["bw"], p["bs"], p["be"], p["bn"] = box
+        w.append(f"{LAT} >= $bs AND {LAT} <= $bn")
+        w.append(f"({LON} >= $bw {'AND' if box[0] <= box[2] else 'OR'} {LON} <= $be)")  # west past east: across 180°
     if field is not None:
         cond, value = field
         w.append(cond)
@@ -481,7 +513,8 @@ def summaries(db, rows, cfg=None):
         if origins:
             r["origin"] = came[r["id"]]
             r["origin_name"] = called[r["origin"]]
-        for k in ("_k", "_none", "access_parts", "path", "remote", "engine", "nsfw"):
+        r["place"] = place_of(r)
+        for k in ("_k", "_none", "access_parts", "path", "remote", "engine", "nsfw", "_gps"):
             r.pop(k, None)
         if flags.get(r["id"]):
             r["nsfw"] = flags[r["id"]]

@@ -98,6 +98,23 @@ class RecordingNsfwUpdate(RequestModel):
     flagged: bool | None = Field(description="true: NSFW; false: not NSFW; null: let the score decide again")
 
 
+class GeoPoint(ResponseModel):
+    """Where an asset was taken, from its own file (a photo's EXIF GPS fix, a video's ISO 6709 location), in WGS 84
+    degrees."""
+
+    lat: float = Field(description="latitude, north positive")
+    lon: float = Field(description="longitude, east positive")
+
+
+class MapTiles(ResponseModel):
+    """The tiles a map of where assets were taken is drawn on (Settings → Maps)."""
+
+    url: str | None = Field(
+        None, description="where each viewer's browser fetches them, with {z}, {x} and {y} (XYZ tiles); none: draw no tiles"
+    )
+    attribution: str | None = Field(None, description="the credit the tiles' terms ask to be shown on the map")
+
+
 class RecordingSummary(ResponseModel):
     id: int
     title: str | None = None
@@ -131,6 +148,9 @@ class RecordingSummary(ResponseModel):
         None, description="your role on it: through its namespace or its collection (an admin of the collection is an owner)"
     )
     nsfw: NsfwState | None = Field(None, description="NSFW classification, where it's on in its namespace and it was classified")
+    place: GeoPoint | None = Field(
+        None, description="where it was taken: its file's GPS fix, or the one anytopdf read from a photo; none when not known"
+    )
 
 
 class OriginCount(ResponseModel):
@@ -301,13 +321,6 @@ class EnrichedPlace(ResponseModel):
     said: str | None = Field(None, description="named in the text: the words that name it")
 
 
-class GeoPoint(ResponseModel):
-    """Where a photo was taken, from its own file (its EXIF GPS fix), in WGS 84 degrees."""
-
-    lat: float = Field(description="latitude, north positive")
-    lon: float = Field(description="longitude, east positive")
-
-
 class EnrichedDate(ResponseModel):
     """A date or time the text gives."""
 
@@ -384,7 +397,9 @@ class Recording(ResponseModel):
         description="when it was made: a date in its file's name, else what its file says (a photo's EXIF, a video's "
         "creation time), else its file's last change; a source's or a document's own date wins",
     )
-    place: GeoPoint | None = Field(None, description="a photo: where it was taken, from its EXIF GPS (members of its namespace only)")
+    place: GeoPoint | None = Field(
+        None, description="where it was taken, from its file: a photo's EXIF GPS, a video's location (members of its namespace only)"
+    )
     nsfw: NsfwState | None = Field(None, description="NSFW classification, where it's on in its namespace and it was classified")
     audio_cleanup: AudioCleanup | None = Field(None, description="how its clean_audio step cleaned up its sound before transcription")
     enhanced: Enhanced | None = Field(None, description="an image the enhance step looked at: what it found, and its enhanced copy")

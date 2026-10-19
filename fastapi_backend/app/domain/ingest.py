@@ -164,22 +164,40 @@ def _exif(path):
     when = when or _taken_when(exif.get(ExifTags.Base.DateTime))
     lat = _degrees(gps.get(ExifTags.GPS.GPSLatitude), gps.get(ExifTags.GPS.GPSLatitudeRef))
     lon = _degrees(gps.get(ExifTags.GPS.GPSLongitude), gps.get(ExifTags.GPS.GPSLongitudeRef))
+    return when, _point(lat, lon)
+
+
+def _point(lat, lon):
+    """A GPS fix as Lens keeps it ({lat, lon}, to six places: about 10 cm), or None for one that isn't a place on Earth
+    or is 0, 0 (what a device writes when it has no fix)."""
     ok = lat is not None and lon is not None and math.isfinite(lat + lon) and abs(lat) <= 90 and abs(lon) <= 180
-    place = {"lat": round(lat, 6), "lon": round(lon, 6)} if ok and (lat, lon) != (0, 0) else None  # 0, 0: no fix
-    return when, place
+    return {"lat": round(lat, 6), "lon": round(lon, 6)} if ok and (lat, lon) != (0, 0) else None
+
+
+ISO6709_RX = re.compile(r"^\s*([+-]\d+(?:\.\d+)?)([+-]\d+(?:\.\d+)?)")
+LOCATION_TAGS = ("com.apple.quicktime.location.ISO6709", "location", "location-eng")
+
+
+def _iso6709(s):
+    """Where an ISO 6709 string such as "+48.8582+002.2945+035.000/" (a phone's video) says, in degrees; None if it
+    isn't one. Only the decimal-degree form phones write is read."""
+    m = ISO6709_RX.match(str(s or ""))
+    return _point(float(m.group(1)), float(m.group(2))) if m else None
 
 
 def taken(path):
     """When and where a photo, a video or a recording was taken, as its own file says: a photo's EXIF (DateTimeOriginal,
     else DateTime, and its GPS fix), a video's or a recording's creation time (QuickTime's creationdate, which keeps
-    the local time, else creation_time). (ISO 8601 or None, {lat, lon} or None): nothing is guessed. Read it before
-    the file is encrypted."""
+    the local time, else creation_time) and its location (ISO 6709, as phones write it). (ISO 8601 or None, {lat, lon}
+    or None): nothing is guessed. Read it before the file is encrypted."""
     ext = pathlib.Path(path).suffix.lower()
     if ext in store.IMAGE_EXT:
         return _exif(path)
     if ext in store.MEDIA_EXT:
-        tags = (_ffprobe(path, "format_tags=creation_time,com.apple.quicktime.creationdate").get("format") or {}).get("tags") or {}
-        return _taken_when(tags.get("com.apple.quicktime.creationdate")) or _taken_when(tags.get("creation_time")), None
+        names = ",".join(("creation_time", "com.apple.quicktime.creationdate", *LOCATION_TAGS))
+        tags = (_ffprobe(path, f"format_tags={names}").get("format") or {}).get("tags") or {}
+        when = _taken_when(tags.get("com.apple.quicktime.creationdate")) or _taken_when(tags.get("creation_time"))
+        return when, next((p for p in map(_iso6709, (tags.get(t) for t in LOCATION_TAGS)) if p), None)
     return None, None
 
 

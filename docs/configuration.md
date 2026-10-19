@@ -112,7 +112,7 @@ Start from `fastapi_backend/archive.example.yaml`, which documents every key. Th
 
 Admins can change, in Settings: transcription, speaker separation, speech providers, voice IDs, analysis, the LLM
 provider and key, a local model, the AI assistant, the [code sandbox](assistant.md#code-sandbox), search (word
-search and search by meaning), reports and graph,
+search and search by meaning), reports and graph, [maps](#maps),
 video, OCR, faces and objects, [NSFW classification](nsfw.md), [enhancing
 images](enhance.md), workers, sign-in, components (and the edition, full or
 lean), access and embedding (whether other devices on the network reach Lens, embed frame ancestors, text and transcript
@@ -289,6 +289,23 @@ resource are described. Each call is in the [activity ledger](activity.md) (`mod
 | `llm.describe_max` | 50 | pages or shots of a resource described at most, 1–1000 (in order: the rest aren't) |
 
 Agents read and change these with the MCP tools `picture_descriptions` and `set_picture_descriptions` (admins).
+
+## Maps
+
+The Library's Map shows where photos and videos were taken
+([Where an asset was taken](processing.md#where-an-asset-was-taken)) on tiles that each viewer's browser fetches
+itself. Settings → Maps:
+
+| Setting | Default | |
+|---|---|---|
+| `maps.tile_url` | `https://tile.openstreetmap.org/{z}/{x}/{y}.png` | where the tiles come from: an http(s) address with `{z}`, `{x}` and `{y}` (and `{s}` for a subdomain, if the server has them), with no password in it. Empty draws no tiles, only the dots |
+| `maps.attribution` | `© OpenStreetMap contributors` | the credit the tiles' terms ask to be shown on the map, one line |
+
+The tile server sees which tiles are asked for, so the area each person looks at (around where their photos were
+taken) and the address they look from, as any web map's does; nothing else about the assets goes to it. To keep that
+on your own hardware, run a tile server of your own and give its address, or leave the address empty. OpenStreetMap's
+tiles are for light use under its [tile usage policy](https://operations.osmfoundation.org/policies/tiles/); a busy
+install should use its own or a provider's.
 
 ## Uploads
 

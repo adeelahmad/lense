@@ -682,7 +682,8 @@ MEDIA = ("audio", "video", "transcript", "document", "image")
     "list_recordings",
     "List assets",
     "Assets (audio, video, documents, images and text) you can read, newest first by default, with filters. `query` "
-    "matches words in the title, the namespace or a person's name; use search for what is in them.",
+    "matches words in the title, the namespace or a person's name; use search for what is in them. Each says where it "
+    "was taken (`place`: lat, lon) when its file had a GPS fix; `located` or `bbox` keeps to those, as on a map.",
     Arg("namespace", "string", "only this namespace"),
     Arg("query", "string", "words that must all appear in the title, the namespace or a person's name", max_length=200),
     Arg("date_from", "string", "dated on or after this day (YYYY-MM-DD)"),
@@ -696,6 +697,13 @@ MEDIA = ("audio", "video", "transcript", "document", "image")
         "where NSFW classification is on: only those flagged NSFW, exclude them, or include them (without it, flagged ones "
         "are left out where their namespace hides them)",
         enum=("include", "only", "exclude"),
+    ),
+    Arg("located", "boolean", "only assets known to have been taken somewhere (with a place)", default=False),
+    Arg(
+        "bbox",
+        "string",
+        "only assets taken inside this box: west,south,east,north in degrees, such as 2.2,48.8,2.4,48.9 (Paris)",
+        max_length=100,
     ),
     Arg("sort", "string", "order: date, title or duration; - first for descending", default="-date", enum=SORTS),
     Arg("limit", "integer", "how many", default=20, minimum=1, maximum=100),
@@ -711,11 +719,14 @@ def list_recordings(
     tag: str | None,
     media: str | None,
     sensitive: str | None,
+    located: bool,
+    bbox: str | None,
     sort: str,
     limit: int,
     offset: int,
 ) -> dict[str, Any]:
     spaces, within = ctx.acl.scope(namespace)
+    box = library.bbox(bbox) if bbox else None
     rows, total = library.list_recordings(
         ctx.db,
         spaces,
@@ -731,6 +742,8 @@ def list_recordings(
         tags=[tag] if tag else None,
         cfg=ctx.cfg,
         sensitive=sensitive,
+        located=located,
+        box=box,
     )
     out: dict[str, Any] = {
         "total": total,
@@ -747,6 +760,7 @@ def list_recordings(
                 "tags": r.get("tags") or None,
                 "language": r.get("language"),
                 "nsfw": True if (r.get("nsfw") or {}).get("flagged") else None,
+                "place": r.get("place"),
                 "url": ctx.link(r["id"]),
             }
             for r in rows

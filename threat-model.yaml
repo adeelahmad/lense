@@ -98,6 +98,11 @@ host_side_effects:
     components: [web, identity, authz, outbound, ingest, query, assistant, optional]
     conditions: "none found in Lens code outside the configured destinations"
     provenance: {kind: assumption, question_id: Q19}
+  - effect: x-browser-map-tiles
+    stance: conditional
+    components: [web]
+    conditions: "the Library's Map fetches its tiles from maps.tile_url (OpenStreetMap's by default) in the member's browser while it is open; empty fetches nothing (N-MAP-TILES)"
+    provenance: {kind: documented, source: 'docs/configuration.md "The tile server sees which tiles are asked for"'}
   - effect: x-ml-extra-weight-downloads
     stance: conditional
     components: [ingest]
@@ -391,6 +396,15 @@ entry_points:
         control_kinds: [resource-name, x-network-destination]
         caller_must_enforce: "none — P-SSRF-GUARD"
         provenance: {kind: maintainer, date: "2026-10"}
+  - id: "the Library's map: GET /resources?located=true&bbox=..., GET /resources/map-tiles, MCP list_recordings located and bbox, maps.tile_url"
+    component: authz
+    parameters:
+      - name: "a bounding box (four numbers); the tile address and its credit (admins)"
+        attacker_controllable: true
+        x-condition: "bbox: any member, parsed as four numbers in range (400 otherwise) and bound as query parameters; tile address: admins only (Settings, Maps)"
+        control_kinds: [data, x-network-destination]
+        caller_must_enforce: "none; a place is listed only to members of its asset's namespace or collection, as GET /resources/{rid} already gives it; tiles are fetched by each viewer's browser, never by Lens, so the tile server sees the area looked at (N-MAP-TILES); Leaflet shows the credit as HTML, so the web app escapes it"
+        provenance: {kind: documented, source: 'docs/processing.md "the tile server sees the area being looked at"'}
   - id: "the assistant's web_search and web_read"
     component: assistant
     parameters:
@@ -2301,6 +2315,7 @@ properties_disclaimed:
   - {id: N-PUBLIC, components: [authz], tier: correctness-only, false_friend: false, conditions: "privacy of a public asset's open parts: anyone may use them; open parts only; closed parts and restricted or private assets are P-ACCESS-PARTS", provenance: {kind: documented, source: 'docs/access.md "the parts of a public asset anyone may use"'}}
   - {id: N-DESCRIPTION, components: [authz], tier: correctness-only, false_friend: false, conditions: "hiding an asset's description when its parts are closed; anyone who may see the page", provenance: {kind: documented, source: 'docs/access.md "never a closed part"'}}
   - {id: N-NSFW, components: [web, authz], tier: correctness-only, false_friend: true, conditions: "access control from NSFW classification; blurring and hiding flagged resources are display preferences of the web app, and the score can be wrong; anyone who may read a resource still opens it, sees its pictures (sensitive=include, signed frame links, public pages, IIIF, embeds) and reads its classification", x-false-friend-note: "'hidden' reads as restricted", provenance: {kind: documented, source: 'docs/nsfw.md "display preferences, not access control"'}}
+  - {id: N-MAP-TILES, components: [web], tier: correctness-only, false_friend: true, conditions: "privacy from the map's tile server: each member's browser fetches the Library map's tiles from maps.tile_url (OpenStreetMap's by default), so the tile server learns the tiles asked for (the area around where their assets were taken), the viewer's address and Lens's origin (Referer); no asset ids, titles or coordinates go to it. An empty maps.tile_url fetches nothing; a tile server of the operator's own keeps it on their hardware", x-false-friend-note: "'data stays on your hardware' reads as covering the map", provenance: {kind: documented, source: 'docs/configuration.md "The tile server sees which tiles are asked for"'}}
   - {id: N-RDF-XML, components: [query], tier: security-critical, false_friend: false, conditions: "XML parsing in RDF import; RDF/XML is refused, so XXE and billion-laughs do not apply there; RDF import only, not docx", provenance: {kind: documented, source: 'rdf_import.py docstring "RDF/XML isn''t read"'}}
 
 x-false-friends-without-row:

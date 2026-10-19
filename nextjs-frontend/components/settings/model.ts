@@ -70,6 +70,7 @@ export type SectionId =
   | "sandbox"
   | "search"
   | "reports"
+  | "maps"
   | "video"
   | "nsfw"
   | "enhance"
@@ -197,6 +198,13 @@ export const SECTIONS: SectionSpec[] = [
     label: "Reports and graph",
     backend: ["reports", "graph"],
     description: "What reports carry, and how big the knowledge graph gets.",
+  },
+  {
+    id: "maps",
+    label: "Maps",
+    backend: ["maps"],
+    description:
+      "The tiles under the Library’s map of where photos and videos were taken. Each viewer’s browser fetches them, so the tile server sees the area looked at.",
   },
   {
     id: "video",
@@ -4140,6 +4148,25 @@ export const FIELDS: FieldSpec[] = [
     mono: true,
     hint: "One per line, like 192.168.1.0/24: web pages, calendar feeds and videos there can be imported. Public addresses always can, and networks set on the server stay",
   },
+  // Maps
+  {
+    section: "maps",
+    key: "tile_url",
+    label: "Map tiles",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "No tiles: only the dots",
+    hint: "An address with {z}, {x} and {y}, such as your own tile server’s. It sees the area people look at. Empty draws no tiles",
+  },
+  {
+    section: "maps",
+    key: "attribution",
+    label: "Credit shown on the map",
+    kind: "text",
+    nullable: true,
+    hint: "What the tiles’ terms ask to be shown, such as © OpenStreetMap contributors",
+  },
   // IIIF & metadata
   {
     section: "iiif",
@@ -4505,6 +4532,9 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
     e["embeddings.model"] = "Name the embedding model, such as nomic-embed-text";
   const base = values["iiif.base_url"] as string | null | undefined;
   if (base && !URL_RX.test(base)) e["iiif.base_url"] = "Use an http(s) address";
+  const tiles = values["maps.tile_url"] as string | null | undefined;
+  if (tiles && (!URL_RX.test(tiles) || !["{z}", "{x}", "{y}"].every((k) => tiles.includes(k))))
+    e["maps.tile_url"] = "Use an http(s) address with {z}, {x} and {y}, or leave it empty for no tiles";
   const appUrl = values["notifications.app_url"] as string | null | undefined;
   if (appUrl && !URL_RX.test(appUrl)) e["notifications.app_url"] = "Use an http(s) address";
   const nets = values["notifications.networks"] as string[] | undefined;

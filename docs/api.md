@@ -612,6 +612,7 @@ GET    /api/v1/resources/origins
 GET    /api/v1/resources/languages
 GET    /api/v1/resources/objects
 GET    /api/v1/resources/nsfw
+GET    /api/v1/resources/map-tiles
 POST   /api/v1/resources/tags
 POST   /api/v1/resources/collection
 GET    /api/v1/resources/{rid}
@@ -680,13 +681,17 @@ repeat a parameter that takes several values (`?status=new&status=error`) to mat
 | `emotion` | emotions heard in them, ignoring case |
 | `edited_by` | `me`: assets you edited (corrected a line of the text, changed the catalogue record, or renamed) |
 | `sensitive` | where [NSFW classification](nsfw.md) is on: `only` the ones flagged NSFW, `exclude` them, or `include` them. Without it, flagged ones are left out where their namespace hides them (`display: hide`) |
+| `located` | `true`: only assets known to have been taken somewhere (a `place`, [Where an asset was taken](processing.md#where-an-asset-was-taken)) |
+| `bbox` | `west,south,east,north` in degrees (GeoJSON's order): only assets taken inside that box; west past east crosses the antimeridian |
 | `sort` | `date`, `title`, `duration`, `speakers`, `status` or `importance`; `-` in front for descending (default `-date`). Assets without the value come last either way |
 | `limit`, `offset` | one page (default 500 rows, at most 1000) |
 
 The body is the page's rows; the `X-Total-Count` header says how many assets match on all pages.
 
 Rows also say where each asset came from (`origin`, and `origin_name`: the source's name, or e.g. "Uploaded"),
-its `language` when known and the collection it lives in (`collection`, `collection_name`). `GET /resources/{rid}`
+its `language` when known, the collection it lives in (`collection`, `collection_name`) and where it was taken
+(`place`: `{lat, lon}`, or null). `GET /resources/map-tiles` (anyone signed in) gives the tiles the web app's map draws
+on: `url`, an XYZ address with `{z}`, `{x}` and `{y}` (null for none), and its `attribution` (Settings → Maps). `GET /resources/{rid}`
 adds `collection_path`: the collections from the top of the namespace down to its own, `[{id, name}]`.
 `POST /resources/collection {recordings, collection}` moves assets into a collection of their namespace (editors
 of each); an asset of another namespace is a 400 (move it to that namespace first). It answers how many `moved`;
