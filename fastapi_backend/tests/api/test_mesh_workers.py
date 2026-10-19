@@ -105,6 +105,35 @@ def test_a_scaling_unit_names_its_worker_and_its_steps(client, db, cfg, nebula, 
     assert Proc.started[-1].cmd[1:6] == ["worker", "--name", "hetzner-3", "--steps", "transcribe"]
 
 
+def test_a_scaling_unit_let_go_leaves_the_mesh_with_its_token(client, db, cfg, nebula, server_db, folders, monkeypatch):  # noqa: F811
+    from app.domain import scaling
+
+    h = admin(client, db)
+    client.post("/api/v1/mesh/tokens", json={"role": "worker"}, headers=h)  # the mesh is on
+    _, joins = mesh.make_token(db, cfg, by="scaling", role="worker", name="lens-w-7", hours=1, uses=1)
+    unspent, _ = mesh.make_token(db, cfg, by="scaling", role="worker", name="lens-w-8", hours=1, uses=1)
+    by_hand, _ = mesh.make_token(db, cfg, by="root@x.io", role="worker", name="lens-w-9", hours=1, uses=1)
+    monkeypatch.setenv("LENS_SCALING_UNIT", "lens-w-7")
+    a = agent(client, folders, joins, name="lens-w-7")
+    a.tick()
+    (folders[1] / "host.pub").write_text(mesh.keygen(cfg)[1])
+    running(folders[1])
+    a.tick()
+    nid = a.node["node"]["id"]
+    assert f"lens_node_{nid}" in users(db)
+
+    assert scaling._unmesh(db, "lens-w-7") == [nid]
+    assert mesh.node(db, nid)["revoked_at"] and f"lens_node_{nid}" not in users(db)
+    due(a)
+    a.tick()
+    assert a.removed and Proc.started[-1].stopped  # off the mesh: its worker stops
+
+    assert scaling._unmesh(db, "lens-w-8") == []  # it never joined: its token can't be used now
+    revoked = {t["id"]: bool(t.get("revoked_at")) for t in db.rows("SELECT record::id(id) AS id, revoked_at FROM mesh_token")}
+    assert revoked[unspent["id"]] is True and revoked[by_hand["id"]] is False  # a token a person made isn't Lens's to withdraw
+    assert scaling._unmesh(db, "lens-w-9") == [] and scaling._unmesh(db, "nobody") == []
+
+
 def test_a_node_runs_only_the_steps_a_node_can(client, db, cfg, nebula, server_db, folders, monkeypatch):  # noqa: F811
     monkeypatch.setenv("LENS_WORKER_STEPS", "summarize,diarize")
     a = on_mesh(client, cfg, admin(client, db), folders)

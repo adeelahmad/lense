@@ -884,6 +884,7 @@ def _terminate(db, cfg, drv, p, n, why, by=None, state="terminated", now=None):
         t=_iso(now),
     )
     db.q("DELETE $w", w=R("worker", n["name"]))
+    off = _unmesh(db, n["name"])
     activity.record(
         "run",
         "scaling.terminate" if state == "terminated" else "scaling.fail",
@@ -892,9 +893,22 @@ def _terminate(db, cfg, drv, p, n, why, by=None, state="terminated", now=None):
         db,
         actor=by,
         ok=state == "terminated",
-        detail={"why": why, "unit": n.get("name")},
+        detail=store.clean({"why": why, "unit": n.get("name"), "off_mesh": off or None}),
     )
     return True
+
+
+def _unmesh(db, name):
+    """A unit gone takes its place on the mesh with it: its join token, if unspent, is withdrawn and the node that
+    joined with it is taken off (mesh.let_go_unit). Trouble here is logged; the unit is gone either way."""
+    mesh = mesh_module()
+    if mesh is None or not hasattr(mesh, "let_go_unit"):
+        return []
+    try:
+        return mesh.let_go_unit(db, name)
+    except Exception as e:  # noqa: BLE001 - logged; the node can still be removed in Settings › Nodes
+        log.warning("scaling: couldn't take unit %s off the mesh: %s: %s", name, type(e).__name__, e)
+        return []
 
 
 def accrue(db, cfg, n, now, final=False):
@@ -1318,6 +1332,7 @@ class Scaler:
         except Exception as e:  # noqa: BLE001 - the unit failed; three in a row pause the group
             err = f"{type(e).__name__}: {e}"[:300] if not isinstance(e, drivers.DriverError) else str(e)[:300]
             db.q("UPDATE $r SET state = 'failed', error = $e, ended_at = $t", r=R("scale_node", nid), e=err, t=_iso(now))
+            _unmesh(db, name)  # its join token goes unspent
             fails = (g.get("failures") or 0) + 1
             db.q("UPDATE $r SET failures = $f, error = $e", r=R("scale_group", g["id"]), f=fails, e=err)
             activity.record("run", "scaling.fail", refs, cfg, db, ok=False, error=type(e).__name__, detail={"why": err, "unit": name})

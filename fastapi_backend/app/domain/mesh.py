@@ -959,6 +959,23 @@ def remove(db, nid, by=None):
     return node(db, nid)
 
 
+def let_go_unit(db, name, by="scaling"):
+    """An auto scaling unit let go (scaling.py): the join tokens made for it that weren't spent are withdrawn, and the
+    machine that joined with one is taken off the mesh (its certificates on the blocklist, its database user gone),
+    so a machine let go can't come back on what it was given. Returns the ids of the nodes taken off."""
+    tids = db.values("SELECT VALUE record::id(id) FROM mesh_token WHERE name = $n AND created_by = 'scaling'", n=name)
+    if not tids:
+        return []
+    db.q("UPDATE mesh_token SET revoked_at = $t WHERE record::id(id) IN $ids AND revoked_at = NONE", ids=tids, t=store.now())
+    gone = []
+    for nid in db.values(
+        "SELECT VALUE record::id(id) FROM mesh_node WHERE token IN $ids AND revoked_at = NONE AND role != 'primary'", ids=tids
+    ):
+        remove(db, nid, by)
+        gone.append(nid)
+    return gone
+
+
 def undo_remove(db, nid, cfg):
     n = node(db, nid)
     if not n["revoked_at"]:
