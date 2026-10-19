@@ -3,7 +3,7 @@ Lens kind, pages of the timeline, and the kinds catalog."""
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import ConfigDict, Field
 
@@ -156,3 +156,44 @@ class Caused(ResponseModel):
 
     runs: list[AutomationRun] = Field(default_factory=list, description="the automation runs it started, newest first")
     approvals: list[Approval] = Field(default_factory=list, description="the approvals it led to, newest first, with what you can do")
+
+
+Day = Annotated[str, Field(pattern=r"^\d{4}-\d{2}-\d{2}$")]
+Short = Annotated[str, Field(min_length=1, max_length=240)]
+
+
+class TimelineViewState(RequestModel):
+    """What the timeline shows: its filters and order, as the page's address has them (docs/timeline.md, Saved views).
+    The same filters as GET /activities, with dates as days."""
+
+    kinds: list[Short] = Field(default_factory=list, max_length=50, description="kinds of activity; none: every kind but the noisy ones")
+    actor: list[Short] = Field(default_factory=list, max_length=50, description="who did it, by actor id (lens:source/12)")
+    namespace: list[Short] = Field(default_factory=list, max_length=50, description="namespaces, by name")
+    tag: str = Field("", max_length=240, description="an entity's name or id, as activities tag it")
+    from_day: Day | None = Field(None, description="from this day (YYYY-MM-DD, the viewer's own days)")
+    to_day: Day | None = Field(None, description="to this day, included")
+    automation: int | None = Field(None, description="an automation's id: what it did or caused")
+    q: str = Field("", max_length=200, description="words in the summary")
+    unreviewed: bool = Field(False, description="only those you haven't marked reviewed")
+    important: bool = Field(False, description="only those you marked important")
+    order: Literal["latest", "for_you"] = "latest"
+
+
+class TimelineView(ResponseModel):
+    id: int
+    name: str
+    state: TimelineViewState
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class TimelineViewCreate(RequestModel):
+    name: str = Field(min_length=1, max_length=60, description="unique among your timeline views")
+    state: TimelineViewState = Field(default_factory=TimelineViewState)
+
+
+class TimelineViewUpdate(RequestModel):
+    """Only what you send changes."""
+
+    name: str | None = Field(None, min_length=1, max_length=60)
+    state: TimelineViewState | None = Field(None, description="save what the timeline shows now into it")

@@ -5592,6 +5592,166 @@
         }
       }
     },
+    "/api/v1/activities/views": {
+      "get": {
+        "tags": [
+          "activities"
+        ],
+        "summary": "List Timeline Views",
+        "description": "Your saved views of the timeline: each a name for its filters and order, the latest changed first. Nobody else\nsees them.",
+        "operationId": "list_timeline_views",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TimelineView"
+                  },
+                  "type": "array",
+                  "title": "Response Activities-List Timeline Views"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "activities"
+        ],
+        "summary": "Create Timeline View",
+        "description": "Save the timeline's filters and order under a name, unique among your timeline views (up to 100).",
+        "operationId": "create_timeline_view",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TimelineViewCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimelineView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/activities/views/{vid}": {
+      "patch": {
+        "tags": [
+          "activities"
+        ],
+        "summary": "Update Timeline View",
+        "description": "Rename it, or save what the timeline shows now into it. Yours only.",
+        "operationId": "update_timeline_view",
+        "parameters": [
+          {
+            "name": "vid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Vid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TimelineViewUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimelineView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "activities"
+        ],
+        "summary": "Delete Timeline View",
+        "description": "Delete it. Yours only.",
+        "operationId": "delete_timeline_view",
+        "parameters": [
+          {
+            "name": "vid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Vid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/activities/{activity_id}": {
       "get": {
         "tags": [
@@ -83695,6 +83855,217 @@
           "ok"
         ],
         "title": "TikaTestResult"
+      },
+      "TimelineView": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "state": {
+            "$ref": "#/components/schemas/TimelineViewState"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "state"
+        ],
+        "title": "TimelineView"
+      },
+      "TimelineViewCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Name",
+            "description": "unique among your timeline views"
+          },
+          "state": {
+            "$ref": "#/components/schemas/TimelineViewState"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "TimelineViewCreate"
+      },
+      "TimelineViewState": {
+        "properties": {
+          "kinds": {
+            "items": {
+              "type": "string",
+              "maxLength": 240,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "Kinds",
+            "description": "kinds of activity; none: every kind but the noisy ones"
+          },
+          "actor": {
+            "items": {
+              "type": "string",
+              "maxLength": 240,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "Actor",
+            "description": "who did it, by actor id (lens:source/12)"
+          },
+          "namespace": {
+            "items": {
+              "type": "string",
+              "maxLength": 240,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "Namespace",
+            "description": "namespaces, by name"
+          },
+          "tag": {
+            "type": "string",
+            "maxLength": 240,
+            "title": "Tag",
+            "description": "an entity's name or id, as activities tag it",
+            "default": ""
+          },
+          "from_day": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Day",
+            "description": "from this day (YYYY-MM-DD, the viewer's own days)"
+          },
+          "to_day": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Day",
+            "description": "to this day, included"
+          },
+          "automation": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Automation",
+            "description": "an automation's id: what it did or caused"
+          },
+          "q": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Q",
+            "description": "words in the summary",
+            "default": ""
+          },
+          "unreviewed": {
+            "type": "boolean",
+            "title": "Unreviewed",
+            "description": "only those you haven't marked reviewed",
+            "default": false
+          },
+          "important": {
+            "type": "boolean",
+            "title": "Important",
+            "description": "only those you marked important",
+            "default": false
+          },
+          "order": {
+            "type": "string",
+            "enum": [
+              "latest",
+              "for_you"
+            ],
+            "title": "Order",
+            "default": "latest"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "TimelineViewState",
+        "description": "What the timeline shows: its filters and order, as the page's address has them (docs/timeline.md, Saved views).\nThe same filters as GET /activities, with dates as days."
+      },
+      "TimelineViewUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TimelineViewState"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "save what the timeline shows now into it"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "TimelineViewUpdate",
+        "description": "Only what you send changes."
       },
       "TokenLimits": {
         "properties": {

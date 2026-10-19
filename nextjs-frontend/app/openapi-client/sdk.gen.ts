@@ -303,6 +303,9 @@ import type {
   CreateTemplateVersionData,
   CreateTemplateVersionErrors,
   CreateTemplateVersionResponses,
+  CreateTimelineViewData,
+  CreateTimelineViewErrors,
+  CreateTimelineViewResponses,
   CreateTokenData,
   CreateTokenErrors,
   CreateTokenResponses,
@@ -455,6 +458,9 @@ import type {
   DeleteSourceData,
   DeleteSourceErrors,
   DeleteSourceResponses,
+  DeleteTimelineViewData,
+  DeleteTimelineViewErrors,
+  DeleteTimelineViewResponses,
   DeleteTopicData,
   DeleteTopicErrors,
   DeleteTopicResponses,
@@ -1187,6 +1193,8 @@ import type {
   ListThreadsData,
   ListThreadsErrors,
   ListThreadsResponses,
+  ListTimelineViewsData,
+  ListTimelineViewsResponses,
   ListTokensData,
   ListTokensResponses,
   ListTopicChangesData,
@@ -2088,6 +2096,9 @@ import type {
   UpdateThreadData,
   UpdateThreadErrors,
   UpdateThreadResponses,
+  UpdateTimelineViewData,
+  UpdateTimelineViewErrors,
+  UpdateTimelineViewResponses,
   UpdateTopicData,
   UpdateTopicErrors,
   UpdateTopicResponses,
@@ -4405,6 +4416,71 @@ export class Activities {
   ): RequestResult<MuteActivitiesResponses, MuteActivitiesErrors, ThrowOnError> {
     return (options.client ?? client).post<MuteActivitiesResponses, MuteActivitiesErrors, ThrowOnError>({
       url: "/api/v1/activities/mute",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Timeline Views
+   *
+   * Your saved views of the timeline: each a name for its filters and order, the latest changed first. Nobody else
+   * sees them.
+   */
+  public static listTimelineViews<ThrowOnError extends boolean = false>(
+    options?: Options<ListTimelineViewsData, ThrowOnError>,
+  ): RequestResult<ListTimelineViewsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListTimelineViewsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/activities/views",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Timeline View
+   *
+   * Save the timeline's filters and order under a name, unique among your timeline views (up to 100).
+   */
+  public static createTimelineView<ThrowOnError extends boolean = false>(
+    options: Options<CreateTimelineViewData, ThrowOnError>,
+  ): RequestResult<CreateTimelineViewResponses, CreateTimelineViewErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateTimelineViewResponses, CreateTimelineViewErrors, ThrowOnError>({
+      url: "/api/v1/activities/views",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Timeline View
+   *
+   * Delete it. Yours only.
+   */
+  public static deleteTimelineView<ThrowOnError extends boolean = false>(
+    options: Options<DeleteTimelineViewData, ThrowOnError>,
+  ): RequestResult<DeleteTimelineViewResponses, DeleteTimelineViewErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteTimelineViewResponses, DeleteTimelineViewErrors, ThrowOnError>({
+      url: "/api/v1/activities/views/{vid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Timeline View
+   *
+   * Rename it, or save what the timeline shows now into it. Yours only.
+   */
+  public static updateTimelineView<ThrowOnError extends boolean = false>(
+    options: Options<UpdateTimelineViewData, ThrowOnError>,
+  ): RequestResult<UpdateTimelineViewResponses, UpdateTimelineViewErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateTimelineViewResponses, UpdateTimelineViewErrors, ThrowOnError>({
+      url: "/api/v1/activities/views/{vid}",
       ...options,
       headers: {
         "Content-Type": "application/json",

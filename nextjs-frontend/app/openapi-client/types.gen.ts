@@ -27392,6 +27392,132 @@ export type TikaTestResult = {
 };
 
 /**
+ * TimelineView
+ */
+export type TimelineView = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  state: TimelineViewState;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * TimelineViewCreate
+ */
+export type TimelineViewCreate = {
+  /**
+   * Name
+   *
+   * unique among your timeline views
+   */
+  name: string;
+  state?: TimelineViewState;
+};
+
+/**
+ * TimelineViewState
+ *
+ * What the timeline shows: its filters and order, as the page's address has them (docs/timeline.md, Saved views).
+ * The same filters as GET /activities, with dates as days.
+ */
+export type TimelineViewState = {
+  /**
+   * Kinds
+   *
+   * kinds of activity; none: every kind but the noisy ones
+   */
+  kinds?: Array<string>;
+  /**
+   * Actor
+   *
+   * who did it, by actor id (lens:source/12)
+   */
+  actor?: Array<string>;
+  /**
+   * Namespace
+   *
+   * namespaces, by name
+   */
+  namespace?: Array<string>;
+  /**
+   * Tag
+   *
+   * an entity's name or id, as activities tag it
+   */
+  tag?: string;
+  /**
+   * From Day
+   *
+   * from this day (YYYY-MM-DD, the viewer's own days)
+   */
+  from_day?: string | null;
+  /**
+   * To Day
+   *
+   * to this day, included
+   */
+  to_day?: string | null;
+  /**
+   * Automation
+   *
+   * an automation's id: what it did or caused
+   */
+  automation?: number | null;
+  /**
+   * Q
+   *
+   * words in the summary
+   */
+  q?: string;
+  /**
+   * Unreviewed
+   *
+   * only those you haven't marked reviewed
+   */
+  unreviewed?: boolean;
+  /**
+   * Important
+   *
+   * only those you marked important
+   */
+  important?: boolean;
+  /**
+   * Order
+   */
+  order?: "latest" | "for_you";
+};
+
+/**
+ * TimelineViewUpdate
+ *
+ * Only what you send changes.
+ */
+export type TimelineViewUpdate = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * save what the timeline shows now into it
+   */
+  state?: TimelineViewState | null;
+};
+
+/**
  * TokenLimits
  *
  * How long API keys may last, set by admins (the tokens settings).
@@ -33570,6 +33696,109 @@ export type MuteActivitiesResponses = {
 };
 
 export type MuteActivitiesResponse = MuteActivitiesResponses[keyof MuteActivitiesResponses];
+
+export type ListTimelineViewsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/activities/views";
+};
+
+export type ListTimelineViewsResponses = {
+  /**
+   * Response Activities-List Timeline Views
+   *
+   * Successful Response
+   */
+  200: Array<TimelineView>;
+};
+
+export type ListTimelineViewsResponse = ListTimelineViewsResponses[keyof ListTimelineViewsResponses];
+
+export type CreateTimelineViewData = {
+  body: TimelineViewCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/activities/views";
+};
+
+export type CreateTimelineViewErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateTimelineViewError = CreateTimelineViewErrors[keyof CreateTimelineViewErrors];
+
+export type CreateTimelineViewResponses = {
+  /**
+   * Successful Response
+   */
+  200: TimelineView;
+};
+
+export type CreateTimelineViewResponse = CreateTimelineViewResponses[keyof CreateTimelineViewResponses];
+
+export type DeleteTimelineViewData = {
+  body?: never;
+  path: {
+    /**
+     * Vid
+     */
+    vid: number;
+  };
+  query?: never;
+  url: "/api/v1/activities/views/{vid}";
+};
+
+export type DeleteTimelineViewErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteTimelineViewError = DeleteTimelineViewErrors[keyof DeleteTimelineViewErrors];
+
+export type DeleteTimelineViewResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteTimelineViewResponse = DeleteTimelineViewResponses[keyof DeleteTimelineViewResponses];
+
+export type UpdateTimelineViewData = {
+  body: TimelineViewUpdate;
+  path: {
+    /**
+     * Vid
+     */
+    vid: number;
+  };
+  query?: never;
+  url: "/api/v1/activities/views/{vid}";
+};
+
+export type UpdateTimelineViewErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateTimelineViewError = UpdateTimelineViewErrors[keyof UpdateTimelineViewErrors];
+
+export type UpdateTimelineViewResponses = {
+  /**
+   * Successful Response
+   */
+  200: TimelineView;
+};
+
+export type UpdateTimelineViewResponse = UpdateTimelineViewResponses[keyof UpdateTimelineViewResponses];
 
 export type GetActivityData = {
   body?: never;

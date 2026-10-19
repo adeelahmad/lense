@@ -1,7 +1,7 @@
 /** The timeline's model (docs/timeline.md): filters to and from the address, the query they make, kind families,
  * grouping runs of the same actor and kind, and merging new items in. No React here, so it is tested on its own. */
 
-import type { ActivityKind, ActivityMark, StreamActivity } from "@/app/openapi-client/types.gen";
+import type { ActivityKind, ActivityMark, StreamActivity, TimelineViewState } from "@/app/openapi-client/types.gen";
 
 export type Activity = StreamActivity;
 export type Mark = { reviewed: boolean; important: boolean; hidden: boolean };
@@ -361,4 +361,57 @@ export function lastFilters(): Filters | null {
   } catch {
     return null;
   }
+}
+
+/** A saved view's filters as the API keeps them (docs/timeline.md, Saved views). */
+export function toViewState(f: Filters): TimelineViewState {
+  return {
+    kinds: f.kinds,
+    actor: f.actor,
+    namespace: f.namespace,
+    tag: f.tag,
+    from_day: f.from || null,
+    to_day: f.to || null,
+    automation: f.automation ? Number(f.automation) : null,
+    q: f.q,
+    unreviewed: f.unreviewed,
+    important: f.important,
+    order: f.order,
+  };
+}
+
+/** The page's filters from a saved view's. */
+export function fromViewState(s: Partial<TimelineViewState>): Filters {
+  return {
+    kinds: s.kinds ?? [],
+    actor: s.actor ?? [],
+    namespace: s.namespace ?? [],
+    tag: s.tag ?? "",
+    from: s.from_day ?? "",
+    to: s.to_day ?? "",
+    automation: s.automation != null ? String(s.automation) : "",
+    q: s.q ?? "",
+    unreviewed: !!s.unreviewed,
+    important: !!s.important,
+    order: s.order === "for_you" ? "for_you" : "latest",
+  };
+}
+
+/** Whether two sets of filters show the same (the order counts too). */
+export function sameFilters(a: Filters, b: Filters): boolean {
+  return toParams(a).toString() === toParams(b).toString();
+}
+
+/** A name to offer when saving filters as a view: what they pick, in words ("Work · Email received · Unreviewed"). */
+export function viewName(f: Filters, labels: Record<string, string> = {}): string {
+  const parts = [
+    ...(f.q ? [`“${f.q}”`] : []),
+    ...f.namespace,
+    ...f.kinds.map((k) => labels[k] ?? k),
+    ...(f.tag ? [f.tag] : []),
+    ...(f.unreviewed ? ["Unreviewed"] : []),
+    ...(f.important ? ["Important"] : []),
+    ...(f.order === "for_you" ? ["For you"] : []),
+  ];
+  return (parts.join(" · ") || "My view").slice(0, 60);
 }

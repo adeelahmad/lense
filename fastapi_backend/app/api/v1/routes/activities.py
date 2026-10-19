@@ -12,6 +12,8 @@ from fastapi import APIRouter, HTTPException, Query
 
 from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Principal, Writer, domain_errors
 from app.api.v1.routes.comments import _comments_out
+from app.api.v1.routes.views import change as change_view
+from app.api.v1.routes.views import remove as remove_view
 from app.domain import (
     auth,
     comment_agent,
@@ -24,6 +26,7 @@ from app.domain import (
     events_content,
     for_you,
     store,
+    views,
 )
 from app.schemas.activities import (
     ActivityKind,
@@ -39,6 +42,9 @@ from app.schemas.activities import (
     ReactIn,
     ReactionsOut,
     StreamActivity,
+    TimelineView,
+    TimelineViewCreate,
+    TimelineViewUpdate,
 )
 from app.schemas.comments import ActivityCommentCreate, Comment, CommentUpdate
 from app.schemas.common import Ok
@@ -215,6 +221,54 @@ def mute_activities(body: MuteIn, user: Writer, db: Db) -> MutesOut:
         else:
             mutes = event_mutes.unmute(db, user.id, body.actor, body.kind)
     return MutesOut(mutes=[Mute(**m) for m in mutes])
+
+
+# ---------- saved views: the timeline's filters and order under a name, the person's own (docs/timeline.md) ----------
+def timeline_views(db: Any, user: Principal) -> list[TimelineView]:
+    """The person's timeline views, the latest changed first."""
+    return [
+        TimelineView(**{k: v[k] for k in ("id", "name", "state", "created_at", "updated_at")})
+        for v in views.visible(db, user.id, set(), "timeline")
+    ]
+
+
+def save_view(
+    db: Any, acl: Access, user: Principal, name: str | None, state: dict[str, Any] | None, vid: int | None = None
+) -> TimelineView:
+    """Create a timeline view (no `vid`), or rename it or save new filters into it; the view as it is now."""
+    if vid is None:
+        with domain_errors():
+            vid = views.create(db, user.id, name, None, state or {}, False, kind="timeline")
+    else:
+        change_view(db, acl, user, vid, "timeline", name, None, state)
+    v = views.get(db, vid, "timeline")
+    return TimelineView(**{k: v[k] for k in ("id", "name", "state", "created_at", "updated_at")})
+
+
+@router.get("/views")
+def list_timeline_views(user: CurrentUser, db: Db) -> list[TimelineView]:
+    """Your saved views of the timeline: each a name for its filters and order, the latest changed first. Nobody else
+    sees them."""
+    return timeline_views(db, user)
+
+
+@router.post("/views")
+def create_timeline_view(body: TimelineViewCreate, user: Writer, acl: Acl, db: Db) -> TimelineView:
+    """Save the timeline's filters and order under a name, unique among your timeline views (up to 100)."""
+    return save_view(db, acl, user, body.name, body.state.model_dump())
+
+
+@router.patch("/views/{vid}")
+def update_timeline_view(vid: int, body: TimelineViewUpdate, user: Writer, acl: Acl, db: Db) -> TimelineView:
+    """Rename it, or save what the timeline shows now into it. Yours only."""
+    return save_view(db, acl, user, body.name, body.state.model_dump() if body.state else None, vid)
+
+
+@router.delete("/views/{vid}")
+def delete_timeline_view(vid: int, user: Writer, acl: Acl, db: Db) -> Ok:
+    """Delete it. Yours only."""
+    remove_view(db, acl, user, vid, "timeline")
+    return Ok()
 
 
 @router.get("/{activity_id}", response_model_exclude_unset=True)

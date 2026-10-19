@@ -98,6 +98,7 @@ from app.domain import sandbox as sandboxmod
 from app.domain import speakers as spk
 from app.domain import topics as topicmod
 from app.domain.store import DB
+from app.schemas.activities import TimelineViewState
 from app.schemas.automation_vars import TemplatePreviewIn
 from app.schemas.automations import (
     AutomationCreate,
@@ -3861,6 +3862,55 @@ def mark_activities(
 )
 def activity_mutes(ctx: Context) -> dict[str, Any]:
     return {"mutes": event_mutes.of(ctx.db, ctx.user.id)}
+
+
+@tool(
+    "timeline_views",
+    "Your saved views of the timeline",
+    "The person's saved views of the timeline (docs/timeline.md, Saved views): each a name for a set of filters (kinds, "
+    "actor, namespace, tag, from_day, to_day, automation, q, unreviewed, important) and an order (latest or for_you), "
+    "the latest changed first. Give a view's filters to timeline to read what it shows. Nobody else sees them.",
+)
+def timeline_views(ctx: Context) -> dict[str, Any]:
+    return {"views": [v.model_dump() for v in activity_routes.timeline_views(ctx.db, ctx.user)]}
+
+
+@tool(
+    "save_timeline_view",
+    "Save a view of the timeline",
+    "Save a set of timeline filters and an order under a name for the person you act for, as a view the Timeline page "
+    "offers in its Views menu; with id, rename that view or save new filters into it. state has the keys kinds, actor, "
+    "namespace (lists), tag, from_day and to_day (YYYY-MM-DD), automation (an id), q, unreviewed, important and order "
+    "(latest or for_you); a key left out is unset. The answer is the view. Needs a token with the write scope.",
+    Arg("name", "string", "its name, unique among their timeline views", max_length=60),
+    Arg("state", "object", "the filters and order (JSON)"),
+    Arg("id", "integer", "a view of theirs to change; left out: a new view"),
+    writes=True,
+)
+def save_timeline_view(ctx: Context, name: str | None, state: dict[str, Any] | None, id: int | None) -> dict[str, Any]:  # noqa: A002 - the API's name
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to save a view")
+    if id is None and not name:
+        raise ToolError("a new view needs a name")
+    try:
+        st = TimelineViewState(**(state or {})).model_dump() if state is not None or id is None else None
+    except ValidationError as e:
+        raise ToolError(f"state: {e.errors()[0]['loc']} {e.errors()[0]['msg']}") from None
+    return activity_routes.save_view(ctx.db, ctx.acl, ctx.user, name, st, id).model_dump()
+
+
+@tool(
+    "delete_timeline_view",
+    "Delete a view of the timeline",
+    "Delete one of the person's saved views of the timeline, by id. Needs a token with the write scope.",
+    Arg("id", "integer", "the view's id", required=True),
+    writes=True,
+)
+def delete_timeline_view(ctx: Context, id: int) -> dict[str, Any]:  # noqa: A002 - the API's name
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to delete a view")
+    activity_routes.remove_view(ctx.db, ctx.acl, ctx.user, id, "timeline")
+    return {"ok": True}
 
 
 @tool(
