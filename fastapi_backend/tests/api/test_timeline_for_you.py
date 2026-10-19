@@ -87,6 +87,33 @@ def test_opening_an_item_counts_for_you_a_little_each_time_up_to_a_few(client, d
     assert client.post(f"{URL}/no-such-thing/open", headers=h).status_code == 404
 
 
+def test_a_persons_affinity_is_reused_for_a_minute_until_a_signal_changes(client, db, cfg, folder, monkeypatch):
+    env = _env(client, db, cfg, folder)
+    pods1, pods2, call = env["ids"]
+    h = env["hr"]
+    looked = []
+    get_many = for_you.events.get_many
+    monkeypatch.setattr(for_you.events, "get_many", lambda *a, **k: looked.append(1) or get_many(*a, **k))
+    clock = [1000.0]
+    monkeypatch.setattr(for_you.time, "monotonic", lambda: clock[0])
+    for_you_page = {**ASSETS, "order": "for_you"}
+    client.post(f"{URL}/{pods1}/react", json={"emoji": "👍"}, headers=h)
+    first = client.get(URL, params=for_you_page, headers=h).json()
+    n = len(looked)
+    # the same signals within the minute: the same order, without looking the activities up again
+    assert client.get(URL, params=for_you_page, headers=h).json()["items"] == first["items"]
+    assert len(looked) == n
+    # a new signal shows at once
+    client.post(f"{URL}/{pods1}/mark", json={"hidden": True}, headers=h)
+    assert _ids(client.get(URL, params=for_you_page, headers=h).json()) == [call, pods2, pods1]
+    assert len(looked) > n
+    # and after the minute it is summed again, as the activities it was on may have changed
+    n = len(looked)
+    clock[0] += for_you.CACHE_SECONDS + 1
+    client.get(URL, params=for_you_page, headers=h)
+    assert len(looked) > n
+
+
 def test_agents_read_for_you_too(client, db, cfg, folder):
     from tests.api.test_mcp import tool
 

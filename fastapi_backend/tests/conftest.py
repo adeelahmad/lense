@@ -15,7 +15,7 @@ os.environ.setdefault("OMP_THREAD_LIMIT", "1")
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
-from app.domain import auth, store  # noqa: E402
+from app.domain import auth, for_you, store  # noqa: E402
 
 # Tests use an in-memory SurrealDB; LENS_TEST_SURREAL_URL=ws://host:8000 runs them against a server instead
 # (each test gets its own database there).
@@ -56,6 +56,7 @@ def cfg(folder):
 def db(cfg):
     conn = store.connect(cfg)
     auth._FAILS.clear()
+    for_you._cache.clear()
     yield conn
     conn.close()
 
