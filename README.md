@@ -226,9 +226,9 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   Automations act
   on that stream, on a schedule, at a time or when their own webhook is called, alone or with their triggers joined (all
   of them, a number of times, one that doesn't come in time, or a batch): they test conditions (text, patterns,
-  numbers, lists, times, days, whether a value changed and whether something like it happened before in their
-  namespaces) and let a decision model pick the branch, then tell you in
-  your own chat app, ask the model or the agent, use a tool, call a web address (its credentials kept sealed), run a
+  numbers, lists, times, days, whether a value changed, the entities an asset mentions (any person, or names like
+  Acme*) and whether something like it happened before in their namespaces) and let a decision model pick the branch,
+  then tell you in your own chat app, ask the model or the agent, use a tool, call a web address (its credentials kept sealed), run a
   workflow, pipeline or routine, or change assets and notes. The Schedules page is Lens's crontab: every routine,
   automation schedule and the backup in one list with when each runs next and last, to switch, re-time or run now, and
   agents do the same over the API and MCP. A Classify node in a workflow sorts an asset into labels, content types or

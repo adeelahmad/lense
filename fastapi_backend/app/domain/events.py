@@ -399,7 +399,18 @@ def schema(name):
             "published": {"type": "string", "format": "date-time", "title": "When"},
             "summary": {"type": "string", "title": "Summary"},
             "space": {"type": ["integer", "null"], "title": "Namespace"},
-            "tag": {"type": "array", "title": "Tags", "items": {"type": "object"}},
+            "tag": {
+                "type": "array",
+                "title": "Tags",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string", "title": "Entity"},
+                        "name": {"type": "string", "title": "Entity name"},
+                        "entityType": {"type": "string", "title": "Entity type"},
+                    },
+                },
+            },
             **parts,
         },
     }

@@ -774,7 +774,12 @@ JOB_FIELDS = "id AS rid, record::id(id) AS id, recording, space, steps, step_ind
 ASSET_FIELDS = "record::id(id) AS id, title, source, media, path, content_type, duration_ms, form"
 JOB_KINDS = {"succeeded": "asset.processed", "failed": "asset.failed"}
 JOB_ID_RX = re.compile(r"^(processed|failed)-job-(\d+)-(\d+)$")
-TAGS = 10  # entities a processed asset is tagged with, the most mentioned first
+TAGS = events.MAX_TAGS  # entities a processed asset is tagged with, the most mentioned first: as many as an activity holds
+
+
+def _mention(e, name, typ):
+    """An entity as a tag: {type: Mention, id, name, entityType} (its type's code, PERSON, for a trigger on any person)."""
+    return store.clean({"type": "Mention", "id": f"lens:entity/{e}", "name": name, "entityType": typ or None})
 
 
 def entity_tags(db, rids, most=TAGS):
@@ -787,13 +792,9 @@ def entity_tags(db, rids, most=TAGS):
             if _num(m.get("entity")) is not None:
                 counts.setdefault(m["recording"], []).append((-int(m.get("n") or 0), m["entity"]))
     top = {rid: [e for _, e in sorted(c)[:most]] for rid, c in counts.items()}
-    names = _lookup(db, "entity", {e for es in top.values() for e in es})
+    names = _lookup(db, "entity", {e for es in top.values() for e in es}, "name, type")
     return {
-        rid: [
-            {"type": "Mention", "id": f"lens:entity/{e}", "name": str(names[e].get("name"))[:200]}
-            for e in es
-            if names.get(e, {}).get("name")
-        ]
+        rid: [_mention(e, str(names[e]["name"])[:200], names[e].get("type")) for e in es if names.get(e, {}).get("name")]
         for rid, es in top.items()
     }
 
@@ -1664,6 +1665,10 @@ def _graph_activities(db, rows):
             n = named.get(e)
             return (n.get("a") or n.get("b")) if n else (looked.get(e) or {}).get("name")
 
+        def typ(e, named=named):
+            n = named.get(e)
+            return n.get("ty") if n else (looked.get(e) or {}).get("type")
+
         op = _graph_op(r.get("op"), named)
         alive = [e for e in ents if not (e in named and named[e].get("a") is None)]
         first = (alive or ents or [None])[0]
@@ -1694,7 +1699,7 @@ def _graph_activities(db, rows):
                 source="graph",
                 pos=[r["at"], r["id"]],
                 published=published,
-                tag=[{"type": "Mention", "id": f"lens:entity/{e}", "name": _text(name(e), 200)} for e in ents[:GRAPH_TAGS] if name(e)],
+                tag=[_mention(e, _text(name(e), 200), typ(e)) for e in ents[:GRAPH_TAGS] if name(e)],
                 spaces=spaces if len(spaces) > 1 else None,
                 audience="admins" if len(spaces) > 1 else None,
             )

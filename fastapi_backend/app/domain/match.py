@@ -7,8 +7,8 @@ A leaf tests the part of a value at a dotted path (list items by number, as flow
 itself) with one of OPS: the workflow engine's tests (flow.OPS: exists, empty, equals, not_equals, contains, gt, lt),
 which work as a condition node's do, and the ones added here: `in` and `not_in` (one of a list), `starts_with`,
 `ends_with` and `matches` (text), `between` (numbers or times), `before`, `after` and `within` (times, against now),
-`weekday` and `time_between` (a time's day and time of day), and `changed` (against the value this test saw last
-time). A list passes one of the added tests when one of its items does, as `contains` does; `not_in` passes when none
+`weekday` and `time_between` (a time's day and time of day), `changed` (against the value this test saw last
+time), and `mentions` (an activity's entity tags: any entity of a type, a name with `*` and `?` wildcards, or an id). A list passes one of the added tests when one of its items does, as `contains` does; `not_in` passes when none
 does. `all` holds when every tree in it does (an empty one always does), `any` when one does, `not` when its tree
 doesn't. Values are literals: templates belong to actions, which keeps matching cheap and safe. A tree nests at most
 MAX_DEPTH deep and holds at most MAX_LEAVES tests.
@@ -52,7 +52,7 @@ GROUPS = ("all", "any", "not")
 LEAF = {"path", "op", "value"}
 ADDED = (
     "in", "not_in", "starts_with", "ends_with", "matches", "between", "before", "after", "within", "weekday", "time_between",
-    "changed",
+    "changed", "mentions",
 )  # fmt: skip
 OPS = flow.OPS + ADDED
 DAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
@@ -78,7 +78,9 @@ WORDS = {  # each test in words, and its opposite (for a test under not)
     "weekday": ("falls on a", "doesn't fall on a"),
     "time_between": ("is in the day between", "is not in the day between"),
     "changed": ("changed", "didn't change"),
+    "mentions": ("mentions", "doesn't mention"),
 }
+MENTION_KEYS = ("type", "name", "id")
 _swept = {"at": 0.0}
 
 
@@ -338,6 +340,77 @@ def _changed_value(v):
     return v
 
 
+def _entity_type(t):
+    """An entity type's code (PERSON) from its code or its label in any case (person, Organisation, organization)."""
+    from . import entities
+
+    s = str(t).strip().casefold() if isinstance(t, str) else ""
+    for code, label in entities.TYPES.items():
+        if s in (code.casefold(), label.casefold()):
+            return code
+    if s == "organization":
+        return "ORG"
+    raise ValueError(f"an entity's type is one of {', '.join(entities.TYPES)}")
+
+
+def _mentions_value(v):
+    if isinstance(v, str):
+        v = {"name": v}
+    if not isinstance(v, dict) or not v or set(v) - set(MENTION_KEYS):
+        raise ValueError('give the entity to look for: {"type": "PERSON"}, {"name": "Acme*"} or both (or an id)')
+    out: dict = {}
+    if v.get("type") is not None:
+        ts = v["type"] if isinstance(v["type"], list) else [v["type"]]
+        if not 1 <= len(ts) <= 20:
+            raise ValueError("give one entity type, or a list of them")
+        out["type"] = list(dict.fromkeys(_entity_type(t) for t in ts))
+    if v.get("name") is not None:
+        n = v["name"]
+        if not isinstance(n, str) or not n.strip() or len(n) > MAX_PATTERN:
+            raise ValueError(f"give the name to look for, up to {MAX_PATTERN} characters; * stands for any run of characters, ? for one")
+        out["name"] = n.strip()
+    if v.get("id") is not None:
+        i = v["id"]
+        if isinstance(i, int) and not isinstance(i, bool):
+            i = f"lens:entity/{i}"
+        if not isinstance(i, str) or not re.match(r"^lens:entity/\d{1,20}$", i):
+            raise ValueError("give the entity's id as lens:entity/9")
+        out["id"] = i
+    if not out:
+        raise ValueError('give the entity to look for: {"type": "PERSON"}, {"name": "Acme*"} or both (or an id)')
+    return out
+
+
+def glob(pattern, text):
+    """Whether `text` is `pattern` in any case, where * stands for any run of characters and ? for one (every other
+    character is itself). Linear in the two lengths, however many stars, so a crafted pattern can't tie up the worker."""
+    p, t = pattern.casefold(), text.casefold()
+    i = j = 0
+    star, mark = -1, 0
+    while j < len(t):
+        if i < len(p) and (p[i] == "?" or (p[i] != "*" and p[i] == t[j])):
+            i, j = i + 1, j + 1
+        elif i < len(p) and p[i] == "*":
+            star, mark, i = i, j, i + 1
+        elif star >= 0:
+            mark += 1
+            i, j = star + 1, mark
+        else:
+            return False
+    return all(c == "*" for c in p[i:])
+
+
+def _mentioned(want, x):
+    """Whether one tag (a Mention: {id, name, entityType}) is the entity `want` names."""
+    if not isinstance(x, dict):
+        return False
+    if "type" in want and str(x.get("entityType") or "").upper() not in want["type"]:
+        return False
+    if "name" in want and not (isinstance(x.get("name"), str) and glob(want["name"], x["name"])):
+        return False
+    return not ("id" in want and x.get("id") != want["id"])
+
+
 _VALUES = {
     "in": _list_value,
     "not_in": _list_value,
@@ -351,6 +424,7 @@ _VALUES = {
     "weekday": _weekday_value,
     "time_between": _time_between_value,
     "changed": _changed_value,
+    "mentions": _mentions_value,
 }
 
 
@@ -384,6 +458,10 @@ def test_leaf(m, value, env=None):
         return st.changed(key, v)
     if op in ("in", "not_in"):
         return _some(v, lambda x: _one_of(x, want)) == (op == "in")
+    if op == "mentions":
+        if isinstance(v, dict) and isinstance(v.get("tag"), list):  # an activity: its tags
+            v = v["tag"]
+        return _some(v, lambda x: _mentioned(want, x))
     if v is None:
         return False
     if op in ("starts_with", "ends_with"):
@@ -1333,7 +1411,23 @@ def _value_words(op, v, kind):
         return f"{v[0]} and {v[1]}"
     if op == "changed":
         return f"for each {_label(v, kind)}" if v else ""
+    if op == "mentions":
+        return _mention_words(v)
     return _value(v)
+
+
+def _mention_words(v):
+    from . import entities
+
+    what = _either([entities.TYPES[t].lower() for t in v["type"]]) if v.get("type") else "an entity"
+    if v.get("type"):
+        what = f"{'an' if what[0] in 'aeiou' else 'a'} {what}"
+    if v.get("name"):
+        said = "named like" if any(c in v["name"] for c in "*?") else "named"
+        what += f" {said} “{v['name']}”"
+    if v.get("id"):
+        what += f" ({v['id']})"
+    return what
 
 
 def describe(tree, kind=None):
@@ -1363,7 +1457,8 @@ def _describe(m, kind, top):
 
 def _leaf(m, kind, negated):
     said = WORDS.get(m["op"], (m["op"], f"not {m['op']}"))[1 if negated else 0]
-    words = f"{_label(m.get('path'), kind)} {said}"
+    who = "it" if m["op"] == "mentions" and m.get("path") in (None, "tag") else _label(m.get("path"), kind)
+    words = f"{who} {said}"
     if m["op"] in ("exists", "empty") or (m["op"] == "changed" and not m.get("value")):
         return words
     return f"{words} {_value_words(m['op'], m.get('value'), kind)}"

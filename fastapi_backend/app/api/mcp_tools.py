@@ -4007,7 +4007,8 @@ def set_mail_routing(ctx: Context, account: int, rules: list[str], watch: int | 
         "string",
         'a match tree on the activity as JSON, like {"all": [{"path": "object.name", "op": "matches", "value": "trip|outing"}]}; '
         "op is exists, empty, equals, not_equals, contains, gt, lt, in, not_in, starts_with, ends_with, matches, between, "
-        "before, after, within, weekday or time_between (docs/automations.md, Operators)",
+        "before, after, within, weekday, time_between or mentions (its entity tags: "
+        '{"op": "mentions", "value": {"type": "PERSON", "name": "Acme*"}}) (docs/automations.md, Operators)',
         max_length=20000,
     ),
     Arg("unreviewed", "boolean", "only those you haven't marked reviewed"),
@@ -4526,7 +4527,8 @@ def preview_template(
 # ---------- automations (docs/automations.md) ----------
 AUTOMATION_HOW = (
     "triggers: [{as: name, on: event, kinds: [asset.added], where?: match tree}] or [{as, on: manual}] (event_kinds lists "
-    "the kinds); condition (the If): a match tree over the run context, like {all: [{path: event.object.name, op: "
+    "the kinds; on an entity mentioned: kinds [asset.processed], where {op: mentions, value: {type: PERSON, name: "
+    "Acme*}}); condition (the If): a match tree over the run context, like {all: [{path: event.object.name, op: "
     "contains, value: trip}]}; graph: a workflow of scope event, {nodes: [{id: i, type: input}, {id: a, type: action, "
     "config: {action: log_line, params: {text: 'New: {{ event.object.name }}'}}}], edges: [{source: i, target: a}]} "
     "(automation_actions lists the actions)"
