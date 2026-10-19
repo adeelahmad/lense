@@ -647,6 +647,7 @@ or removed does nothing. What it writes is by the automation itself, `automation
 | --- | --- | --- | --- |
 | `log_line` | puts a line (`text`, `level` info or warning) in the run's log | read | `{line, level}` |
 | `notify` | sends `text` (and a `link`; Lens's own paths become full links) `to` `me` (your own chat app), `target:<id>` (one of the namespace's [notification targets](notifications.md)) or `gateway:<name>` (a Matterbridge room) | self for `me`, else out | `{to, text, sent, failed}`: where it went |
+| `share_with_circle` | shares the activity (`activity`, by default the run's) or an `asset` with your `circles` (by name or id) and `people` in them, with a `note`, and `with_item` to let them open the asset ([Circles of trust](circles.md#rules)) | out | `{share, circles, people, granted}` |
 | `ask_model` | asks the model a `prompt` (with your own `system` instructions and `model` if you like); with `json_schema` (a JSON Schema of type object) the reply is that object | read | `{text}`, or the object the schema describes |
 | `call_tool` | calls one of the assistant's tools (`tool`, with `args`) as the automation | read: a change becomes an approval | `{tool, result, summary, approvals}` |
 | `ask_agent` | hands what happened (`about`, by default the event) to the agent with your `instructions`, limited to some `tools` if you like, for up to `max_steps` rounds (6, at most 12) | read: changes become approvals | `{answer, chat, approvals, steps}` |
@@ -1430,6 +1431,7 @@ built yet is in [Refine later](#refine-later); the [Timeline](timeline.md) has i
 | Drawing an automation's workflow on the canvas: the actions in the palette, their settings from each action's params, Decide's ports, the leaf rule and a try on a kind's sample ([On the canvas](#on-the-canvas)) | built |
 | The action registry with risk from each action's effect, and `log_line`, a line in the run's log (`app/domain/actions.py`) | built |
 | Telling a person: the `notify` action and `channels.tell` (their own chat, a notification target, a Matterbridge room) | built |
+| Telling your circles: the `share_with_circle` action, which asks first unless you let it run on its own ([Circles of trust](circles.md#rules)) | built |
 | The model and the agent: the `ask_model`, `call_tool` and `ask_agent` actions, and prompts with outside text marked | built |
 | Templates in params and prompts: the run context, one expression keeping its type, errors that name the nearest variable, saved prompt templates, filters for times, text and addresses ([Variables and templates](#variables-and-templates)) | built |
 | Saved variables: `vars` in the run context, the `set_variable` action, the API and MCP tools ([Saved variables](#saved-variables)) | built |

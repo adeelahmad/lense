@@ -223,3 +223,68 @@ def test_agents_share_too(client, db, cfg, env):
     got = circles.shares(db, {"id": ids["sam"]})
     assert len(got) == 1 and got[0]["note"] == "Dinner plans" and got[0]["by"]["name"] == "Adeel"
     assert db.one("SELECT via FROM $r", r=R("circle_share", got[0]["id"]))["via"] == "assistant"
+
+
+def test_rules_share_on_their_own_only_when_let(client, db, cfg, env):
+    from app.domain import ingest
+
+    _family(client, env)
+    graph = {
+        "nodes": [
+            {"id": "i", "type": "input", "config": {}},
+            {
+                "id": "s",
+                "type": "action",
+                "config": {
+                    "action": "share_with_circle",
+                    "params": {"circles": ["immediate family"], "note": "New from school: {{ event.object.name }}"},
+                },
+            },
+        ],
+        "edges": [{"source": "i", "target": "s"}],
+    }
+    rule = {"name": "School news to the family", "triggers": [{"as": "new", "on": "event", "kinds": ["asset.added"]}], "graph": graph}
+    r = client.post("/api/v1/automations", headers=env["adeel"], json=rule)
+    assert r.status_code == 200, r.text
+    aid = r.json()["id"]
+    rec = ingest.import_text(db, cfg, "pods", "Sam: The trip is on Friday.", title="Trip on Friday")
+    one = f"create-recording-{rec}"
+    # it reaches other people, so it asks first
+    run = client.post(f"/api/v1/automations/{aid}/run", headers=env["adeel"], json={"activity": one}).json()
+    assert run["status"] == "waiting", run
+    assert _feed(client, env["sam"]) == []
+    # until the person lets it run on its own
+    assert client.post(f"/api/v1/automations/{aid}/policy", headers=env["adeel"], json={"node": "s", "value": "auto"}).status_code == 200
+    run = client.post(f"/api/v1/automations/{aid}/run", headers=env["adeel"], json={"activity": one}).json()
+    assert run["status"] == "done", run
+    [got] = _feed(client, env["sam"], "share.received")
+    assert got["object"]["content"] == "New from school: Trip on Friday" and got["object"]["name"] == "Trip on Friday"
+    assert got["actor"]["name"] == "Adeel"
+    assert db.one("SELECT via FROM circle_share")["via"] == "automation"
+    assert db.one("SELECT email FROM audit_log WHERE action = 'circle.share'")["email"] == "automation: School news to the family"
+    # a circle that isn't theirs fails the node, saying why
+    from app.domain import actions
+
+    intent = {
+        "key": "1-s",
+        "action": "share_with_circle",
+        "params": {"circles": ["Friends"], "activity": one},
+        "effect": "out",
+        "risk": "routine",
+        "untrusted": False,
+        "spaces": [],
+        "run_as": env["ids"]["adeel"],
+        "node": "s",
+        "automation": aid,
+        "run": 1,
+    }
+    with pytest.raises(ValueError, match="Adeel has no circle Friends"):
+        actions.perform(db, cfg, intent, None)
+    # what the person can't see isn't shared
+    with pytest.raises(ValueError, match="can't see"):
+        actions.perform(
+            db, cfg, {**intent, "params": {"circles": ["Immediate family"], "activity": one}, "run_as": env["ids"]["sam"]}, None
+        )
+    assert actions.perform(db, cfg, {**intent, "params": {"circles": ["Immediate family"], "activity": one}}, None, dry=True)["would"] == (
+        "share “Trip on Friday” with Immediate family"
+    )

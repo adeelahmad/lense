@@ -239,8 +239,9 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   people on the same Lens, and share an activity from your timeline or a resource with a circle and a note: each of
   them sees it in their own timeline, and you see it in yours, so nothing is shared behind anyone's back. Share with the
   item to also let them open the resource; undo takes it all back, and nothing leaves a vault. In the web app, circles
-  live under Profile and Share sits on every timeline item and resource. Agents do the same over MCP, and the
-  assistant asks you first. ([Circles of trust](docs/circles.md);
+  live under Profile and Share sits on every timeline item and resource. Rules (automations) share what comes in,
+  like the school's emails, asking you first until you let them run on their own. Agents do the same over MCP, and
+  the assistant asks you first. ([Circles of trust](docs/circles.md);
   [checks](docs/requirements.md#share-with-the-people-close-to-you))
 - **See what it costs.** An activity ledger of every model call, with reports, charts and budgets that cap spending.
   Setup asks for one overall budget after a cloud model, with a soft limit that warns and a hard limit that stops paid
@@ -335,9 +336,8 @@ Open pull requests, not yet part of Lens, are listed here; none right now.
 
 Next, and not in a pull request yet; each links to where it is tracked:
 
-- **Circles of trust:** rules for what your agent shares without asking,
-  asking someone's agent (when they're free, what a trip needs) answered from what they let you see, and circles
-  across Lens servers over ActivityPub ([circles of trust](docs/circles.md)).
+- **Circles of trust:** asking someone's agent (when they're free, what a trip needs) answered from what they let you
+  see, and circles across Lens servers over ActivityPub ([circles of trust](docs/circles.md)).
 - **Notes:** nesting a note under its project or area without a click, pages in the graph, and wiki addresses for
   topics, recordings and the other things that have pages ([notes](docs/notes.md)).
 - **Local models:** GPU builds of llama.cpp fetched by Lens, and local embedding models

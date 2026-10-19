@@ -57,7 +57,7 @@
         "entity and topic curation tools",
         "lens help tool",
         "microsandbox program requests",
-        "POST /circles and /circles/shares, MCP save_circle and share_with_circle, the assistant's share_with_circle (circles and sharing with them)"
+        "POST /circles and /circles/shares, MCP save_circle and share_with_circle, the assistant's and automations' share_with_circle (circles and sharing with them)"
       ],
       "touches": [
         "filesystem"
@@ -594,7 +594,7 @@
       "source": "docs/feeds.md \"Private by default\""
     },
     {
-      "entry_point": "POST /circles and /circles/shares, MCP save_circle and share_with_circle, the assistant's share_with_circle (circles and sharing with them)",
+      "entry_point": "POST /circles and /circles/shares, MCP save_circle and share_with_circle, the assistant's and automations' share_with_circle (circles and sharing with them)",
       "parameter": "circle members, an activity or resource id, a note, with_item",
       "attacker_controllable": "yes",
       "component": "authz",
@@ -1157,7 +1157,7 @@
       "property": "P-CIRCLES",
       "violation_symptom": "info-leak",
       "severity_tier": "security",
-      "conditions": "a share goes only to people in the sharer's circles, who are people they share a namespace with, who have them in a circle, or anyone for an admin; it carries only an activity or resource the sharer can read, never one in a vault; with the item, it gives each recipient permission on that one resource only when the sharer holds publish in its namespace; undo deletes the share from every timeline and takes back the permissions it gave; a received share is seen only by its recipient and belongs to no namespace; the assistant always asks before sharing; read-only tokens can't share",
+      "conditions": "a share goes only to people in the sharer's circles, who are people they share a namespace with, who have them in a circle, or anyone for an admin; it carries only an activity or resource the sharer can read, never one in a vault; with the item, it gives each recipient permission on that one resource only when the sharer holds publish in its namespace; undo deletes the share from every timeline and takes back the permissions it gave; a received share is seen only by its recipient and belongs to no namespace; the assistant always asks before sharing, an automation's share_with_circle asks too unless its person let that node run on its own; read-only tokens can't share",
       "provenance": "documented",
       "source": "docs/circles.md \"What keeps it safe\""
     },
