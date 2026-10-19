@@ -23,6 +23,7 @@ from app.schemas.scaling import (
     Group,
     GroupChange,
     GroupIn,
+    LetGo,
     Metrics,
     Overview,
     Paused,
@@ -123,6 +124,16 @@ def check_provider(pid: int, user: AdminReader, db: Db, cfg: Cfg) -> dict[str, A
     """Prove the provider's credentials with a read-only call: {ok, error?}."""
     with _errors():
         return scaling.check_provider(db, cfg, pid)
+
+
+@router.post("/providers/{pid}/strays/let-go")
+def let_go_stray(pid: int, body: LetGo, user: AdminWriter, db: Db, cfg: Cfg) -> Provider:
+    """Let a stray go: a unit the provider runs with Lens's tag that no unit of Lens's stands for, terminated at the
+    provider. Only a person signed in to the web app (403 to a token or an app)."""
+    with _errors():
+        p = scaling.let_go_stray(db, cfg, pid, body.id, user.email, _via(user))
+    auth.audit(db, user.as_audit(), "scaling.stray.let_go", f"scale_provider:{pid}", {"id": body.id})
+    return Provider(**p)
 
 
 @router.delete("/providers/{pid}")

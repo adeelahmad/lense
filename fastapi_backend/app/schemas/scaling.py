@@ -51,6 +51,12 @@ class ProviderChange(RequestModel):
     check: bool = True
 
 
+class Stray(ResponseModel):
+    id: str = Field(description="the provider's id for it")
+    name: str | None = None
+    seen_at: str | None = Field(None, description="when Lens first saw it")
+
+
 class Provider(ResponseModel):
     id: int
     name: str
@@ -64,6 +70,11 @@ class Provider(ResponseModel):
     note: str | None = None
     checked_at: str | None = None
     check: dict[str, Any] | None = Field(None, description="the last check: {ok, error?}")
+    listed_at: str | None = Field(None, description="when Lens last asked the provider for the units it runs with Lens's tag")
+    list_error: str | None = Field(None, description="why that last asking failed")
+    strays: list[Stray] = Field(
+        default_factory=list, description="units the provider runs with Lens's tag that no unit of Lens's stands for"
+    )
     created_at: str | None = None
     updated_at: str | None = None
     updated_by: str | None = None
@@ -134,6 +145,10 @@ class Protected(RequestModel):
 
 class Terminate(RequestModel):
     why: str | None = Field(None, max_length=200)
+
+
+class LetGo(RequestModel):
+    id: str = Field(max_length=200, description="the stray's id at the provider, from the provider's strays")
 
 
 class UnitCounts(ResponseModel):

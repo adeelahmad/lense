@@ -930,6 +930,9 @@ import type {
   JoinMeshData,
   JoinMeshErrors,
   JoinMeshResponses,
+  LetGoStrayData,
+  LetGoStrayErrors,
+  LetGoStrayResponses,
   LinkEntityData,
   LinkEntityErrors,
   LinkEntityResponses,
@@ -13737,6 +13740,25 @@ export class Scaling {
     return (options.client ?? client).post<CheckProviderResponses, CheckProviderErrors, ThrowOnError>({
       url: "/api/v1/scaling/providers/{pid}/check",
       ...options,
+    });
+  }
+
+  /**
+   * Let Go Stray
+   *
+   * Let a stray go: a unit the provider runs with Lens's tag that no unit of Lens's stands for, terminated at the
+   * provider. Only a person signed in to the web app (403 to a token or an app).
+   */
+  public static letGoStray<ThrowOnError extends boolean = false>(
+    options: Options<LetGoStrayData, ThrowOnError>,
+  ): RequestResult<LetGoStrayResponses, LetGoStrayErrors, ThrowOnError> {
+    return (options.client ?? client).post<LetGoStrayResponses, LetGoStrayErrors, ThrowOnError>({
+      url: "/api/v1/scaling/providers/{pid}/strays/let-go",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 

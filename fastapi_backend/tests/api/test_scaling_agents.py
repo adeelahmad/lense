@@ -93,6 +93,26 @@ def test_a_setup_conversation_makes_a_group_that_still_waits_for_the_person(app,
     assert settings.effective(db, cfg)["scaling"]["enabled"] is False
 
 
+def test_the_assistant_asks_to_let_a_stray_go_and_the_person_says_yes(app, db, cfg, folder, new_client, llm, fake):  # noqa: F811
+    s = Assist(app, db, cfg, folder, new_client)
+    c, h = s.cl["admin"]
+    pid = provider(c, h)
+    settings.save(db, cfg, "scaling", {"enabled": True}, "root@x.io")
+    c.post("/api/v1/scaling/groups", headers=h, json={**GROUP, "provider": pid})
+    fake.machines["lens-old-7"] = "running"
+    c.post("/api/v1/scaling/tick", headers=h)
+    llm.tool_script = [
+        {"content": "", "tool_calls": [call(1, "let_go_scaling_stray", {"provider_id": pid, "stray_id": "lens-old-7"})]},
+        {"content": "Asked you to let it go."},
+    ]
+    cid = c.post("/api/v1/chats", headers=h, json={"kind": "setup"}).json()["id"]  # even where it acts, it asks
+    ev = sse(c.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "stop the stray"}).text)
+    (appr,) = ev["approval"]
+    assert appr["summary"] == "Let lens-old-7 go at Fake" and fake.machines["lens-old-7"] == "running"
+    out = c.post(f"/api/v1/approvals/{appr['id']}", headers=h, json={"decision": "approve"}).json()
+    assert out["status"] == "done" and out["provider"]["strays"] == [] and "lens-old-7" not in fake.machines
+
+
 def test_only_admins_get_the_scaling_tools(app, db, cfg, folder, new_client, llm):
     s = Assist(app, db, cfg, folder, new_client)
     c, h = s.cl["editor"]

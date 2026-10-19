@@ -89,6 +89,19 @@ carries none of them.
 A worker on This machine stops with the process that started it, and the scaler that takes over starts them again where
 it runs.
 
+### Units Lens lost track of
+
+While scaling runs, the scaler asks each provider every ten minutes for the units it runs that carry Lens's tag (the
+driver's `listing`, a read-only call in the activity ledger). One that no unit of Lens's stands for is a stray: a launch
+that started a machine but whose answer never came back, say, or a machine someone made by hand with Lens's tag. A
+stray may cost money, so it shows on its provider (`strays` in `GET /api/v1/scaling/providers`, with when Lens first
+saw it, and in Settings › Auto scaling) and goes in the activity ledger once, as `scaling.stray`. Lens lets none of them
+go itself, since it may not have started them: a person signed in to the web app does, with Let go in Settings (Undo
+stays a few seconds) or `POST /api/v1/scaling/providers/{id}/strays/let-go` with the stray's `id`, which terminates it
+at the provider. An agent asks for that (`let_go_scaling_stray` in the assistant), and the ask waits for the person's
+yes on the Approvals page; an API key or an app gets 403. A unit Lens let go within the last hour isn't counted, since a provider may
+still show it while it goes. When the provider can't be asked, `list_error` says why.
+
 ### Machines elsewhere
 
 A cloud provider's unit is a new machine. Its first boot runs a script (user-data) that sets `LENS_SCALING_UNIT` (its
@@ -352,7 +365,8 @@ The same in the assistant (admins, in the server tools) and over MCP: `scaling` 
 `pause_scaling_group` and `terminate_scaling_unit` act within the approved terms. In the assistant, proposing or
 changing a group waits for the person's yes; a yes on the Approvals page in the web app also approves the group's
 terms, while a group the assistant makes in a setup conversation, or an agent over MCP, still waits for the person.
-Turning scaling on (`change_settings scaling`) always asks.
+Turning scaling on (`change_settings scaling`) always asks, and so does letting a stray go (`let_go_scaling_stray`),
+which only that yes in the web app does.
 
 ## Refine later
 
@@ -360,7 +374,7 @@ Spreading model calls across a group's units, and serving only some kinds of cal
 hosts (Lambda instances serving a model); Bedrock's price per unit-hour from AWS, its streamed answers
 (`ConverseStream`) and Bedrock API keys as the provider's key; SageMaker's streamed invocations (`InvokeEndpointWithResponseStream`), so a SageMaker answer
 streams as it is written; Hugging Face's scale to zero and private endpoints; RunPod network volumes, so a model is downloaded once; Proxmox LXC containers; revoking a unit's mesh
-certificate when it goes; reporting machines with Lens's tag that Lens has no unit for (`listing`); a live euro rate;
+certificate when it goes; a live euro rate;
 preemptible and spot instances at clouds other than AWS and RunPod; draining an AWS spot unit on its two-minute notice
 (the node agent reading the instance's metadata) and handing its job back at once; following the spot price as it
 changes; AWS sign-in with an instance role or IAM Identity Center instead of keys; mixed instance types per group;

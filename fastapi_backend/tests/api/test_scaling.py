@@ -33,6 +33,7 @@ class Fake(drivers.Driver):
 
     def __init__(self):
         self.machines, self.boots, self.seen_keys, self.fail = {}, {}, [], None
+        self.lost = self.slow = self.unlisted = False
 
     def check(self, p):
         self.seen_keys.append(p["secrets"].get("api_key"))
@@ -47,6 +48,8 @@ class Fake(drivers.Driver):
         if self.fail:
             raise drivers.DriverError(self.fail)
         self.machines[name] = "pending"
+        if self.lost:  # it started, but its answer never came back
+            raise TimeoutError("the provider didn't answer")
         self.boots[name] = boot
         return {"id": name, "address": "10.0.0.9"}
 
@@ -54,7 +57,15 @@ class Fake(drivers.Driver):
         return {"state": self.machines.get(node["external_id"], "gone")}
 
     def terminate(self, p, node):
-        self.machines.pop(node["external_id"], None)
+        if self.slow:  # still going a while after it was told to
+            self.machines[node["external_id"]] = "stopping"
+        else:
+            self.machines.pop(node["external_id"], None)
+
+    def listing(self, p, tag):
+        if self.unlisted:
+            raise drivers.DriverError("listing isn't allowed for this key")
+        return [{"id": n, "name": n} for n in self.machines if n.startswith(f"{tag}-")]
 
 
 @pytest.fixture
@@ -230,6 +241,80 @@ def test_the_scaler_launches_joins_drains_and_terminates(client, db, cfg, h, fak
     join(db, busy, current=None, at=NOW + dt.timedelta(minutes=6))
     tick(db, cfg, NOW + dt.timedelta(minutes=6))
     assert scaling.nodes(db, gid, alive=True) == [] and fake.machines == {}
+
+
+def test_units_lens_lost_track_of_show_on_their_provider(client, db, cfg, h, fake):
+    cfg = on(db, cfg)
+    pid = provider(client, h)["id"]
+    gid = group(client, h, pid, min=1, max=2, cooldown_seconds=0, warmup_seconds=0).json()["id"]
+    strays = lambda: [s["id"] for s in client.get("/api/v1/scaling/providers", headers=h).json()[0]["strays"]]  # noqa: E731
+
+    def at(minutes):  # the units that run beat, then the scaler looks
+        t = NOW + dt.timedelta(minutes=minutes)
+        for n in scaling.nodes(db, gid, alive=True):
+            join(db, n["name"], at=t)
+        tick(db, cfg, t)
+
+    at(0)
+    assert strays() == [] and len(fake.machines) == 1  # its own unit isn't one
+
+    # one left from before (a launch whose answer was lost, say), and someone else's machine without Lens's tag
+    fake.machines |= {"lens-workers-99": "running", "build-box": "running"}
+    at(5)
+    assert strays() == []  # providers are asked every ten minutes
+    at(11)
+    assert strays() == ["lens-workers-99"]
+    at(22)
+    (seen,) = client.get("/api/v1/scaling/providers", headers=h).json()[0]["strays"]
+    assert seen == {"id": "lens-workers-99", "name": "lens-workers-99", "seen_at": (NOW + dt.timedelta(minutes=11)).isoformat()}
+    said = [a for a in activity.history(db, f"scale_provider:{pid}", 50) if a["action"] == "scaling.stray"]
+    assert len(said) == 1 and said[0]["detail"]["unit"] == "lens-workers-99"  # in the ledger once, when first seen
+    assert fake.machines["lens-workers-99"] == "running"  # Lens lets none go itself
+
+    # a launch that failed but started a machine: that machine is a stray at once
+    fake.machines.pop("lens-workers-99")
+    fake.lost = True
+    client.post(f"/api/v1/scaling/groups/{gid}/desired", headers=h, json={"desired": 2})
+    at(33)
+    (failed,) = [n["name"] for n in scaling.nodes(db, gid) if n["state"] == "failed"]
+    assert strays() == [failed]
+
+    # one let go lately that its provider still shows, while it goes, isn't
+    fake.lost = fake.slow = False
+    fake.machines.pop(failed)
+    assert client.patch(f"/api/v1/scaling/groups/{gid}", headers=h, json={"min": 0}).status_code == 200
+    assert client.post(f"/api/v1/scaling/groups/{gid}/desired", headers=h, json={"desired": 0}).status_code == 200
+    fake.slow = True
+    at(44)  # it drains, then goes
+    at(45)
+    left = sorted(n for n in fake.machines if n.startswith("lens-"))
+    assert scaling.nodes(db, gid, alive=True) == [] and left and {fake.machines[n] for n in left} == {"stopping"}
+    at(56)
+    assert strays() == []
+    at(150)  # past the hour it had to go
+    assert sorted(strays()) == left
+
+    # a provider that can't list says why
+    fake.unlisted = True
+    at(161)
+    assert "listing isn't allowed" in client.get("/api/v1/scaling/providers", headers=h).json()[0]["list_error"]
+
+
+def test_a_person_lets_a_stray_go_and_an_agent_cant(client, db, cfg, h, key, fake):
+    cfg = on(db, cfg)
+    pid = provider(client, h)["id"]
+    group(client, h, pid, min=0, max=1)
+    fake.machines["lens-old-7"] = "running"
+    tick(db, cfg)
+    url = f"/api/v1/scaling/providers/{pid}/strays/let-go"
+    r = client.post(url, headers=key, json={"id": "lens-old-7"})
+    assert r.status_code == 403 and "person's own pick" in r.json()["detail"]
+    assert client.post(url, headers=h, json={"id": "lens-new-1"}).status_code == 404
+    r = client.post(url, headers=h, json={"id": "lens-old-7"})
+    assert r.status_code == 200 and r.json()["strays"] == [] and "lens-old-7" not in fake.machines
+    (went,) = [a for a in activity.history(db, f"scale_provider:{pid}", 50) if a["action"] == "scaling.stray.terminate"]
+    assert went["actor"] == "root@x.io" and went["detail"]["id"] == "lens-old-7"
+    assert client.post(url, headers=h, json={"id": "lens-old-7"}).status_code == 404  # gone, nothing to let go twice
 
 
 def test_a_unit_that_never_joins_fails_and_failures_pause_the_group(client, db, cfg, h, fake):

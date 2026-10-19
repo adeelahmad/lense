@@ -255,7 +255,7 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [the meter](docs/budgets.md#the-meter-and-the-costs-page); [checks](docs/requirements.md#see-what-it-costs))
 - **Scale out.** Scaling groups add workers when work waits and let them go when it doesn't, by target, step and
   schedule rules, within min and max and a monthly budget, with every launch, join and hour of cost in the activity
-  ledger. You add providers and make groups in Settings › Auto scaling, and a group launches nothing until you approve
+  ledger; a unit a provider runs with Lens's tag that Lens lost track of shows on the provider, for you to let go. You add providers and make groups in Settings › Auto scaling, and a group launches nothing until you approve
   its terms there; agents propose and manage groups over the API, MCP and the assistant, and never approve one. It
   runs more workers on this machine today; AWS EC2 (spot or on demand), DigitalOcean, Hetzner Cloud, Lambda GPU
   instances, Proxmox VE and Linux hosts over SSH providers are in progress (built, with machines that join over the mesh to transcribe and tell

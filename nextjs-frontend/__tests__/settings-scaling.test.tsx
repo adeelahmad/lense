@@ -18,6 +18,7 @@ jest.mock("@/app/openapi-client", () => ({
     addProvider: jest.fn(),
     checkProvider: jest.fn(),
     removeProvider: jest.fn(),
+    letGoStray: jest.fn(),
     createGroup: jest.fn(),
     approveGroup: jest.fn(),
     pauseGroup: jest.fn(),
@@ -192,6 +193,49 @@ describe("auto scaling settings", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add provider" }));
     expect(await screen.findByText("It’s saved, but its check failed.")).toBeInTheDocument();
     expect(screen.getByText(/The region is unknown\./)).toBeInTheDocument();
+  });
+
+  it("shows the units a provider runs that Lens lost track of, and why it couldn't ask", async () => {
+    (Scaling.listGroups as jest.Mock).mockImplementation(() => ok([]));
+    (Scaling.listProviders as jest.Mock).mockImplementation(() =>
+      ok([
+        { ...PROVIDERS[0], list_error: "the host didn't answer", strays: [] },
+        {
+          ...PROVIDERS[1],
+          strays: [
+            { id: "101", name: "lens-workers-4", seen_at: "2026-10-19T03:00:00+00:00" },
+            { id: "102", seen_at: "2026-10-19T03:00:00+00:00" },
+          ],
+        },
+      ]),
+    );
+    show();
+    expect(
+      await screen.findByText(/Runs 2 units with Lens’s tag that Lens didn’t keep track of\./),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Couldn’t list its units: The host didn't answer.")).toBeInTheDocument();
+    expect(screen.getByText("lens-workers-4")).toBeInTheDocument();
+    expect(screen.getByText("102")).toBeInTheDocument();
+  });
+
+  it("lets a stray go with Undo instead of a question", async () => {
+    (Scaling.listGroups as jest.Mock).mockImplementation(() => ok([]));
+    (Scaling.listProviders as jest.Mock).mockImplementation(() =>
+      ok([{ ...PROVIDERS[1], strays: [{ id: "101", name: "lens-workers-4" }] }]),
+    );
+    (Scaling.letGoStray as jest.Mock).mockImplementation(() => ok({ ...PROVIDERS[1], strays: [] }));
+    const { unmount } = show();
+    fireEvent.click(await screen.findByRole("button", { name: "Let lens-workers-4 go" }));
+    expect(screen.queryByText("lens-workers-4")).not.toBeInTheDocument();
+    const undo = mockToast.mock.calls[mockToast.mock.calls.length - 1][0];
+    expect(undo.title).toBe("Letting lens-workers-4 go at Cloud");
+    act(() => undo.action.onClick());
+    expect(screen.getByText("lens-workers-4")).toBeInTheDocument();
+    expect(Scaling.letGoStray).not.toHaveBeenCalled();
+    // leaving the page lets go what waits for Undo at once
+    fireEvent.click(screen.getByRole("button", { name: "Let lens-workers-4 go" }));
+    unmount();
+    expect((Scaling.letGoStray as jest.Mock).mock.calls[0][0]).toMatchObject({ path: { pid: 2 }, body: { id: "101" } });
   });
 
   it("makes a group with a budget on a priced provider", async () => {

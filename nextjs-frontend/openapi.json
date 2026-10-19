@@ -35000,6 +35000,59 @@
         }
       }
     },
+    "/api/v1/scaling/providers/{pid}/strays/let-go": {
+      "post": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Let Go Stray",
+        "description": "Let a stray go: a unit the provider runs with Lens's tag that no unit of Lens's stands for, terminated at the\nprovider. Only a person signed in to the web app (403 to a token or an app).",
+        "operationId": "let_go_stray",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LetGo"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Provider"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/scaling/groups": {
       "get": {
         "tags": [
@@ -58129,6 +58182,22 @@
         ],
         "title": "LayaStatus"
       },
+      "LetGo": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Id",
+            "description": "the stray's id at the provider, from the provider's strays"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "LetGo"
+      },
       "LinkImportResult": {
         "properties": {
           "url": {
@@ -69940,6 +70009,38 @@
             ],
             "title": "Check",
             "description": "the last check: {ok, error?}"
+          },
+          "listed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Listed At",
+            "description": "when Lens last asked the provider for the units it runs with Lens's tag"
+          },
+          "list_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "List Error",
+            "description": "why that last asking failed"
+          },
+          "strays": {
+            "items": {
+              "$ref": "#/components/schemas/Stray"
+            },
+            "type": "array",
+            "title": "Strays",
+            "description": "units the provider runs with Lens's tag that no unit of Lens's stands for"
           },
           "created_at": {
             "anyOf": [
@@ -82923,6 +83024,44 @@
           "stopping"
         ],
         "title": "StopResult"
+      },
+      "Stray": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "the provider's id for it"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "seen_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seen At",
+            "description": "when Lens first saw it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "Stray"
       },
       "Stream": {
         "properties": {
