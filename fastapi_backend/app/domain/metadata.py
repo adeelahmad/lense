@@ -50,6 +50,27 @@ FIELDS = (
     "featured",
 )
 LANG_RX = re.compile(r"^(none|[a-zA-Z]{2,3}(-[A-Za-z0-9]{2,8})*)$")
+# A BCP 47 language tag (RFC 5646), lowercased: a language, then a script, a region, variants, extensions and a private
+# part, each but the language optional (en, en-GB, pt-BR, zh-Hant-TW, sr-Latn-RS, es-419, de-CH-1996)
+TAG_RX = re.compile(
+    r"^(?P<lang>[a-z]{2,3})(?:-(?P<script>[a-z]{4}))?(?:-(?P<region>[a-z]{2}|[0-9]{3}))?"
+    r"(?P<rest>(?:-(?:[a-z0-9]{5,8}|[0-9][a-z0-9]{3}))*(?:-[0-9a-wyz](?:-[a-z0-9]{2,8})+)*(?:-x(?:-[a-z0-9]{1,8})+)?)$"
+)
+
+
+def language_tag(v):
+    """A BCP 47 language tag written the usual way ("en_gb" → "en-GB", "ZH-hant-tw" → "zh-Hant-TW"); None for none.
+    ValueError when it isn't one."""
+    v = str(v or "").strip().replace("_", "-")
+    if not v:
+        return None
+    m = TAG_RX.match(v.lower())
+    if not m:
+        raise ValueError(f"'{v[:40]}' isn't a language tag: use one such as en, en-GB or pt-BR")
+    lang, script, region, rest = m.group("lang", "script", "region", "rest")
+    return lang + (f"-{script.title()}" if script else "") + (f"-{region.upper()}" if region else "") + rest
+
+
 # The DCMI Metadata Terms a recording can be given directly (`terms`: {term: [text or http(s) address]}), beyond the
 # ones its other fields already say (title, description, creator, contributor, subject, created, language, license,
 # rights, publisher, identifier, relation, isPartOf, type, format, extent). See rdf.py.

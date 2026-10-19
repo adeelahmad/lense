@@ -387,11 +387,17 @@ def _attached_to(acl: Access, db: DB, link: dict[str, Any] | None) -> dict[str, 
 
 @router.patch("/{rid}")
 def update_recording(rid: int, body: RecordingUpdate, acl: Acl, user: Writer, db: Db, cfg: Cfg) -> Recording:
-    """Rename an asset or replace its tags (editors). A renamed asset's report is rebuilt with the new title."""
+    """Rename an asset, replace its tags or set its language (editors). A renamed asset's report is rebuilt with the
+    new title. The language is a BCP 47 tag, written the usual way (en-gb → en-GB), kept over the one transcription
+    detects; null forgets it. Audited as `recording.rename` and `recording.language`."""
     rec = acl.recording(rid, "edit")
-    if body.title is None and body.tags is None:
-        raise HTTPException(400, "send a title or tags")
+    if body.title is None and body.tags is None and "language" not in body.model_fields_set:
+        raise HTTPException(400, "send a title, tags or a language")
     with domain_errors():
+        if "language" in body.model_fields_set:
+            before, after = library.set_language(db, cfg, rid, body.language)
+            if before != after:
+                auth.audit(db, user.as_audit(), "recording.language", f"recording:{rid}", {"from": before, "to": after})
         if body.tags is not None:
             library.set_tags(db, rid, body.tags)
         if body.title is not None:

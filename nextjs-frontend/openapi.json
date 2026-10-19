@@ -10732,7 +10732,7 @@
           "resources"
         ],
         "summary": "Update Recording",
-        "description": "Rename an asset or replace its tags (editors). A renamed asset's report is rebuilt with the new title.",
+        "description": "Rename an asset, replace its tags or set its language (editors). A renamed asset's report is rebuilt with the\nnew title. The language is a BCP 47 tag, written the usual way (en-gb \u2192 en-GB), kept over the one transcription\ndetects; null forgets it. Audited as `recording.rename` and `recording.language`.",
         "operationId": "update_recording",
         "parameters": [
           {
@@ -74732,6 +74732,24 @@
             "type": "array",
             "title": "Tags"
           },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language",
+            "description": "its language: a BCP 47 tag such as en or en-GB, when known"
+          },
+          "language_set": {
+            "type": "boolean",
+            "title": "Language Set",
+            "description": "a person set its language; transcription doesn't change it",
+            "default": false
+          },
           "email": {
             "anyOf": [
               {
@@ -75703,6 +75721,19 @@
             ],
             "title": "Tags",
             "description": "replace its tags (at most 20, 40 characters each)"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language",
+            "description": "its language as a BCP 47 tag, with a region if you like (en-GB, pt-BR), kept over the one transcription detects; null forgets it, so the next transcription says again"
           }
         },
         "additionalProperties": false,

@@ -368,6 +368,8 @@ class Recording(ResponseModel):
     downloads: bool = Field(True, description="whether its downloads are on (docs/access.md#downloads)")
     can_save: bool = Field(True, description="you may download its files: downloads are on, or you're an owner")
     tags: list[str] = Field(default_factory=list)
+    language: str | None = Field(None, description="its language: a BCP 47 tag such as en or en-GB, when known")
+    language_set: bool = Field(False, description="a person set its language; transcription doesn't change it")
     email: EmailInfo | None = Field(None, description="an email: its subject, sender, recipients and date")
     rendition: Rendition | None = Field(None, description="a document that isn't a PDF: how the PDF it's read from was made")
     awaits_pdf: AwaitsPdf | None = Field(None, description="waiting for the PDF the import webhook that sent it hands back")
@@ -465,6 +467,12 @@ class RecordingUpdate(RequestModel):
 
     title: str | None = Field(None, min_length=1, max_length=200, description="whitespace is collapsed")
     tags: list[str] | None = Field(None, max_length=20, description="replace its tags (at most 20, 40 characters each)")
+    language: str | None = Field(
+        None,
+        max_length=40,
+        description="its language as a BCP 47 tag, with a region if you like (en-GB, pt-BR), kept over the one "
+        "transcription detects; null forgets it, so the next transcription says again",
+    )
 
 
 class RecordingsRetag(RequestModel):

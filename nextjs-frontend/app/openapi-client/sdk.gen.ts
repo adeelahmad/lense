@@ -6121,7 +6121,9 @@ export class Resources {
   /**
    * Update Recording
    *
-   * Rename an asset or replace its tags (editors). A renamed asset's report is rebuilt with the new title.
+   * Rename an asset, replace its tags or set its language (editors). A renamed asset's report is rebuilt with the
+   * new title. The language is a BCP 47 tag, written the usual way (en-gb → en-GB), kept over the one transcription
+   * detects; null forgets it. Audited as `recording.rename` and `recording.language`.
    */
   public static updateRecording<ThrowOnError extends boolean = false>(
     options: Options<UpdateRecordingData, ThrowOnError>,

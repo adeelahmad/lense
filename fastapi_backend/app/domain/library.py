@@ -201,11 +201,18 @@ def in_scope(spaces, within=None):
     return "space IN $spaces", {"spaces": sorted(spaces)}
 
 
+def _shown_language(v):
+    try:
+        return metadata.language_tag(v)
+    except ValueError:  # what an engine says without a tag (nospeech) stays as it is
+        return str(v).strip().lower()
+
+
 def language_counts(db, spaces, within=None):
     """[{language, recordings}] in these namespaces (and the collections in `within`), the most recordings first; null
-    is "not known"."""
+    is "not known". A language tag is written the usual way (en-GB), whatever its case."""
     cond, p = in_scope(spaces, within)
-    n = Counter((str(v or "").strip().lower() or None) for v in db.values(f"SELECT VALUE language FROM recording WHERE {cond}", **p))
+    n = Counter(_shown_language(v) for v in db.values(f"SELECT VALUE language FROM recording WHERE {cond}", **p))
     return sorted(({"language": k, "recordings": c} for k, c in n.items()), key=lambda x: (-x["recordings"], x["language"] or "~"))
 
 
@@ -579,6 +586,24 @@ def tag_counts(db, spaces, within=None):
             counts[t.casefold()] += 1
             spellings[t.casefold()][t] += 1
     return [{"tag": spellings[k].most_common(1)[0][0], "recordings": n} for k, n in sorted(counts.items(), key=lambda x: (-x[1], x[0]))]
+
+
+def set_language(db, cfg, rid, language):
+    """A person's language for a recording, as a BCP 47 tag with its region if they like ("en-gb" → "en-GB"). It is
+    kept over the one transcription detects (write_transcript leaves it); None forgets it, so the next transcription
+    says again. Returns (old, new)."""
+    tag = metadata.language_tag(language)
+    rec = db.one("SELECT language, language_set FROM $r", r=R("recording", rid))
+    if not rec:
+        raise KeyError(rid)
+    if rec.get("language") == tag and bool(rec.get("language_set")) == (tag is not None):
+        return tag, tag
+    if tag:
+        db.q("UPDATE $r SET language = $l, language_set = true", r=R("recording", rid), l=tag)
+    else:
+        db.q("UPDATE $r SET language = NONE, language_set = NONE", r=R("recording", rid))
+    metadata.touched(db, cfg, rid)  # IIIF harvesters see an Update for a published recording
+    return rec.get("language"), tag
 
 
 def rename(db, cfg, rid, title):

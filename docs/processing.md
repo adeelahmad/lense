@@ -9,7 +9,8 @@ How assets move through Lens: where they come from, what each step does, and how
   file). What one namespace's scan brings in is one [import run](api.md#import-runs), undone whole.
 - `clean_audio` (only in a pipeline that has it) cleans up the sound before it's transcribed: noise, volume, rumble,
   echo, and silence left out of what's transcribed ([Cleaning up audio](#cleaning-up-audio)).
-- `transcribe` uses SenseVoice, faster-whisper or mlx-whisper. When the configured engine isn't installed on a worker (or
+- `transcribe` uses SenseVoice, faster-whisper or mlx-whisper, and keeps the language it heard on the asset, unless a
+  person set one ([An asset's language](api.md#an-assets-language)). When the configured engine isn't installed on a worker (or
   doesn't import there), it uses the next one that is and says so in the job log; with none at all the step fails,
   saying how to add one. A file that fails is marked and the batch carries on. For a
   document or an image it draws the pages and reads their text instead: a PDF's own text, and OCR for scans and images
@@ -864,7 +865,8 @@ audio skip themselves for imported text. Steps:
 - `convert`: makes new assets from one, a video's soundtrack as audio or a document's pages as images
   ([Converting assets](#converting-assets)).
 
-Any step can carry a condition: `min_minutes`, `max_minutes`, `source` (audio or transcript), `languages`.
+Any step can carry a condition: `min_minutes`, `max_minutes`, `source` (audio or transcript), `languages` (the
+asset's [language](api.md#an-assets-language), ignoring case; `en` takes `en-GB` and `en-US` too).
 
 Templates are versioned (publish, history, diff) and rendered in a sandboxed Jinja environment. It can't reach Python
 internals, caps output size, and escapes HTML in reports. Templates see `recording`, `speakers`, `segments`,

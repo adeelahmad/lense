@@ -461,6 +461,28 @@ export function useTranslate(id: number) {
   });
 }
 
+/** Set or correct the asset's language (a BCP 47 tag such as en-GB), or forget it with null; a person's language is
+ * kept over the one transcription detects. */
+export function useSetLanguage(id: number) {
+  const client = useApiClient();
+  const qc = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: (language: string | null) =>
+      data(Resources.updateRecording({ client, path: { rid: id }, body: { language } })),
+    onSuccess: (updated) => {
+      qc.setQueryData(rk.detail(id), (old: RecordingDetail | undefined) => (old ? { ...old, ...updated } : old));
+      void qc.invalidateQueries({ queryKey: ["recordings"] });
+    },
+    onError: (e: unknown) =>
+      toast({
+        title: "Couldn't change the language",
+        body: e instanceof ApiError ? e.message : "Please try again.",
+        tone: "red",
+      }),
+  });
+}
+
 /** The asset's spec from its transcript (docs/notes.md, Specs from transcripts), checked again while it's being written. */
 export function useSpec(id: number, enabled = true) {
   const client = useApiClient();

@@ -23,6 +23,8 @@ import { NsfwDetail } from "@/components/nsfw/nsfw";
 import { ContentTypePicker } from "@/components/recording/content-type";
 import { useRec } from "@/components/recording/context";
 import { EnhanceDetail } from "@/components/recording/enhance";
+import { LanguageEditor } from "@/components/recording/language";
+import { knownLanguage } from "@/components/recording/language-model";
 import {
   describedRows,
   emailRows,
@@ -79,7 +81,12 @@ export function DetailsTab() {
           video || model.audio ? "Transcript" : "Text",
           [plural(model.segments.length, "line"), transcriptOrigin(rec.engine)].filter(Boolean).join(" · "),
         ],
-    ["Language", rec.language && !["none", "nospeech"].includes(rec.language) ? rec.language.toUpperCase() : null],
+    [
+      "Language",
+      canEdit || knownLanguage(rec.language) ? (
+        <LanguageEditor key="language" rid={id} language={rec.language} set={!!rec.language_set} editable={canEdit} />
+      ) : null,
+    ],
   ];
   const media: Row[] = [
     [

@@ -21458,6 +21458,18 @@ export type Recording = {
    */
   tags?: Array<string>;
   /**
+   * Language
+   *
+   * its language: a BCP 47 tag such as en or en-GB, when known
+   */
+  language?: string | null;
+  /**
+   * Language Set
+   *
+   * a person set its language; transcription doesn't change it
+   */
+  language_set?: boolean;
+  /**
    * an email: its subject, sender, recipients and date
    */
   email?: EmailInfo | null;
@@ -22008,6 +22020,12 @@ export type RecordingUpdate = {
    * replace its tags (at most 20, 40 characters each)
    */
   tags?: Array<string> | null;
+  /**
+   * Language
+   *
+   * its language as a BCP 47 tag, with a region if you like (en-GB, pt-BR), kept over the one transcription detects; null forgets it, so the next transcription says again
+   */
+  language?: string | null;
 };
 
 /**
