@@ -63,7 +63,7 @@ class FindMoment(ResponseModel):
     last_page: int | None = Field(None, description="a face over several pages: the last of them")
     text: str | None = Field(None, description="the words there, when it has any")
     speaker: str | None = None
-    source: str | None = Field(None, description="words: said, screen, file, page, object or described (as search has it)")
+    source: str | None = Field(None, description="words: said, screen, file, page, object, described or generated (as search has it)")
 
 
 class FindReason(ResponseModel):

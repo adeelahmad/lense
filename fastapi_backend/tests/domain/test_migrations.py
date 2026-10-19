@@ -22,6 +22,7 @@ SHIPPED = [
     "chat-tree",
     "mcp-sealed-secrets",
     "entity-types",
+    "generated-search",
 ]
 
 

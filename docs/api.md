@@ -1300,7 +1300,8 @@ GET    /api/v1/mentions
 ```
 
 `GET /search?q=` finds the moments where the words appear (in an asset's text or transcript, on screen in a video, in a resource's
-supplementary transcripts, captions, translations and indexes, or in what a model says its shots and pages show) in the
+supplementary transcripts, captions, translations and indexes, in what a model says its shots and pages show, or in
+what a pipeline's model step wrote about it) in the
 namespaces you can read, best first: every word
 (English stemming), "quoted phrases" as written, `OR` between alternatives, `NOT` or `-` before a word or phrase to leave out the lines
 with it; `ns`, `speaker`, `emotion`, `event` (a sound heard, such as laughter, applause or music, typed any way; music
@@ -1319,8 +1320,11 @@ or on the longest of the words when the text doesn't have them together.
 Each hit's `source` says where it was found: `said` (a line of the asset's text or transcript), `screen` (text on screen), `page` (a document's or an
 image's text: its `page`, from 0, and its `box` on it), `object` (a kind of object, where it's first seen: its time, or
 on a document's pages its `page`, with the `frame` and the `box` it's best seen in), `described` (what a shot or a page
-shows, [Descriptions](#descriptions): the shot's time, or the `page`, and its `frame`) or `file` (a line of a
-supplementary file: its `file`, `file_role` and `file_label`, and which `line`). A file's lines have no `t0` when the
+shows, [Descriptions](#descriptions): the shot's time, or the `page`, and its `frame`), `generated` (what a pipeline's
+`llm` step, or a workflow's Save output node after an LLM prompt node, wrote about the asset: the output's
+`output_key` and what wrote it, `output_label`, with no time or page; [Pipelines and
+templates](processing.md#pipelines-and-templates)) or `file` (a line of a supplementary file: its `file`, `file_role`
+and `file_label`, and which `line`). A file's lines have no `t0` when the
 file doesn't say when they are; the web app opens those in the resource's Files tab. A `speaker`, `emotion` or `event`
 filter keeps to `said` hits, and each hit says its `emotion` and `event`.
 

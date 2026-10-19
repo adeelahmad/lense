@@ -9467,7 +9467,7 @@ export type FindMoment = {
   /**
    * Source
    *
-   * words: said, screen, file, page, object or described (as search has it)
+   * words: said, screen, file, page, object, described or generated (as search has it)
    */
   source?: string | null;
   [key: string]: unknown;
@@ -24201,9 +24201,9 @@ export type SearchHit = {
   /**
    * Source
    *
-   * "said" (a line of a transcript or other text), "screen" (text on screen in a video), "file" (a line of a supplementary file), "page" (text on a page of a document or an image, whose times are only a reading pace), "object" (a kind of object seen in a video, a document or an image, where it's first seen; its snippet is the kind) or "described" (what a model that can see said a shot of a video, or a page, shows)
+   * "said" (a line of a transcript or other text), "screen" (text on screen in a video), "file" (a line of a supplementary file), "page" (text on a page of a document or an image, whose times are only a reading pace), "object" (a kind of object seen in a video, a document or an image, where it's first seen; its snippet is the kind), "described" (what a model that can see said a shot of a video, or a page, shows) or "generated" (what a pipeline's model step, or a workflow's model node, wrote about the asset: one of its outputs, with no time or page)
    */
-  source: "said" | "screen" | "file" | "page" | "object" | "described";
+  source: "said" | "screen" | "file" | "page" | "object" | "described" | "generated";
   /**
    * Frame
    *
@@ -24246,6 +24246,18 @@ export type SearchHit = {
    * file hits: which of its lines (from 0)
    */
   line?: number | null;
+  /**
+   * Output Key
+   *
+   * generated hits: the output it is (outputs.<key> on the asset)
+   */
+  output_key?: string | null;
+  /**
+   * Output Label
+   *
+   * generated hits: what wrote it: the step's or node's name, else its template's
+   */
+  output_label?: string | null;
   /**
    * Match
    *

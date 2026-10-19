@@ -5,7 +5,8 @@ transcribe (speech to text), read (a document's or an
 image's pages and their text), convert (new assets made from one: a video's soundtrack as audio, a document's pages
 as images, conversions.py), diarize, shots, ocr, faces, objects, nsfw (NSFW classification, nsfw.py), describe,
 clean (a transcript tidied before analysis, cleanup.py), analyze, embed (passages for search by meaning, semantic.py),
-summarize, llm (a prompt template whose structured result is saved as a named output), spec (a technical spec from the
+summarize, llm (a prompt template whose structured result is saved as a named output, its words found by search unless
+the step says `searchable: false`), spec (a technical spec from the
 transcript, written to a note linked to the recording, specs.py), reply (a cited reply drafted to an email,
 responder.py), report (built in, or from a report template) and
 export (a template rendered to a file, optionally copied to a storage source) and workflow (a workflow graph,
@@ -73,8 +74,10 @@ KEYS = {
     "format",
     "pipeline",
     "converter",
+    "searchable",
 }
-ONLY = {"to": "convert", "format": "convert", "pipeline": "convert", "converter": "read"}  # settings only one type of step has
+# settings only one type of step has
+ONLY = {"to": "convert", "format": "convert", "pipeline": "convert", "converter": "read", "searchable": "llm"}
 CONVERTERS = ("auto", "anytopdf", "lens")  # what a read step makes PDFs with, as documents.converter says
 NODE_RX = re.compile(r"^[A-Za-z0-9_-]{1,40}$")
 WHEN = {"min_minutes": (int, float), "max_minutes": (int, float), "source": str, "languages": list}
@@ -127,6 +130,8 @@ def validate_steps(db, steps):
                 raise ValueError(f"{t} step needs a {need} template, not {tpl['kind']}")
         if t == "llm" and not KEY_RX.match(str(s.get("key") or "")):
             raise ValueError("llm step: name the output with lowercase letters, digits and _ (e.g. meeting_notes)")
+        if "searchable" in s and not isinstance(s["searchable"], bool):
+            raise ValueError("llm step: searchable is true or false")
         if t == "export":
             if not str(s.get("filename") or "").strip():
                 raise ValueError("export step: give a file name, e.g. {{ recording.title }}.md")
@@ -347,11 +352,53 @@ def condition_ok(db, rid, when):
     )
 
 
-def save_output(db, rid, key, value, origin=None):
+GENERATED_MAX = 100_000  # characters of an output kept for search
+
+
+def output_text(value):
+    """The words of an output, for search: its text and numbers, one per line, in order (not its field names)."""
+    out: list[str] = []
+
+    def walk(v):
+        if isinstance(v, str):
+            if v.strip():
+                out.append(" ".join(v.split()))
+        elif isinstance(v, (int, float)) and not isinstance(v, bool):
+            out.append(str(v))
+        elif isinstance(v, dict):
+            for x in v.values():
+                walk(x)
+        elif isinstance(v, list):
+            for x in v:
+                walk(x)
+
+    walk(value)
+    return "\n".join(out)[:GENERATED_MAX]
+
+
+def save_output(db, rid, key, value, origin=None, found_as=None):
+    """Keep a named output of a recording. With `found_as` (who wrote it: the step's or node's name), its words are
+    kept for search too (`generated`, search.py), in place of what this output had before; without it, nothing of this
+    output is searchable."""
     db.q(
         "UPSERT $o CONTENT $d",
         o=R("output", f"{rid}-{key}"),
         d=store.clean({"recording": rid, "key": key, "value": value, "origin": origin, "created_at": store.now()}),
+    )
+    keep_words(db, rid, key, value, found_as)
+
+
+def keep_words(db, rid, key, value, found_as):
+    """Keep an output's words for search under `found_as`, or with None (or no words), drop what was kept."""
+    text = output_text(value) if found_as else ""
+    g = R("generated", f"{rid}-{key}")
+    if not text:
+        db.q("DELETE $g", g=g)
+        return
+    db.q(
+        "UPSERT $g CONTENT $d",
+        g=g,
+        d={"recording": rid, "space": _space_of(db, rid), "key": key, "label": found_as, "text": text, "created_at": store.now()},
     )
 
 
@@ -359,10 +406,42 @@ def run_llm(db, cfg, rid, spec, say):
     t = templates.get(db, int(spec["template"]), spec.get("version"))
     prompt = templates.render_body(t["body"], templates.context(db, cfg, rid), "prompt")
     value = llm.json_out(cfg, t.get("system") or templates.DEFAULT_SYSTEM, prompt, t.get("schema") or {"type": "object"}, spec.get("model"))
-    save_output(
-        db, rid, spec["key"], value, {"template": t["id"], "version": t["version"], "model": spec.get("model") or cfg["llm"]["model"]}
-    )
-    say(f"saved output {spec['key']}")
+    origin = {"template": t["id"], "version": t["version"], "model": spec.get("model") or cfg["llm"]["model"]}
+    found_as = (spec.get("name") or t["name"]) if spec.get("searchable", True) else None
+    save_output(db, rid, spec["key"], value, origin, found_as)
+    say(f"saved output {spec['key']}" + ("" if found_as else " (not searchable)"))
+
+
+def migrate_generated(db):
+    """Upgrade step: what a model wrote about a recording before outputs were searchable is found by search too, under
+    the name of the template that asked for it. Outputs a model made that aren't its words (a spec's note) stay out.
+    Safe to run twice: outputs already searchable are left as they are."""
+    from . import specs
+
+    names: dict = {}
+    last = None
+    while True:
+        rows = db.rows(
+            "SELECT id, record::id(id) AS oid, recording, key, value, origin FROM output WHERE origin.model != NONE"
+            + (" AND id > $last" if last is not None else "")
+            + " ORDER BY id LIMIT 500",
+            last=last,
+        )
+        for o in rows:
+            if o.get("key") == specs.KEY or db.one("SELECT id FROM $g", g=R("generated", o["oid"])):
+                continue
+            if not db.one("SELECT id FROM $r", r=R("recording", o["recording"])):
+                continue
+            tid = (o.get("origin") or {}).get("template")
+            if tid not in names:
+                try:
+                    names[tid] = templates.get(db, int(tid))["name"]
+                except (KeyError, TypeError, ValueError):
+                    names[tid] = None
+            keep_words(db, o["recording"], o["key"], o.get("value"), names[tid] or o["key"])
+        if len(rows) < 500:
+            break
+        last = rows[-1]["id"]
 
 
 def _space_name(db, rid):

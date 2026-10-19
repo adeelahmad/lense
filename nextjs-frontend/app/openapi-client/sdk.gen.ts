@@ -7871,8 +7871,8 @@ export class Search {
    * Search Transcripts
    *
    * Moments where the words appear (said in audio or video, shown on screen in a video, written in a document or in
-   * a resource's supplementary transcripts, captions, translations and indexes, or the kinds of object seen in videos,
-   * documents and images),
+   * a resource's supplementary transcripts, captions, translations and indexes, the kinds of object seen in videos,
+   * documents and images, what a model that can see said they show, or what a pipeline's model step wrote about them),
    * best first, in the namespaces you can read and the collections you were given a role on. A person, emotion or
    * sound filter keeps to their lines. By meaning, a moment is a passage about what was asked, though its words may differ.
    */

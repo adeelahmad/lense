@@ -698,18 +698,26 @@ export function NodeSettings({
         )}
 
         {node.type === "output" && (
-          <Field label="Output name" hint="Saved on the asset as outputs.<name>; lowercase letters, digits and _">
-            {({ id, describedBy }) => (
-              <Input
-                id={id}
-                aria-describedby={describedBy}
-                mono
-                value={String(c.key ?? "")}
-                placeholder="meeting_notes"
-                onChange={(e) => onChange({ ...node, config: { ...c, key: e.target.value } })}
-              />
-            )}
-          </Field>
+          <>
+            <Field label="Output name" hint="Saved on the asset as outputs.<name>; lowercase letters, digits and _">
+              {({ id, describedBy }) => (
+                <Input
+                  id={id}
+                  aria-describedby={describedBy}
+                  mono
+                  value={String(c.key ?? "")}
+                  placeholder="meeting_notes"
+                  onChange={(e) => onChange({ ...node, config: { ...c, key: e.target.value } })}
+                />
+              )}
+            </Field>
+            <Checkbox
+              checked={c.searchable !== false}
+              onCheckedChange={(v) => onChange({ ...node, config: { ...c, searchable: v ? undefined : false } })}
+              label="Find it in search when a model wrote it (an LLM node before this one)"
+              disabled={readOnly}
+            />
+          </>
         )}
 
         {node.type === "field" && (

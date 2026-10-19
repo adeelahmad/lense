@@ -113,7 +113,8 @@ def search(
 ):
     """Transcript lines (and, unless screen is false, text on screen in videos; with files, the lines of supplementary
     transcripts, captions, translations and indexes; with objects, the kinds of object seen in videos, documents and
-    images; with described, what a model that can see said their pages and shots show) matching q. spaces limits the search to namespaces someone may read, and `also` adds recordings they may
+    images; with described, what a model that can see said their pages and shots show, and what a pipeline's model step
+    wrote about them) matching q. spaces limits the search to namespaces someone may read, and `also` adds recordings they may
     read beyond those (in collections they were given a role on); recordings limits it to a set of recordings (such as
     the transcripts a visitor may read), and obj to those a kind of object is seen in. event keeps to lines with that
     sound (Laughter, Applause, BGM …). With facets, also how many of all the matching moments (up to FACET_CAP) are in
@@ -206,6 +207,7 @@ def search(
             hits += _objects(db, groups, space_filter(ns, spaces, recording, params), cap, params)
         if described and alone:  # nor what pages and shots show
             hits += _described(db, groups, space_filter(ns, spaces, recording, params), cap, params)
+            hits += _generated(db, groups, space_filter(ns, spaces, recording, params), cap, params)
     hits.sort(key=lambda r: (-r["_score"], r["recording"], r.get("idx") or 0))
     meant = []
     if used != "keyword":
@@ -282,6 +284,7 @@ def search(
             **({"t0": None, "t1": None, "page": h["t0"]} if h["source"] in ("object", "described") and h.get("paged") else {}),
             **({"page": h["page"], "box": h.get("box")} if h["source"] == "page" else {}),
             **(_in_file(in_files.get(h["file"]) or {"id": h["file"]}, h.get("line")) if h["source"] == "file" else {}),
+            **({"output_key": h["key"], "output_label": h.get("label") or h["key"]} if h["source"] == "generated" else {}),
             "match": h.get("match") or "words",
             "similarity": round(h["similarity"], 3) if h.get("similarity") is not None else None,
         }
@@ -511,7 +514,11 @@ def _facets(db, groups, where_f, base, screen, ns, spaces, recording, files=Fals
         else []
     )
     shown = (
-        _matches(db, groups, "description", "recording, space", space_filter(ns, spaces, recording, base), base)
+        [
+            r
+            for t in ("description", "generated")
+            for r in _matches(db, groups, t, "recording, space", space_filter(ns, spaces, recording, base), base)
+        ]
         if described and words
         else []
     )
@@ -594,6 +601,11 @@ def _screen(db, groups, where_f, cap, base):
 def _described(db, groups, where_f, cap, base):
     """Hits in what a model that can see said a page or a shot shows, at that page or shot."""
     return _layer(db, groups, where_f, cap, base, "description", "frame, paged", "described")
+
+
+def _generated(db, groups, where_f, cap, base):
+    """Hits in what a pipeline's model step (or a workflow's model node) wrote about a recording: one per output."""
+    return _layer(db, groups, where_f, cap, base, "generated", "key, label", "generated")
 
 
 def _file_lines(db, groups, where_f, cap, base):

@@ -21,6 +21,8 @@ export type StepSpec = {
   destination?: { source: number; path?: string };
   model?: string;
   force?: boolean;
+  /** An llm step: false keeps what it writes out of search (searchable unless it says so). */
+  searchable?: boolean;
   workflow?: number;
   /** A convert step: what the new assets are, their audio format, and the pipeline they run ("none": kept as they are). */
   to?: "audio" | "images";
@@ -90,6 +92,7 @@ export function cleanSpec(s: StepSpec): StepSpec | string {
     };
   if (s.model?.trim()) out.model = s.model.trim();
   if (s.force) out.force = true;
+  if (s.type === "llm" && s.searchable === false) out.searchable = false;
   if (s.type === "convert") {
     if (s.to) out.to = s.to;
     if (s.to === "audio" && s.format) out.format = s.format;
@@ -240,6 +243,7 @@ export function stepSummary(s: StepSpec, templateName?: (id: number) => string |
   }
   if (s.model) parts.push(s.model);
   if (s.force) parts.push("forced");
+  if (s.type === "llm" && s.searchable === false) parts.push("not in search");
   const w = whenText(s.when);
   if (w) parts.push(w);
   return parts.join(" · ");

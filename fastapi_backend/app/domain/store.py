@@ -1743,6 +1743,11 @@ SCHEMA = [
     # what a model that can see images says a page or a shot shows (descriptions.py)
     "DEFINE TABLE IF NOT EXISTS description SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS description_rec ON description FIELDS recording",
+    # the words a pipeline's model step (or a workflow's model node) wrote about a recording, for search: one row per
+    # output, generated:⟨<recording>-<key>⟩ (pipelines.keep_words)
+    "DEFINE TABLE IF NOT EXISTS generated SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS generated_rec ON generated FIELDS recording",
+    "DEFINE INDEX IF NOT EXISTS generated_space ON generated FIELDS space",
     "DEFINE TABLE IF NOT EXISTS face_merge SCHEMALESS",
     # passages embedded for search by meaning (app/domain/semantic.py), and which model's vectors they hold; their
     # HNSW index is defined when the first vector is stored, since its dimension is the model's
@@ -1839,13 +1844,15 @@ def _analyzer(cfg):
     return f"DEFINE ANALYZER IF NOT EXISTS archive_text TOKENIZERS class FILTERS lowercase, ascii{stem}"
 
 
-# the full-text indexes, each on the `text` of its table: transcripts, text on screen, and lines of supplementary files
+# the full-text indexes, each on the `text` of its table: transcripts, text on screen, lines of supplementary files, the
+# kinds of object seen, what pages and shots show, and what a model step wrote
 TEXT_INDEXES = (
     ("segment_text", "segment"),
     ("ocr_text", "ocr_span"),
     ("file_text", "file_line"),
     ("object_text", "object_track"),
     ("description_text", "description"),
+    ("generated_text", "generated"),
 )
 
 
