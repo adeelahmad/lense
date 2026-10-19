@@ -4,6 +4,263 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+## 0.19.0 <small>October 19, 2026</small> {id="0.19.0"}
+
+- **Circles in the web app.** Your circles are under Profile: a suggested name makes one in one click, people are
+  added from a list and taken out with ×, and deleting one is undone from its message. **Share** on a timeline item,
+  or **Share with a circle…** in a resource's menu, picks your only circle, takes a note, and is undone from its
+  message; shares show under *Shared* in the timeline ([Circles of trust](docs/circles.md)).
+
+Hovering a reaction on the timeline says who gave it ("You, Sam and 3 others"), and the API, MCP and the page
+carry up to five names of the others who gave each one.
+
+- **Lambda GPU instances for auto scaling.** A Lambda provider launches GPU instances in your Lambda Cloud account
+  that join Lens over the mesh as worker nodes and transcribe and tell voices apart, priced from Lambda's list, found
+  by Lens's tag and terminated when the group scales in ([Machines elsewhere](docs/scaling.md#machines-elsewhere)).
+
+- **A search result opens the asset with its words found.** Results link with `?q=`, the words searched for (not
+  filters or left-out words), so the asset opens with Find in its text showing them, on the match at the moment the
+  result was, or on the longest of the words when the text doesn't have them together
+  ([Search](docs/api.md#search)).
+
+Comments on the timeline can be edited in place (Enter saves, Escape cancels), and a thread can be resolved or
+reopened there, as on an asset's page.
+
+- **Amazon Bedrock as the LLM provider.** Set the address to `https://bedrock-runtime.<region>.amazonaws.com`, the
+  model to a Bedrock model id or inference profile, and the key to an AWS access key: Lens's chat, tool calls, images
+  and summaries go to Bedrock's Converse API, signed with the key ([LLM provider](docs/configuration.md)).
+
+The timeline has saved views: a name for a set of filters and an order, picked from a Views menu on the page, saved
+from what the page shows with a name guessed from the filters, and listed, saved and deleted by agents over the API
+and MCP (`timeline_views`, `save_timeline_view`, `delete_timeline_view`). Each person's views are their own.
+
+- **Amazon Bedrock provisioned throughput for auto scaling.** A Bedrock group holds provisioned throughput of a model
+  in your AWS account, with no commitment and at the price you give, and Lens's model calls go to it while it runs,
+  signed with the provider's AWS key ([Model hosts](docs/scaling.md#model-hosts)).
+
+A file a watched folder finds changed in its source now shows on the timeline as "Office share updated “Minutes”"
+(`file.changed`, an Update that links the asset it was before) rather than as a second "added". Automations on new
+assets fire on it as before.
+
+- **Share with your circles on their own.** The `share_with_circle` automation action shares what comes in (the
+  school's emails, a calendar's events, a sensor's alerts) with a circle and a note that can say what came in. It
+  asks you first, unless you let its node run on its own; it shares as you, only what you can see in the
+  automation's namespaces, never from a vault ([Rules](docs/circles.md#rules)).
+
+The mute menu on a timeline item now snoozes a source, person or kind for an hour or a week as well as a day.
+
+- **When they're free.** Let a circle see when you're free (never what): its people and their agents ask
+  `POST /api/v1/circles/when-free`, MCP `when_free` or the assistant for a window and get each person's busy times
+  and when everyone is free, within the hours of the day asked for. Your events are those you organise or are
+  invited to, and your own calendar's; each ask shows in your timeline as `agent.asked` ([When they're
+  free](docs/circles.md#when-theyre-free)).
+
+Review marks and reactions left on timeline activities that are gone (an event log entry past `events.keep_days`, a
+deleted asset) are now dropped by an hourly tidy, a batch at a time. Comments on them stay.
+
+- **Not them here.** When a voice in one asset was matched to the wrong person, Not them here on their card in the
+  asset's Speakers tab (or `POST /api/v1/speakers/{sid}/detach`) gives its lines there to a new person, works out the
+  first person's voice again without it, and never suggests the two as the same; Undo merges them back
+  ([People and namespaces](docs/processing.md#people-and-namespaces)).
+
+- **Ask their agent.** Let a circle ask your agent questions about the namespaces you pick: it answers only from
+  them, citing what it used, and you see each question and answer in your timeline. Through
+  `POST /api/v1/circles/ask`, MCP `ask_their_agent`, the assistant, and Profile → Circles
+  ([Ask their agent](docs/circles.md#ask-their-agent)).
+
+For you on the timeline now counts what you open: following a line to what it is about, or opening an item by its
+address, lifts its source, kind and entities a little for you alone (up to four opens of one item).
+
+- **Auto scaling finds units Lens lost track of.** Every ten minutes each provider is asked for the units it runs with
+  Lens's tag; one no unit of Lens's stands for (a launch whose answer never came back, say) shows on the provider in
+  Settings › Auto scaling and the API, and goes in the activity ledger once. Lens lets none of them go itself: you do,
+  with Let go (and Undo for a few seconds), and the assistant can only ask you to
+  ([Units Lens lost track of](docs/scaling.md#units-lens-lost-track-of)).
+
+The mute menu on a timeline item can now snooze its source or kind until a time you pick (**Mute Work Gmail
+until…**), starting at nine tomorrow morning; Enter mutes.
+
+- **A scaling unit that goes leaves the mesh.** When auto scaling lets a unit go, or one fails or never comes up, its
+  unspent join token is withdrawn and the machine that joined with it is taken off the mesh, as removing it on the
+  Nodes page does: its certificates go on the blocklist and its database user is removed
+  ([Machines elsewhere](docs/scaling.md#machines-elsewhere)).
+
+- **Search finds moments by the sounds in them.** Laughter, applause, music and the other sounds a speech provider
+  hears are a search filter like emotion: type `event:laughter` (any case; `music` is the BGM tag), pick one under
+  Sounds in the filters, or pass `event` to `GET /api/v1/search`, a saved search or the MCP `search` tool. Each hit
+  says its sound, and the facets count them (`events`), leaving plain speech out ([API](docs/api.md#search),
+  [search](docs/processing.md#search)).
+
+For you on the timeline reuses each person's affinity for a minute while their reactions, comments, marks and opens
+stay the same, so paging through it looks up fewer activities.
+
+- **SageMaker and Bedrock answers stream.** With an Amazon SageMaker endpoint or Amazon Bedrock as the LLM provider, a
+  chat's answer now comes as it is written (InvokeEndpointWithResponseStream and ConverseStream) instead of all at the
+  end, and an error the model hits mid-answer says so. Keys also allowed `sagemaker:InvokeEndpointWithResponseStream`
+  or `bedrock:InvokeModelWithResponseStream` stream; keys without them get the answer whole, as before ([LLM provider](docs/configuration.md)).
+
+- **Model calls spread across a group's units.** While a model group serves Lens's model calls, every running unit of
+  it takes them in turn, not only the one Settings › LLM provider shows, so scaling a group out adds capacity. A
+  group's units now share one key, sealed on the group, and the scaler keeps the new `llm.spread` setting at their
+  addresses; a unit that can't be reached hands its call to the next ([Auto scaling](docs/scaling.md)).
+
+- **Photos and videos are dated by when they were taken.** An asset uploaded, scanned or imported is now dated by its
+  own file when its name gives no date: a photo by its EXIF (`DateTimeOriginal`, else `DateTime`), a video or a
+  recording by its creation time (QuickTime's `creationdate`, else `creation_time`), before the file's last change. A
+  photo's GPS fix is kept as its `place` (`lat`, `lon`), which `GET /recordings/{rid}` and MCP `get_recording` give its
+  namespace's members. A date in its name, or one its source gives, still wins, and a clock never set (1970, 1904) dates
+  nothing ([When an asset was made](docs/processing.md#when-an-asset-was-made)).
+
+- **Lambda as a model host.** A `lambda-models` provider runs a model with vLLM on Lambda GPU instances, which serve
+  Lens's model calls while they run. Each instance serves HTTPS with a certificate signed by its group's own
+  certificate authority, which Lens makes and keeps sealed, and Lens trusts only that authority for it (the new
+  `llm.tls_ca` setting); a firewall ruleset Lens makes once per region opens the port ([Auto scaling](docs/scaling.md)).
+
+- **Circles with other servers.** Once an admin turns it on (Settings → Circles elsewhere) and you make yourself
+  findable under Profile, you get a handle like `adeel@lens.example`, and your circles can hold people on other Lens
+  or ActivityPub servers by theirs. What you share with those circles reaches them as a signed ActivityPub `Note`, and
+  what they send you lands in your timeline, taken only signed, recent and from someone in a circle. Through the API,
+  MCP `circles_elsewhere` and `save_circle`, and Profile → Circles
+  ([Circles with other servers](docs/federation.md)).
+
+- **Access that ends.** Giving someone a role in a namespace, a role on a collection or permission on an asset now
+  takes an optional end date: an "Until" day in the asset's Access dialog, a collection's People and a namespace's
+  members, `expires_at` in the API, and `until` on the assistant's `change_person`. After it, the grant opens nothing
+  anywhere access is checked, and lists show it as expired until it's given again or taken away. The field starts
+  empty, so grants without an end work as before ([Grants that end](docs/access.md#grants-that-end)).
+
+- **A downloads switch for each asset.** Its owners can turn downloads off in its Access dialog or with `PUT
+  /api/v1/resources/<id>/access {"downloads": false}`. Then everyone else who sees it still plays it, sees its pages
+  and reads its text, but saving its own file, the PDF made of it or its supplementary files answers 403 with the
+  reason; the web app disables those download buttons and says why, the file tree and IIIF manifests leave the files
+  out, and owners keep saving. It's on for every asset until someone turns it off. It isn't copy protection: what
+  plays can still be recorded ([Downloads](docs/access.md#downloads)).
+
+- **A bulk import is one run you can undo whole.** A folder scan, a zip or tar archive's files, a list of links or a
+  bookmarks file, and chosen files of a source each make one import run, and every asset it makes carries the run's
+  id (`import_run`). `GET /api/v1/import/runs` lists recent runs with how many assets each made and how many are left;
+  `POST /api/v1/import/runs/{id}/undo` deletes them all through the normal delete, needing owner rights on each
+  (nothing goes when any isn't yours to delete), audited per asset and for the run. The toast after a link or source
+  import has Undo, the Import screen lists recent runs with Undo on each, and the assistant has `import_runs` and
+  `undo_import` (always after your yes). Assets imported before keep no run, and nothing changes for them.
+  ([Import runs](docs/api.md#import-runs))
+
+- **See the words transcription wasn't sure of.** Whisper, Deepgram, AssemblyAI and ElevenLabs say how sure they
+  were of each word, and Lens now keeps it with the word's timing instead of dropping it. In the transcript, a word
+  below the threshold gets a dotted gold underline and a tooltip ("Transcription wasn't sure of this word (42%)"), so
+  you can spot it and correct it in place; correcting it takes the mark away. Settings → Transcription → Mark words
+  it was less sure of than sets the threshold (`transcribe.confidence_highlight`, 0.6; 0 marks none). `GET
+  …/player` gives each word's confidence as a fifth in `w`, and the threshold as `unsure_below`; the MCP tool
+  `get_transcript` lists each line's `unsure` words. Transcripts made before, and those from SenseVoice and OpenAI's
+  own API, which don't say, have no marks and work as before
+  ([Words transcription wasn't sure of](docs/processing.md#unsure-words)).
+
+- **Follow a collection in your podcast app.** A saved collection's page has **Podcast feed**: your private address
+  for it, with Copy and New address. Its episodes are the collection's assets with audio or video that you can read,
+  with the same RSS and Apple Podcasts' tags, audio and private-address rules as a namespace's podcast feed. Everyone
+  who may read the collection gets an address of their own, and it stops when the collection is deleted or no longer
+  shared with them. Agents get it with `GET /api/v1/collections/{id}/feed` or the MCP tool `list_feeds` with
+  `collection_id` ([A collection's podcast feed](docs/feeds.md#a-collections-podcast-feed)).
+
+- **Search finds what a pipeline's model step wrote.** The words of the output an `llm` step saves on an asset (and of
+  a workflow's Save output node after an LLM prompt node) are found by search, the API's `GET /search` and MCP's
+  `search`, as `source: generated` with the step's name in `output_label`; the web app shows "Written by <step>".
+  Running the step again replaces them and deleting the asset removes them. A step keeps its output out of search with
+  *Find what it writes in search* unticked (`searchable: false`); it is on otherwise. The upgrade step
+  `generated-search` makes outputs a model wrote before searchable too
+  ([Pipelines and templates](docs/processing.md#pipelines-and-templates)).
+
+- **Translate a transcript.** The Files tab's **Translate…** has the configured model translate an asset's transcript
+  into another language (the one your browser reads is filled in), showing what it would take first, always labelled
+  an estimate. It runs only when asked, in the background, sending the lines in batches marked as data so instructions
+  in a transcript are never followed, and keeps the result as a translation file whose lines keep their times and
+  speaker, read by search, the Files tab and IIIF like an uploaded one. Every call is in the activity ledger; a budget
+  that would go over holds it, and one used up stops it. Agents use `GET` and
+  `POST /api/v1/resources/{id}/files/translate`, the MCP tools `translate_transcript` and `get_translation`, and the
+  assistant's `translate_transcript`, which asks first
+  ([Translating a transcript](docs/api.md#translating-a-transcript)).
+
+- **Clips and playlists.** Keep a moment of any recording, video or document as a clip, with a title and a note: select
+  words in a transcript and choose Add to playlist, or add a highlight from its tab. One click puts it at the end of
+  the playlist you used last (a new one called Clips when you have none), with Undo. The new Playlists page lists yours
+  and the ones others shared; a playlist's page plays its clips back to back on each resource's own audio or video,
+  reorders them by dragging or with Up and Down, and takes one out with Undo. A shared playlist shows each reader only
+  the clips of resources they can read. Agents use `/api/v1/playlists` and the MCP tools `list_playlists` and
+  `add_to_playlist`. New tables only: nothing to do when upgrading ([Playlists](docs/playlists.md)).
+
+- **Automations fire on any entity of a type, or names matching a pattern.** A trigger's where (and an If, and a
+  condition node's tree) can test what an activity mentions: `{"op": "mentions", "value": {"type": "PERSON"}}` fires
+  on any person, `{"name": "Acme*"}` on names like Acme, with `*` and `?` as wildcards, and `{"id": "lens:entity/9"}`
+  on one entity. A processed asset is now tagged with its fifty most mentioned entities, not ten, and every entity tag
+  carries its `entityType`. Conditions saved before work as they did
+  ([Operators](docs/automations.md#operators)).
+
+- **A date said becomes a calendar event, once you approve it.** Next to each date said in an asset (its Entities tab,
+  under Dates said), **Propose event** makes an event for a Google Calendar connection an admin let add events,
+  prefilled from the line: the day said at a time said in it ("at 3" is 15:00) or all day, the line as its title, and
+  who it names (for an email, its sender and recipients), never emailed unless you ask. It waits in Approvals, and
+  nothing is added or sent until you approve it there, signed in; declining it does nothing. Agents propose through
+  `POST /api/v1/dates/propose` and the MCP tool `propose_event`, and can decline but never approve
+  ([Propose an event](docs/processing.md#propose-an-event)).
+
+- **WebVTT voices name the speaker.** A transcript imported from a WebVTT file now credits each line to the speaker its
+  voice span names, `<v Name>` or `<v.loud Name>` with classes, closed by `</v>` or not, and those speakers join the
+  namespace's people like any other named speaker. A cue with two voices becomes two lines that share its time; the tags
+  are left out of the text, and a cue without a voice is read as before. A YouTube caption cue that starts with a line
+  of one space is no longer lost ([Importing text and transcripts](docs/processing.md#importing-transcripts)).
+
+- **Captions the browser knows about.** A video now plays its transcript as a WebVTT `<track>`, in the workspace and on
+  its public page, so the browser's captions menu, full screen, picture in picture and assistive technology get it,
+  with timed supplementary captions and translations as more tracks to pick. The links are signed, so they work for
+  visitors and share links too. In the workspace the Captions toggle still draws the line and its speaker over the
+  video, and the browser draws the track only where that can't be seen (full screen, picture in picture), so captions
+  never show twice; on the public page the browser draws them once the visitor turns them on with the new
+  Captions button. `GET /api/v1/recordings/<id>/player` and `GET /api/v1/public/recordings/<id>` list the tracks as
+  `captions` ([Captions](docs/video.md#captions)).
+
+- **A voice isn't given back to someone it was said not to be.** Once a voice was split off from a person (Not them
+  here) or a suggested pair was marked not the same, a voice in a new or re-diarized asset goes to, or is suggested as,
+  only the one of the two it sounds more like, by their voice overall or in any one asset they're in. Before, a voice
+  nearer the first person's average could be matched or suggested as them again
+  ([People and namespaces](docs/processing.md#people-and-namespaces)).
+
+- **A "not the same" decision survives a merge.** Merging one person into another now carries every pair someone
+  said aren't the same person over to the person merged into, so a voice isn't suggested again for someone it was said
+  not to be; a pair that would name the person twice is dropped, and undoing the merge puts the pairs back. An upgrade
+  step (`speaker-not-same-merged`) does the same for merges made before ([Upgrades](docs/database.md#upgrades)).
+
+- **Correct an asset's language, with its region.** The language transcription hears stays on the asset, and editors
+  can set or correct it as a BCP 47 tag with a region when it matters (`en-GB` or `en-US`, `pt-BR` or `pt-PT`) in the
+  asset's Details tab, with `PATCH /api/v1/resources/<id> {"language": "en-gb"}` or the MCP tool `set_language`. The
+  tag is checked and written the usual way (`en-GB`, `zh-Hant-TW`), the IIIF manifest and Dublin Core record give it,
+  and transcribing the asset again keeps a person's language instead of the detected one; `null` forgets it. A
+  pipeline step's `languages` condition of `en` now takes `en-GB` and `en-US` too. Languages already stored stay as
+  they are ([An asset's language](docs/api.md#an-assets-language)).
+
+- **Name the unnamed faces in a row.** Where a namespace recognises faces, Settings → People has an Unnamed faces tab
+  (and a video's People tab links to it): the faces nobody has named yet, the largest group first, each with a few
+  crops and the assets it's in. The first name field has focus, filled with the name Lens offers when it has one (the
+  voice the face is linked to, or a named face suggested for it); Enter names it and moves on to the next, with Undo.
+  A name another face already has joins that person, the same merge as "Same person". Agents do it with
+  `GET /api/v1/namespaces/<ns>/faces/unnamed` and `POST /api/v1/faces/<id>/name`, or the MCP tools
+  `list_unnamed_faces` and `name_face` ([Naming faces](docs/video.md#naming-faces)).
+
+- **Search by when, tag, source and language.** `GET /api/v1/search` takes `from` and `to` (days: when the asset was
+  recorded, or added when its file doesn't say), `tag`, `origin` and `language`, the Library's filters of the same
+  names, and keeps every kind of hit to the assets that have them; the MCP `search` tool takes `date_from` and
+  `date_to` (a day, a month or a year), `tags`, `origins` and `languages`. On the search page they're compact controls
+  at the top of the filter panel, empty until picked, typed in the box too (`tag:interview`, `from:2026-01-01`), shown
+  as chips, kept in the link and in saved searches. A search's object filter now also keeps text on screen, file lines
+  and descriptions to the assets the object is seen in, not only what was said
+  ([search](docs/api.md#search)).
+
+- **Notes and comments in IIIF, as W3C Web Annotations.** With `notes` added to the published annotation layers
+  (Settings, IIIF; off by default), an asset's IIIF Manifest lists its shared notes and its comments as an
+  AnnotationPage (`/iiif/<id>/annotations/notes`): each note or thread `commenting` on its moment or on the whole
+  asset, each reply `replying` to its thread, with who wrote it and when; on a document, per page. Only people with a
+  role on the asset get it, through their sign-in or the IIIF access cookie: the public, share links and signed links
+  never do, and unshared notes are never in it ([IIIF](docs/iiif.md)).
+
 ## 0.18.0 <small>October 18, 2026</small> {id="0.18.0"}
 
 - **Client certificates for log servers.** Settings → Logs takes this machine's certificate and key (PEM, stored
