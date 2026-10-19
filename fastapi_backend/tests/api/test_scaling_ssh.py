@@ -47,9 +47,17 @@ class Host(paramiko.ServerInterface):
                 conn, _ = self.sock.accept()
             except OSError:
                 return
-            t = paramiko.Transport(conn)
-            t.add_server_key(self.key)
+            threading.Thread(target=self._session, args=(conn,), daemon=True).start()
+
+    def _session(self, conn):
+        """One client's connection, served apart, so one that goes away mid-handshake (as a client that refuses the
+        host key does) leaves the host answering the next."""
+        t = paramiko.Transport(conn)
+        t.add_server_key(self.key)
+        try:
             t.start_server(server=self)
+        except (EOFError, OSError, paramiko.SSHException):
+            t.close()
 
     def close(self):
         self.sock.close()
