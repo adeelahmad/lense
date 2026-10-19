@@ -14,6 +14,7 @@ to Bedrock's Converse API, translated both ways (bedrock.py)."""
 from __future__ import annotations
 
 import http.client
+import itertools
 import json
 import os
 import re
@@ -72,25 +73,44 @@ def _post(cfg, payload, whole=False):
         raise LLMError("no language model is configured (Settings → LLM provider)")
     if region := bedrock.region(l.get("base_url")):
         return _bedrock(cfg, payload, region)
-    req = chat_request(cfg, payload, whole)
-    try:
-        r = urllib.request.urlopen(req, timeout=l.get("timeout") or 300)
-        if "vnd.amazon.eventstream" in (r.headers.get("Content-Type") or ""):
-            return PayloadParts(r)
-        return r
-    except urllib.error.HTTPError as e:
-        said = e.read().decode("utf-8", "replace")
-        if e.code == 403 and req.full_url.endswith("/invocations-response-stream"):
-            return _post(cfg, payload, whole=True)  # keys that may only InvokeEndpoint, as before answers streamed
-        if e.code in (400, 413) and FULL_SAYS.search(said):
-            m = WINDOW_SAYS.search(said)
-            window = _tokens(next(g for g in m.groups() if g)) if m else None
-            if window:  # what the server said, rather than what it lists or nothing
-                _WINDOWS[(l["base_url"].rstrip("/"), payload.get("model") or l["model"])] = (time.monotonic(), window)
-            raise ContextFull(f"{e.code} from the LLM server: {said[:300]}", window) from None
-        raise LLMError(f"{e.code} from the LLM server: {said[:300]}") from None
-    except (urllib.error.URLError, TimeoutError, OSError) as e:
-        raise LLMError(f"can't reach the LLM server at {l['base_url']}: {e}") from None
+    tries = _spread(cfg)[:2]  # a unit that can't be reached hands the call to the next
+    for n, at in enumerate(tries, 1):
+        req = chat_request(at, payload, whole)
+        try:
+            r = urllib.request.urlopen(req, timeout=l.get("timeout") or 300)
+            if "vnd.amazon.eventstream" in (r.headers.get("Content-Type") or ""):
+                return PayloadParts(r)
+            return r
+        except urllib.error.HTTPError as e:
+            said = e.read().decode("utf-8", "replace")
+            if e.code == 403 and req.full_url.endswith("/invocations-response-stream"):
+                return _post(at, payload, whole=True)  # keys that may only InvokeEndpoint, as before answers streamed
+            if e.code in (400, 413) and FULL_SAYS.search(said):
+                m = WINDOW_SAYS.search(said)
+                window = _tokens(next(g for g in m.groups() if g)) if m else None
+                if window:  # what the server said, rather than what it lists or nothing
+                    _WINDOWS[(l["base_url"].rstrip("/"), payload.get("model") or l["model"])] = (time.monotonic(), window)
+                raise ContextFull(f"{e.code} from the LLM server: {said[:300]}", window) from None
+            raise LLMError(f"{e.code} from the LLM server: {said[:300]}") from None
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            if n == len(tries):
+                raise LLMError(f"can't reach the LLM server at {at['llm']['base_url']}: {e}") from None
+
+
+_TURN = itertools.count()  # whose turn it is among the addresses of llm.spread
+
+
+def _spread(cfg):
+    """Where a chat call may go, in order: the provider alone, or with `llm.spread` (auto scaling's units serving the
+    provider's model with its key, scaling.py `_serve`) every one of them, starting with the next in turn. A spread
+    left from another provider is ignored."""
+    l = cfg["llm"]
+    s = l.get("spread") or {}
+    if not s.get("urls") or s.get("base_url") != l.get("base_url"):
+        return [cfg]
+    urls = [s["base_url"], *s["urls"]]
+    i = next(_TURN) % len(urls)
+    return [cfg if u == l["base_url"] else {**cfg, "llm": {**l, "base_url": u}} for u in urls[i:] + urls[:i]]
 
 
 _MODELS = {}  # base_url -> (when, {name: what the server says of it}): the server's list, kept a minute

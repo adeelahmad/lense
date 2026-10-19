@@ -5,6 +5,7 @@ own addresses are httpx MockTransports."""
 from __future__ import annotations
 
 import datetime as dt
+import io
 import json
 
 import httpx
@@ -186,6 +187,70 @@ def test_a_running_model_unit_serves_lenss_model_calls_until_none_runs(client, d
     back = llm()
     assert (back["base_url"], back["model"], back["api_key"]) == ("http://old.home:8080/v1", "big", "old-key")  # as it was
     assert not (db.one("SELECT serving FROM $r", r=scaling.ROW) or {}).get("serving")
+
+
+def test_model_calls_go_to_a_groups_running_units_in_turn(client, db, cfg, h, pods, monkeypatch):
+    from app.domain import llm as llm_
+
+    base = cfg
+    settings.save(db, base, "scaling", {"enabled": True}, "root@x.io")
+    settings.save(db, base, "llm", {"base_url": "http://old.home:8080/v1", "model": "big"}, "root@x.io")
+    eff = lambda: settings.effective(db, base)  # noqa: E731
+    scaler = scaling.Scaler(db, eff, "test")
+    p = client.post("/api/v1/scaling/providers", headers=h, json={"name": "G", "driver": "runpod", "secrets": {"token": "rp"}}).json()
+    g = client.post(
+        "/api/v1/scaling/groups",
+        headers=h,
+        json={"name": "Q", "provider": p["id"], "min": 3, "max": 3, "budget": 50, "template": {"model": "m"}},
+    ).json()
+    scaler.tick(now=NOW, lease=False)
+    assert len({pod["body"]["env"]["VLLM_API_KEY"] for pod in pods.pods.values()}) == 1  # one key for the group's units
+    assert "unit_key" not in client.get(f"/api/v1/scaling/groups/{g['id']}", headers=h).json()
+    pods.loaded.update(list(pods.pods)[:2])  # the third is still loading its model
+    scaler.tick(now=NOW + dt.timedelta(minutes=1), lease=False)
+    urls = {pid: f"https://{pid}-8000.proxy.runpod.net/v1" for pid in pods.pods}
+    served, other, loading = urls.values()
+    assert eff()["llm"]["base_url"] == served and eff()["llm"]["spread"] == {"base_url": served, "urls": [other]}
+
+    went, refusing = [], set()
+
+    def urlopen(req, timeout=None):
+        went.append(req.full_url.removesuffix("/chat/completions"))
+        assert req.headers["Authorization"] == "Bearer " + pods.pods["pod1"]["body"]["env"]["VLLM_API_KEY"]
+        if any(req.full_url.startswith(u) for u in refusing):
+            raise llm_.urllib.error.URLError("connection refused")  # a unit going away hands its call on
+        r = io.BytesIO(json.dumps({"choices": [{"message": {"content": "ok"}}]}).encode())
+        r.headers = {"Content-Type": "application/json"}
+        return r
+
+    monkeypatch.setattr(llm_.urllib.request, "urlopen", urlopen)
+    for _ in range(4):
+        assert llm_.chat(eff(), [{"role": "user", "content": "hi"}]) == "ok"
+    assert sorted(went) == sorted([served, other] * 2)
+    went.clear()
+    refusing.add(other)
+    for _ in range(2):
+        llm_.chat(eff(), [{"role": "user", "content": "hi"}])
+    assert went.count(served) == 2 and loading not in went
+
+    pods.loaded.add("pod3")
+    scaler.tick(now=NOW + dt.timedelta(minutes=2), lease=False)
+    assert eff()["llm"]["spread"] == {"base_url": served, "urls": sorted([other, loading])}
+    del pods.pods["pod2"], pods.pods["pod3"]  # gone, and not yet replaced
+    scaler.tick(now=NOW + dt.timedelta(minutes=3), lease=False)
+    assert eff()["llm"]["base_url"] == served and eff()["llm"]["spread"] is None
+
+    settings.save(db, base, "llm", {"spread": {"base_url": served, "urls": [other]}}, "root@x.io")
+    settings.save(db, base, "llm", {"base_url": "http://mine.home/v1", "model": "mine"}, "root@x.io")
+    assert llm_._spread(eff()) == [eff()]  # a spread left from another provider sends nothing elsewhere
+    scaler.tick(now=NOW + dt.timedelta(minutes=4), lease=False)
+    assert eff()["llm"]["spread"] is None
+
+
+def test_llm_spread_is_checked(db, cfg):
+    for bad in ({"base_url": "http://a/v1", "urls": []}, {"base_url": "http://a/v1", "urls": ["ftp://b"]}, {"urls": ["http://b"]}):
+        with pytest.raises(ValueError, match="llm.spread"):
+            settings.save(db, cfg, "llm", {"spread": bad}, "root@x.io")
 
 
 def test_a_provider_a_person_picks_while_a_unit_serves_stays(client, db, cfg, h, pods):

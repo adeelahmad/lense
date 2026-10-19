@@ -209,6 +209,9 @@ DEFAULTS = {
         "describe_engine": "llm",
         "florence_model": "base",  # Florence-2 base (about 280 MB) or large (about 830 MB)
         "moondream_model": "moondream3-preview",  # Moondream 3 Preview (BSL 1.1, a GPU) or moondream2 (Apache-2.0)
+        # more addresses serving the model at base_url with the same key, which chat calls go to in turn:
+        # {base_url, urls}, used only while base_url is still the provider's (auto scaling keeps it: scaling.py)
+        "spread": None,
     },
     "graph": {"max_nodes": 150, "min_edge_weight": 2},
     "search": {

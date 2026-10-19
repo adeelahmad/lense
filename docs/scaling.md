@@ -222,7 +222,15 @@ While a model group's unit runs, it is Lens's LLM provider (the template's `use_
 scaler points Settings › LLM provider at the unit's address, model and key, keeping the provider that was there
 sealed, and puts it back once no unit of such a group runs. When that unit goes and another runs, the other takes
 over. A provider a person picks meanwhile stays: Lens doesn't point at a unit again until none has run. Each switch
-is in the activity ledger (`scaling.serve`, `scaling.serve.end`). One unit serves at a time; the others stand by.
+is in the activity ledger (`scaling.serve`, `scaling.serve.end`).
+
+Model calls go to every running unit of the group in turn, not only the one Settings shows: a group's units serve
+with one key (made once, sealed on the group), and the scaler keeps `llm.spread` at the shown unit's address and the
+others' (`{"base_url": ..., "urls": [...]}`), so a group scaled out to three units takes three times the calls. A
+unit that can't be reached hands its call to the next. A spread is used only while Settings still shows the address
+it was made for, so a provider a person picks never sends calls to a unit. Units launched before groups had one key
+(Lens before this) keep their own and only serve as the shown unit until they are replaced. Bedrock's units are
+models at one address rather than addresses, so a Bedrock group serves from one unit at a time.
 
 ## AWS EC2
 
@@ -373,7 +381,7 @@ which only that yes in the web app does.
 
 ## Refine later
 
-Spreading model calls across a group's units, and serving only some kinds of call (chat, decisions); more model
+Serving only some kinds of call (chat, decisions); more model
 hosts (Lambda instances serving a model); Bedrock's price per unit-hour from AWS and Bedrock API keys as the
 provider's key; Hugging Face's scale to zero and private endpoints; RunPod network volumes, so a model is downloaded once; Proxmox LXC containers; a live euro rate;
 preemptible and spot instances at clouds other than AWS and RunPod; draining an AWS spot unit on its two-minute notice

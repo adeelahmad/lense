@@ -299,6 +299,7 @@ DOCUMENT_RANGES = {
 TOKEN_DAYS = (1, 3650)
 OAUTH_ACCESS_MINUTES = (5, 1440)
 VIEWER_URL = re.compile(r"^https?://[^\s]+$")
+SPREAD_URL = re.compile(r"^https?://[^\s]{1,500}$")
 _KEYS, _KL = {}, threading.Lock()
 
 
@@ -525,6 +526,17 @@ def _check(section, key, value, default):
         return audio_cleanup.check(value)
     if (section, key) == ("server", "trusted_proxies"):
         return ipgroups.proxies(value)
+    if (section, key) == ("llm", "spread"):
+        ok = value is None or (
+            isinstance(value, dict)
+            and set(value) == {"base_url", "urls"}
+            and isinstance(value["urls"], list)
+            and 0 < len(value["urls"]) <= 64
+            and all(isinstance(u, str) and SPREAD_URL.match(u) for u in [value["base_url"], *value["urls"]])
+        )
+        if not ok:
+            raise ValueError("llm.spread is {base_url, urls}: the provider's address and up to 64 more http(s) addresses")
+        return value
     if (section, key) == ("llm", "vision_model"):
         if value is not None and not (isinstance(value, str) and len(value.strip()) <= 200):
             raise ValueError("llm.vision_model is a model's name")
