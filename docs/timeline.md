@@ -92,7 +92,8 @@ them, and each one is an activity of its own, so an automation (or an agent) can
 
 - **Reactions** come from a palette, 👍 ❤️ 🎉 👀 😂 😮 😢 🙏. An opened item shows its reactions as chips with how
   many gave each (yours are highlighted; a click on one of yours takes it back) and a **React** button with the
-  palette. A closed line sums its items' reactions, and a line of several shows them with "3 comments". Every new
+  palette. Hovering a chip says who gave it: "You, Sam and 3 others", you first, then up to five others by name,
+  earliest first. A closed line sums its items' reactions, and a line of several shows them with "3 comments". Every new
   reaction is a `reaction.added` activity (noisy, so the timeline leaves it out unless asked for by kind), by the
   person, with the activity it is on as its object.
 - **Comments** open from the comment count on an opened item (or **Comment** when there are none): the threads with
@@ -103,7 +104,7 @@ them, and each one is an activity of its own, so an automation (or an agent) can
 - Comments and reactions on an activity meant for one person (`lens.audience` owner) stay with that person, as the
   activity does.
 - `POST /api/v1/activities/{id}/react` with `{"emoji": "👍"}` (and `"on": false` to take it back) answers the
-  reactions on it now, `[{emoji, count, mine}]`; `GET`, `POST`, `PATCH` and `DELETE /api/v1/activities/{id}/comments`
+  reactions on it now, `[{emoji, count, mine, who}]` (`who`: up to five of the others who gave it, by name); `GET`, `POST`, `PATCH` and `DELETE /api/v1/activities/{id}/comments`
   are the thread, as [comments on a resource](api.md#comments) are. `GET /api/v1/activities` carries everyone's
   reactions on the page in `reactions` and each item's comment count in `comments`, by id.
 
@@ -257,6 +258,6 @@ per source page; they go when the person is removed. Nothing of this costs a mod
 - Saved filter views.
 - Marks on activities whose rows are gone (an event log entry past `events.keep_days`, a deleted asset) stay until
   the person is removed; a tidy could drop them. Reactions and comments on such activities likewise.
-- Who gave each reaction, on hover; editing and resolving comments from the timeline (the API has both).
+- Editing and resolving comments from the timeline (the API has both).
 - The agent's reply in a thread is plain text with links; the answer's excerpts could open at their moment, as in
   chat. Tagging a namespace's own assistant by its name, with its memory.

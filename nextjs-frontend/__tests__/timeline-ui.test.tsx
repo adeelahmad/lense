@@ -161,12 +161,17 @@ test("reactions and comments: a line sums its items', a 👍 goes to the server,
   const rows = within(await screen.findByRole("list", { name: "Timeline" })).getAllByTestId("timeline-row");
   // closed: the run of three emails shows 👍 3 (two on e2, yours on e1); the upload shows its one comment
   expect(rows[0]).toHaveTextContent("👍3");
+  expect(within(rows[0]).getByTitle("You and 2 others")).toBeInTheDocument();
   expect(rows[1]).toHaveTextContent("1 comment");
   // opened, each item has its own bar: react on e3 from the picker
   fireEvent.click(within(rows[0]).getByRole("button", { name: "Show the 3" }));
   const bars = within(rows[0]).getAllByTestId("reactions");
   expect(bars).toHaveLength(3);
   expect(within(bars[2]).getByRole("button", { name: "thumbs up 1, yours" })).toHaveAttribute("aria-pressed", "true");
+  expect(within(bars[2]).getByRole("button", { name: "thumbs up 1, yours" })).toHaveAttribute(
+    "title",
+    "You. Take yours back",
+  );
   fireEvent.click(within(bars[0]).getByRole("button", { name: "React" }));
   fireEvent.click(await screen.findByRole("button", { name: "party" }));
   await waitFor(() =>
