@@ -328,6 +328,13 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           </div>
         </>
       );
+    case "maps":
+      return (
+        <>
+          <F ctx={ctx} id="maps.tile_url" />
+          <F ctx={ctx} id="maps.attribution" />
+        </>
+      );
     case "video":
       return (
         <>

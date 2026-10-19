@@ -9811,6 +9811,10 @@ export type FindItem = {
    */
   nsfw?: NsfwState | null;
   /**
+   * where it was taken: its file's GPS fix, or the one anytopdf read from a photo; none when not known
+   */
+  place?: GeoPoint | null;
+  /**
    * Why
    *
    * why it matched
@@ -10137,7 +10141,8 @@ export type ForgotPasswordRequest = {
 /**
  * GeoPoint
  *
- * Where a photo was taken, from its own file (its EXIF GPS fix), in WGS 84 degrees.
+ * Where an asset was taken, from its own file (a photo's EXIF GPS fix, a video's ISO 6709 location), in WGS 84
+ * degrees.
  */
 export type GeoPoint = {
   /**
@@ -13641,6 +13646,27 @@ export type ManifestChecked = {
   manifest: {
     [key: string]: unknown;
   };
+  [key: string]: unknown;
+};
+
+/**
+ * MapTiles
+ *
+ * The tiles a map of where assets were taken is drawn on (Settings → Maps).
+ */
+export type MapTiles = {
+  /**
+   * Url
+   *
+   * where each viewer's browser fetches them, with {z}, {x} and {y} (XYZ tiles); none: draw no tiles
+   */
+  url?: string | null;
+  /**
+   * Attribution
+   *
+   * the credit the tiles' terms ask to be shown on the map
+   */
+  attribution?: string | null;
   [key: string]: unknown;
 };
 
@@ -21585,7 +21611,7 @@ export type Recording = {
    */
   recorded_at?: string | null;
   /**
-   * a photo: where it was taken, from its EXIF GPS (members of its namespace only)
+   * where it was taken, from its file: a photo's EXIF GPS, a video's location (members of its namespace only)
    */
   place?: GeoPoint | null;
   /**
@@ -22043,6 +22069,10 @@ export type RecordingSummary = {
    * NSFW classification, where it's on in its namespace and it was classified
    */
   nsfw?: NsfwState | null;
+  /**
+   * where it was taken: its file's GPS fix, or the one anytopdf read from a photo; none when not known
+   */
+  place?: GeoPoint | null;
   [key: string]: unknown;
 };
 
@@ -38060,6 +38090,18 @@ export type ListRecordingsData = {
      */
     value?: string | null;
     /**
+     * Located
+     *
+     * only assets known to have been taken somewhere (a GPS fix: `place`)
+     */
+    located?: boolean;
+    /**
+     * Bbox
+     *
+     * only assets taken inside this box: west,south,east,north in degrees (GeoJSON's order); west past east crosses the antimeridian
+     */
+    bbox?: string | null;
+    /**
      * Sort
      *
      * date, title, duration, speakers (number of people), status or importance; prefix - for descending
@@ -38241,6 +38283,22 @@ export type ListLanguagesResponses = {
 };
 
 export type ListLanguagesResponse = ListLanguagesResponses[keyof ListLanguagesResponses];
+
+export type GetMapTilesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/resources/map-tiles";
+};
+
+export type GetMapTilesResponses = {
+  /**
+   * Successful Response
+   */
+  200: MapTiles;
+};
+
+export type GetMapTilesResponse = GetMapTilesResponses[keyof GetMapTilesResponses];
 
 export type ListObjectsData = {
   body?: never;

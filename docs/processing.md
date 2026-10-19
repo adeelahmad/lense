@@ -96,9 +96,32 @@ to an import webhook), from the first of these that says it:
 Nothing is guessed: a clock that was never set (a year before 1971, such as QuickTime's 1904) or a date in the future
 counts as no date. A date an imported transcript gives wins over all three, as an email's or a document's own date
 does once it is read, and a file uploaded again into the namespace that has it keeps its asset's date. A file on a
-[storage source](#storage-sources) is dated by the source (the date it lists, else when the file last changed there). A photo's GPS fix from its EXIF is kept as the asset's `place` (`{lat, lon}`, in degrees);
-`GET /api/v1/recordings/{rid}` and the MCP tool `get_recording` give it to the namespace's members only, never to
-visitors. It is read on this machine and nothing is sent anywhere. Assets that arrived before keep their dates.
+[storage source](#storage-sources) is dated by the source (the date it lists, else when the file last changed there).
+Assets that arrived before keep their dates.
+
+### Where an asset was taken
+
+As it arrives, an asset's own file can say where it was taken, and that is kept as its `place` (`{lat, lon}`, WGS 84
+degrees to six places): a photo's EXIF GPS fix (`GPSLatitude`, `GPSLongitude` and their `Ref`s), or a video's location
+as ffprobe reads it, in the ISO 6709 form phones write (`+48.8582+002.2945/`: an iPhone's
+`com.apple.quicktime.location.ISO6709`, an Android phone's `location`). A fix of 0, 0 is a device with no fix, and
+counts as none. It is read on this machine with Pillow and ffprobe, which Lens has anyway, and nothing is sent
+anywhere. A photo that arrived before this was kept, but that [anytopdf](configuration.md#anytopdf) read with its GPS
+fix, is placed by that fix; other assets that arrived before have no place, and nothing about them changes.
+
+Only the namespace's members see where an asset was taken, never visitors (public pages, embeds and share links):
+
+- **The web app**: Library → **Map** (beside Table and List; on a phone, beside List) puts each asset with a place on a
+  map as a dot, with the Library's filters and tab, framed to show them all; a dot's popup links to the asset. It
+  draws the newest 1,000 that match and says when there are more. The tiles under the map are fetched by the browser
+  from Settings → Maps (`maps.tile_url`, OpenStreetMap's by default), so the tile server sees the area being looked at
+  and the address it is looked at from: point it at a tile server of your own, or leave it empty to draw only the
+  dots ([Configuration](configuration.md#maps)).
+- **The API**: `GET /api/v1/resources?located=true` lists only assets with a place, and
+  `bbox=west,south,east,north` (degrees, in GeoJSON's order; west past east crosses the antimeridian) those taken
+  inside a box. Both combine with the list's other filters, and each row carries its `place`; so does
+  `GET /api/v1/resources/{rid}`. `GET /api/v1/resources/map-tiles` gives the tile address and its credit.
+- **Agents**: the MCP tools `list_recordings` (with `located` and `bbox`) and `get_recording` give `place` too.
 
 ### Cleaning up transcripts
 

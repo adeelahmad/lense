@@ -608,6 +608,9 @@ DEFAULTS = {
     # or open up arbitrary folders on the server. Local folders can only be watched inside local_roots.
     "sources": {"rclone": None, "local_roots": [], "check_seconds": 15, "cache_dir": None},
     "reports": {"audio": "link"},
+    # the map of where assets were taken (the Library's Map): the tiles drawn under it, fetched by each viewer's browser
+    # from tile_url ({z}/{x}/{y}), which so learns the area looked at (threat-model.md); empty draws no tiles
+    "maps": {"tile_url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png", "attribution": "© OpenStreetMap contributors"},
     # the read-only SMB share of the file tree (smb_share.py, docs/smb.md): off until an admin turns it on, then
     # served by `lens worker` to people signing in with a file access key, from allowed_networks only. bind and port
     # are startup settings only: in Docker it listens on 0.0.0.0:4445 inside the container, published where the web

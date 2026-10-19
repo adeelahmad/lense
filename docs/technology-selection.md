@@ -19,6 +19,8 @@
 - [shadcn/ui](https://ui.shadcn.com/) and [Tailwind CSS](https://tailwindcss.com/)
 - [BlockSuite](https://blocksuite.io/): the notes editor; [@xyflow/react](https://reactflow.dev/): the canvas
   pipelines and workflows are drawn on
+- [Leaflet](https://leafletjs.com/) (BSD-2-Clause): the Library's map of where assets were taken, on XYZ tiles from
+  Settings → Maps ([OpenStreetMap](https://www.openstreetmap.org/)'s by default), loaded only when the map is opened
 - Processing: ffmpeg, [SenseVoice](https://github.com/FunAudioLLM/SenseVoice) / [faster-whisper](https://github.com/SYSTRAN/faster-whisper) /
   [mlx-whisper](https://github.com/ml-explore/mlx-examples), [SpeechBrain](https://speechbrain.github.io/) ECAPA voiceprints,
   optional [pyannote](https://github.com/pyannote/pyannote-audio), Tesseract / Apple Vision / RapidOCR, OpenCV YuNet + SFace,

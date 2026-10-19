@@ -711,6 +711,8 @@ import type {
   GetJobLogErrors,
   GetJobLogResponses,
   GetJobResponses,
+  GetMapTilesData,
+  GetMapTilesResponses,
   GetMediaData,
   GetMediaErrors,
   GetMediaResponses,
@@ -6040,6 +6042,21 @@ export class Resources {
   ): RequestResult<ListLanguagesResponses, ListLanguagesErrors, ThrowOnError> {
     return (options?.client ?? client).get<ListLanguagesResponses, ListLanguagesErrors, ThrowOnError>({
       url: "/api/v1/resources/languages",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Map Tiles
+   *
+   * The tiles the web app draws its map of where assets were taken on (`GET /resources?located=true` lists them):
+   * Settings → Maps, OpenStreetMap's unless an admin changed it.
+   */
+  public static getMapTiles<ThrowOnError extends boolean = false>(
+    options?: Options<GetMapTilesData, ThrowOnError>,
+  ): RequestResult<GetMapTilesResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GetMapTilesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/resources/map-tiles",
       ...options,
     });
   }

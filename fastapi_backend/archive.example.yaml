@@ -144,3 +144,7 @@ video:                              # everything here except the model paths can
 
 reports:
   audio: link                       # link (relative path) | embed (inline, large) | none
+
+maps:                               # the Library's map of where photos and videos were taken; can also be changed in the app
+  tile_url: https://tile.openstreetmap.org/{z}/{x}/{y}.png   # fetched by each viewer's browser, so it sees the area looked at; empty: no tiles
+  attribution: © OpenStreetMap contributors                  # the credit the tiles' terms ask for

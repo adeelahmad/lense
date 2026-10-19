@@ -76,11 +76,11 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 | `classify` | which of some labels fits an asset or a text, how sure, and every label ranked: labels you give, or Lens's content types or the namespace's topics; the decision model answers, else the language model. Read only: it changes nothing ([Classifying](processing.md#classifying)) |
 | `list_namespaces` | the namespaces you can read, with their assets, hours, people and your role |
 | `budgets` | where spending stands: each namespace you can read this period against its budget, and for admins all of Lens and every other budget, each ok, near or over ([Asking the assistant or an agent](budgets.md#asking-the-assistant-or-an-agent)) |
-| `list_recordings` | assets, newest first, by namespace, title words, dates, person, tag or kind, and whether they're flagged NSFW (`sensitive`) |
+| `list_recordings` | assets, newest first, by namespace, title words, dates, person, tag or kind, whether they're flagged NSFW (`sensitive`), and where they were taken: each with its `place` (`lat`, `lon`) when its file had a GPS fix, `located` for only those and `bbox` (`west,south,east,north`) for those inside a box ([Where an asset was taken](processing.md#where-an-asset-was-taken)) |
 | `list_speakers` | the people of your namespaces, the ones with the most talk time first |
 | `list_unnamed_faces` | the faces nobody has named yet in your namespaces that recognise faces, the largest group first: a name to offer, how often each is seen and the assets it's in, with links ([Naming faces](video.md#naming-faces)) |
 | `name_face` | say who a face is: a name another face of its namespace has joins that person, any other becomes its own. Needs a write-scope token and editor access |
-| `get_recording` | one asset: when, how long, people, summary and key points, chapters, the entities and keywords most mentioned, its link, and whether it's flagged NSFW |
+| `get_recording` | one asset: when, where it was taken (`place`), how long, people, summary and key points, chapters, the entities and keywords most mentioned, its link, and whether it's flagged NSFW |
 | `get_transcript` | an asset's lines in order (who, time, text, link, and the words transcription wasn't sure of as `unsure`), a page at a time, from a line or a time window |
 | `fetch` | an asset's whole text at once, as `[m:ss] Speaker: …` lines |
 | `cite` | a citation for a moment (a line or a second, and a few lines from there): the words, who said or wrote them, the asset and date, the time, the link, and all of it as Markdown |

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUp, Eye, List, Table2, Upload } from "lucide-react";
+import { ArrowUp, Eye, List, Map as MapIcon, Table2, Upload } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { RecordingSummary, SavedView } from "@/app/openapi-client/types.gen";
@@ -14,6 +14,7 @@ import { CollectionsDialog, PlaceDialog } from "@/components/library/collections
 import { FiltersBar } from "@/components/library/filters-bar";
 import { LibraryEmpty } from "@/components/library/library-empty";
 import { LibraryTabs } from "@/components/library/library-tabs";
+import { PlacesMap } from "@/components/library/places-map";
 import {
   NO_FILTERS,
   activeFilterCount,
@@ -62,6 +63,7 @@ import { atLeast } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 
 const VIEW_KEY = "lens.library.view";
+type Layout = "table" | "list" | "map";
 
 /** A value that changes at most once per `ms`: live progress is announced politely, not on every poll. */
 function useThrottled<T>(value: T, ms: number): T {
@@ -99,7 +101,9 @@ export function LibraryScreen({
   initial,
 }: { initial?: { namespace: string; collection: number | null; sensitive?: SensitiveFilter } } = {}) {
   const { namespace, namespaces, isPartial, roleIn, can, me, setNamespace } = useArchive();
-  const [layout, setLayout] = useState<"table" | "list">("table");
+  // the rows as a table or a list, or where they were taken on a map; a phone shows cards or the map
+  const [layout, setLayout] = useState<Layout>("table");
+  const rowsLayout = useRef<"table" | "list">("table");
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
   const [view, setView] = useState<LibraryView>("all");
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({
@@ -142,13 +146,17 @@ export function LibraryScreen({
   useEffect(() => {
     try {
       const v = localStorage.getItem(VIEW_KEY);
-      if (v === "list" || v === "table") setLayout(v);
+      if (v === "list" || v === "table") rowsLayout.current = v;
+      if (v === "list" || v === "table" || v === "map") setLayout(v);
     } catch {
       /* storage unavailable */
     }
   }, []);
-  const chooseLayout = (v: string) => {
-    setLayout(v as "table" | "list");
+  const chooseLayout = (picked: string) => {
+    // a phone's List: the table or list last chosen on a wider screen
+    const v = (picked === "rows" ? rowsLayout.current : picked) as Layout;
+    if (v !== "map") rowsLayout.current = v;
+    setLayout(v);
     try {
       localStorage.setItem(VIEW_KEY, v);
     } catch {
@@ -452,16 +460,20 @@ export function LibraryScreen({
             {announced}
           </span>
           <span className="flex-1" />
-          {!narrow && (
-            <Segmented
-              value={layout}
-              onChange={chooseLayout}
-              items={[
-                { value: "table", label: "Table", icon: <Table2 /> },
-                { value: "list", label: "List", icon: <List /> },
-              ]}
-            />
-          )}
+          <Segmented
+            label="Show assets as"
+            value={narrow && layout !== "map" ? "rows" : layout}
+            onChange={chooseLayout}
+            items={[
+              ...(narrow
+                ? [{ value: "rows", label: "List", icon: <List /> }]
+                : [
+                    { value: "table", label: "Table", icon: <Table2 /> },
+                    { value: "list", label: "List", icon: <List /> },
+                  ]),
+              { value: "map", label: "Map", icon: <MapIcon /> },
+            ]}
+          />
         </div>
 
         {isPartial(namespace) && (
@@ -622,6 +634,8 @@ export function LibraryScreen({
           >
             Try fewer filters.
           </EmptyState>
+        ) : layout === "map" ? (
+          <PlacesMap query={query} onOpen={onOpen} />
         ) : narrow ? (
           <RecordingCards {...rowProps} />
         ) : layout === "table" ? (
@@ -632,7 +646,7 @@ export function LibraryScreen({
           <RecordingList {...rowProps} />
         )}
 
-        {loaded && !empty && matching > 0 && (lib.recordings.hasNextPage || filtering) && (
+        {loaded && !empty && layout !== "map" && matching > 0 && (lib.recordings.hasNextPage || filtering) && (
           <div className="flex flex-wrap items-center gap-3 px-4 py-4 text-[13px] text-fg-secondary md:px-6">
             <span className="tabular">
               {filtering

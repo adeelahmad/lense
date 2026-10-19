@@ -32,6 +32,7 @@ EDITABLE = {
     "search": None,
     "embeddings": None,
     "reports": None,
+    "maps": None,
     "workers": None,
     "iiif": None,
     "ai": None,
@@ -521,6 +522,8 @@ def _check(section, key, value, default):
         ):
             raise ValueError("iiif.viewers is a list of {name, url} with an http(s) URL; the URL may use {manifest} and {content_state}")
         return value
+    if section == "maps":
+        return _map_setting(key, value)
     if (section, key) == ("transcribe", "cleanup"):
         from . import audio_cleanup
 
@@ -1806,6 +1809,26 @@ def _prices(value):
         else:
             raise ValueError(msg)
     return out
+
+
+TILE_URL = re.compile(r"^https?://[^\s]{1,500}$")
+
+
+def _map_setting(key, value):
+    """The map's tiles: an http(s) address with {z}, {x} and {y} in it (and {s} for a subdomain, if it likes), or empty
+    for none; and the credit shown on the map, one line."""
+    value = (value or "").strip() if isinstance(value, str) or value is None else value
+    if not isinstance(value, str):
+        raise ValueError(f"maps.{key} is text")
+    if key == "tile_url" and value:
+        u = urllib.parse.urlsplit(value)
+        if not (TILE_URL.match(value) and u.hostname and u.username is None and u.password is None) or not all(
+            f"{{{k}}}" in value for k in "zxy"
+        ):
+            raise ValueError("maps.tile_url is an http(s) address with {z}, {x} and {y} in it, or empty for no tiles")
+    if key == "attribution" and (len(value) > 300 or "\n" in value):
+        raise ValueError("maps.attribution is one line of text")
+    return value
 
 
 def _upload_setting(key, value):
