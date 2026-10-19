@@ -19,7 +19,9 @@ import urllib.parse
 from collections.abc import Container
 from typing import Any, cast
 
+from app.config import settings
 from app.core.security import sign_path
+from app.domain import iiif
 from app.domain.store import API
 
 MEDIA_RX = re.compile(rf"^{re.escape(API)}/recordings/\d+/(audio|media|pdf|enhanced|wordcloud\.svg|frames/[\w.-]+|files/\d+/download)$")
@@ -71,3 +73,18 @@ def sign_page_links(page: str, recordings: Container[int], full: bool = False) -
     """Sign the media links (audio, video, frames, word clouds) of these recordings in a page, including inside its
     embedded JSON. Links to any other recording stay unsigned: the page's text may contain them."""
     return MEDIA_IN_HTML.sub(lambda m: sign_path(m.group(0), full=full) if int(m.group(1)) in recordings else m.group(0), page)
+
+
+TRACK_RX = re.compile(r"^/iiif/(\d+)/(?:transcript|files/(\d+))\.vtt$")
+
+
+def sign_tracks(cfg: dict[str, Any], tracks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Sign the links of a player's caption tracks (iiif.caption_tracks) as IIIF's probe service signs them, for as long
+    as media links last: a <track> can't send the Authorization header either, and share links and visitors have none.
+    Only hand them to someone who may read what they open."""
+    for t in tracks:
+        m = TRACK_RX.match(t["url"])
+        if m:
+            what = f"vtt{m.group(2)}" if m.group(2) else "transcript"
+            t["url"] = f"{t['url']}?{iiif.sign(cfg, int(m.group(1)), what, settings.MEDIA_URL_EXPIRE_SECONDS)}"
+    return tracks

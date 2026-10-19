@@ -3683,6 +3683,40 @@ export type BusyTimes = {
 };
 
 /**
+ * CaptionTrack
+ *
+ * A WebVTT track for the player's <video> (docs/video.md#captions): the transcript, or a supplementary transcript,
+ * captions or translation that says when its lines are.
+ */
+export type CaptionTrack = {
+  /**
+   * Kind
+   *
+   * the <track> kind: subtitles for a translation
+   */
+  kind: "captions" | "subtitles";
+  /**
+   * Label
+   *
+   * its name in the browser's captions menu
+   */
+  label: string;
+  /**
+   * Language
+   *
+   * its language (BCP 47), when known
+   */
+  language?: string | null;
+  /**
+   * Url
+   *
+   * a signed link to it as WebVTT, through IIIF (relative to Lens's address)
+   */
+  url: string;
+  [key: string]: unknown;
+};
+
+/**
  * Caused
  *
  * What an activity caused, for the person asking: the runs it started of the automations they manage, and the
@@ -18955,6 +18989,12 @@ export type Player = {
    * NSFW classification, where it's on in its namespace and it was classified
    */
   nsfw?: NsfwState | null;
+  /**
+   * Captions
+   *
+   * its text as WebVTT tracks, the transcript first (not a document's or an image's); supplementary ones only for members of its namespace
+   */
+  captions?: Array<CaptionTrack>;
   [key: string]: unknown;
 };
 
@@ -20643,6 +20683,12 @@ export type PublicRecording = {
    * how many of its files this visitor can't download
    */
   files_closed?: number;
+  /**
+   * Captions
+   *
+   * with media this visitor may play: the text they may read as WebVTT tracks for the <video>, the transcript first, then supplementary transcripts, captions and translations that say when their lines are
+   */
+  captions?: Array<CaptionTrack>;
   /**
    * Downloads
    *

@@ -8,7 +8,7 @@ from typing import Any
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 
 from app.api.deps import Acl, Cfg, Db, Writer, domain_errors
-from app.api.media import sign_url
+from app.api.media import sign_tracks, sign_url
 from app.domain import access as acc
 from app.domain import public, store
 from app.domain.store import R
@@ -110,6 +110,7 @@ def get_public_recording(rid: int, acl: Acl, db: Db, cfg: Cfg) -> PublicRecordin
             p["image"], p["thumb"] = sign_url(p["image"], member), sign_url(p["thumb"], member)
     for f in d["files"]:  # and only the files they may download
         f["url"] = sign_url(f["url"], save=owner)
+    d["captions"] = sign_tracks(cfg, d["captions"])  # and the text they may read, as caption tracks
     return PublicRecording.model_validate(d)
 
 

@@ -346,6 +346,7 @@ export type {
   CancelUploadErrors,
   CancelUploadResponse,
   CancelUploadResponses,
+  CaptionTrack,
   Caused,
   ChangeAsk,
   ChangeGroupData,

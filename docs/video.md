@@ -82,6 +82,35 @@ Video recordings open in their own layout.
   - **Shots:** a grid of shots.
 - Everything seeks the one video, and the layout works down to phone widths.
 
+## Captions
+
+A video plays its text as WebVTT `<track>`s, so the browser's own captions menu, full screen and picture in picture
+show them and assistive technology can read them, in the workspace and on its public page alike:
+
+- the transcript comes first, as `kind="captions"` in the recording's language when it's known, and is the default
+  while captions are on;
+- then each supplementary transcript, captions or translation that says when its lines are
+  ([files](api.md#files)), in the order they were added; a translation is `kind="subtitles"`. Pick them from the
+  browser's captions menu.
+
+The tracks are IIIF's WebVTT (`/iiif/<id>/transcript.vtt`, `/iiif/<id>/files/<file>.vtt`), with links signed for as long
+as media links last, because a `<track>` can't send the Authorization header. `GET /api/v1/recordings/<id>/player`
+lists them as `captions`, and so does `GET /api/v1/public/recordings/<id>`, with only what that visitor may read and
+only when they may play the media. A share link (`?s=`) gets the transcript's track; supplementary files stay with
+the namespace's members, as they do in the Files tab.
+
+Captions show once, never twice:
+
+- **Workspace (the video recording page):** the Captions toggle (`C`) draws the line and its speaker over the video, as
+  before. Its track stays loaded but undrawn while that overlay shows, and the browser draws it when the video is full
+  screen or picture in picture, where the overlay can't be seen. Turning Captions off turns the track off too.
+- **Public page:** there is no overlay, so the browser draws the captions. They're off when the page opens, as before,
+  and the Captions button under the video turns them on.
+
+Refine later: the embeddable player (`/embed/<id>`, `/s/<code>`) plays sound beside its transcript, without a video,
+so it has no tracks; Lens's own controls have no menu to pick a translation's track (the browser's menu does, where it
+shows its own controls); and a share link's player could offer the supplementary tracks its link opens.
+
 `The prototype's end-to-end browser test (`tests/e2e_video.py`, kept for reference in the history)` runs it end to end in Chromium, against a real server with face recognition on. It
 checks:
 - the lanes, and seeking from shots, lanes, the transcript and the grid

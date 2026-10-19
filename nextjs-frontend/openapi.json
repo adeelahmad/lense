@@ -44298,6 +44298,50 @@
         "type": "object",
         "title": "BusyTimes"
       },
+      "CaptionTrack": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "captions",
+              "subtitles"
+            ],
+            "title": "Kind",
+            "description": "the <track> kind: subtitles for a translation"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "its name in the browser's captions menu"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language",
+            "description": "its language (BCP 47), when known"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "a signed link to it as WebVTT, through IIIF (relative to Lens's address)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "kind",
+          "label",
+          "url"
+        ],
+        "title": "CaptionTrack",
+        "description": "A WebVTT track for the player's <video> (docs/video.md#captions): the transcript, or a supplementary transcript,\ncaptions or translation that says when its lines are."
+      },
       "Caused": {
         "properties": {
           "runs": {
@@ -70494,6 +70538,14 @@
               }
             ],
             "description": "NSFW classification, where it's on in its namespace and it was classified"
+          },
+          "captions": {
+            "items": {
+              "$ref": "#/components/schemas/CaptionTrack"
+            },
+            "type": "array",
+            "title": "Captions",
+            "description": "its text as WebVTT tracks, the transcript first (not a document's or an image's); supplementary ones only for members of its namespace"
           }
         },
         "additionalProperties": true,
@@ -73444,6 +73496,14 @@
             "title": "Files Closed",
             "description": "how many of its files this visitor can't download",
             "default": 0
+          },
+          "captions": {
+            "items": {
+              "$ref": "#/components/schemas/CaptionTrack"
+            },
+            "type": "array",
+            "title": "Captions",
+            "description": "with media this visitor may play: the text they may read as WebVTT tracks for the <video>, the transcript first, then supplementary transcripts, captions and translations that say when their lines are"
           },
           "downloads": {
             "type": "boolean",

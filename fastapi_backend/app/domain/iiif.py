@@ -465,6 +465,23 @@ def _file_label(f):
     return f.get("label") or f"{filemod.LABELS.get(f['role'], 'File')}: {f['name']}"
 
 
+TRACK_KINDS = {"transcript": "captions", "captions": "captions", "translation": "subtitles"}  # a file's role: its <track> kind
+
+
+def caption_tracks(rid, language=None, files=(), transcript=True):
+    """The WebVTT tracks a player offers (docs/video.md#captions): the transcript's (`transcript`: when it has lines and
+    the viewer may read them), then each of `files` that is a transcript, captions or a translation saying when its
+    lines are, in the order they were added. The links are IIIF's, relative (the web app passes /iiif on to the API)
+    and plain: the routes sign them (app.api.media.sign_tracks), for someone who may read them."""
+    lang = _lang({"language": language})
+    out = [{"kind": "captions", "label": "Transcript", "language": lang, "url": f"/iiif/{rid}/transcript.vtt"}] if transcript else []
+    for f in files:
+        if f["role"] in TRACK_KINDS and f.get("timed"):
+            url = f"/iiif/{rid}/files/{f['id']}.vtt"
+            out.append({"kind": TRACK_KINDS[f["role"]], "label": _file_label(f), "language": f.get("language"), "url": url})
+    return out
+
+
 def _file_open(a, f):
     """Whether everyone may have a supplementary file: the part its role follows is open (attachments never are)."""
     part = filemod.PART.get(f["role"])
