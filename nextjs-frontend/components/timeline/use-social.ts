@@ -63,7 +63,8 @@ export function useActivityComments(id: string, enabled: boolean) {
   });
 }
 
-/** Comment or reply on an activity, and delete a comment; each refreshes the thread and moves the line's count. */
+/** Comment or reply on an activity, edit or delete a comment, and resolve or reopen a thread; each refreshes the
+ * thread, and adding or deleting moves the line's count. */
 export function useActivityCommentActions(id: string, bump: (id: string, by: number) => void) {
   const client = useApiClient();
   const qc = useQueryClient();
@@ -90,5 +91,11 @@ export function useActivityCommentActions(id: string, bump: (id: string, by: num
     },
     onError: fail("Couldn’t delete the comment"),
   });
-  return { create, remove };
+  const update = useMutation({
+    mutationFn: ({ cid, ...body }: { cid: number; text?: string; resolved?: boolean }) =>
+      data(Activities.updateActivityComment({ client, path: { activity_id: id, cid }, body })) as Promise<Comment>,
+    onSuccess: () => void refresh(),
+    onError: fail("Couldn’t save the comment"),
+  });
+  return { create, remove, update };
 }
