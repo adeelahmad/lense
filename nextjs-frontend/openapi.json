@@ -14773,6 +14773,119 @@
         }
       }
     },
+    "/api/v1/resources/{rid}/files/translate": {
+      "get": {
+        "tags": [
+          "files"
+        ],
+        "summary": "Plan Translation",
+        "description": "What translating this asset's transcript would take, before anyone asks for it: its lines, the model calls and\ntokens, and the cost at the model's price in Settings, always labelled an estimate; why it can't be translated now,\nif it can't (no model, no transcript, a budget used up); and with `language`, the job already translating it into\nthat language.",
+        "operationId": "plan_translation",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a language to translate into: also says the job already doing it",
+              "title": "Language"
+            },
+            "description": "a language to translate into: also says the job already doing it"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslationPlan"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "files"
+        ],
+        "summary": "Translate Transcript",
+        "description": "Translate this asset's transcript into `language` with the configured model, in the background, and keep it as a\nsupplementary file with the role `translation` and that language, as if it were uploaded: each line keeps its\ntimes and speaker, and search, the Files tab, IIIF and exports read it like any translation. It runs only when\nasked, after what the asset's job still has to do; asking again while it runs gives the same job. The transcript\nreaches the model marked as data, so instructions in it are translated, not followed. Each model call is in the\nactivity ledger; a budget about to go over holds the job, and one used up stops it. Needs the right to process the\nasset; 400 without a model or a transcript, 409 over budget (`GET .../translate` says so first). Audited as\n`file.translate`.",
+        "operationId": "translate_transcript",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TranslationCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobQueued"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/resources/{rid}/files/{fid}": {
       "patch": {
         "tags": [
@@ -39481,7 +39594,7 @@
               }
             ],
             "title": "Job",
-            "description": "the job started, for write_spec"
+            "description": "the job started, for write_spec and translate_transcript"
           },
           "error": {
             "anyOf": [
@@ -86961,6 +87074,124 @@
         "additionalProperties": false,
         "type": "object",
         "title": "TopicUpdate"
+      },
+      "TranslationCreate": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 2,
+            "title": "Language",
+            "description": "the language to translate into: a code such as fr or pt-BR"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "language"
+        ],
+        "title": "TranslationCreate"
+      },
+      "TranslationPlan": {
+        "properties": {
+          "recordings": {
+            "type": "integer",
+            "title": "Recordings"
+          },
+          "by_kind": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "By Kind",
+            "default": {}
+          },
+          "hours": {
+            "type": "number",
+            "title": "Hours"
+          },
+          "seconds": {
+            "type": "integer",
+            "title": "Seconds"
+          },
+          "llm": {
+            "$ref": "#/components/schemas/LlmEstimate"
+          },
+          "would_replace": {
+            "type": "integer",
+            "title": "Would Replace",
+            "description": "existing outputs the run would overwrite"
+          },
+          "needs_confirmation": {
+            "type": "boolean",
+            "title": "Needs Confirmation"
+          },
+          "confirm_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirm Text"
+          },
+          "lines": {
+            "type": "integer",
+            "title": "Lines",
+            "description": "the transcript's lines, each translated keeping its times and speaker"
+          },
+          "basis": {
+            "type": "string",
+            "title": "Basis",
+            "description": "how the estimate was worked out"
+          },
+          "estimate": {
+            "type": "boolean",
+            "title": "Estimate",
+            "description": "always true: these are estimates, not what it will cost",
+            "default": true
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Problem",
+            "description": "why it can't be translated now (no model, no transcript, a budget used up)"
+          },
+          "job": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job",
+            "description": "the job already translating it into `language`, when asked with one"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "recordings",
+          "hours",
+          "seconds",
+          "llm",
+          "would_replace",
+          "needs_confirmation",
+          "lines",
+          "basis"
+        ],
+        "title": "TranslationPlan",
+        "description": "What translating an asset's transcript would take, before anyone asks for it (always an estimate)."
       },
       "TreeEntry": {
         "properties": {

@@ -21,6 +21,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
     cypher_script = []  # Cypher to answer graph questions with (graph_ask.py), in order
     podcast_script = None  # the lines a podcast script comes back with (podcasts.write), else a built-in one
     spec = None  # a spec's answer (specs.write), else one quoting the transcript's lines in turn (see _spec)
+    translate = None  # a function (code, [(n, text)]) -> translations (translations.py), else each line as "[code] text"
     usage = None  # token counts to report with each answer (and as a streamed answer's last chunk), like OpenAI
     research_plan = None  # a research plan (research.plan) to come back with, else a built-in one about the capsid
     research_report = None  # a research report (research._write) to come back with, else one citing [1] and [2]
@@ -124,6 +125,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     "importance": 9,
                 }
             )
+        elif "translations" in schema.get("properties", {}):
+            asked = body["messages"][-1]["content"]
+            code = re.search(r'BCP 47 code is "([^"]+)"', asked).group(1)
+            lines = [(int(n), t) for n, t in re.findall(r"^\[(\d+)\] (.*)$", asked, re.M)]
+            said = Handler.translate(code, lines) if Handler.translate else [{"n": n, "text": f"[{code}] {t}"} for n, t in lines]
+            content = json.dumps({"translations": said})
         elif "rejected" in schema.get("properties", {}):
             content = json.dumps(Handler.spec or _spec(body["messages"][-1]["content"]))
         elif {"reply", "gaps"} <= set(schema.get("properties", {})):

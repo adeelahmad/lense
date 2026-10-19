@@ -242,6 +242,15 @@ def _draft_reply(db, cfg, rid, say, spec=None):
     responder.draft(db, cfg, rid, say, spec)
 
 
+def _translate(db, cfg, rid, say, spec=None):
+    """The transcript in another language, kept as a translation file (translations.py); only when someone asks."""
+    from . import translations
+
+    if not (cfg["llm"].get("base_url") and cfg["llm"].get("model")):
+        raise Skip("no LLM is configured")
+    translations.translate(db, cfg, rid, say, spec)
+
+
 def _shots(db, cfg, rid, say, spec=None):
     from . import video
 
@@ -310,6 +319,7 @@ STEPS = {
     "podcast": _podcast,
     "spec": _write_spec,
     "reply": _draft_reply,
+    "translate": _translate,
 }
 
 
@@ -1151,8 +1161,8 @@ class Worker:
         self.can = set(steps or cfg_fn()["workers"]["steps"]) & set(STEPS)
         if not steps and "transcribe" in self.can:  # reading documents moved out of transcribe; older lists run it too
             self.can.add("read")
-        if "llm" in self.can:  # a workflow, a podcast, a spec or a reply needs what an llm step needs; older lists run them too
-            self.can |= {"workflow", "podcast", "spec", "reply"}
+        if "llm" in self.can:  # a workflow, a podcast, a spec, a reply or a translation needs what an llm step needs
+            self.can |= {"workflow", "podcast", "spec", "reply", "translate"}  # older lists run them too
         if not steps and "transcribe" in self.can and not self.can & VIDEO_STEPS:
             # a workers.steps list written before the video steps existed (archive.yaml copied from an older example):
             # without them every import would wait for a worker that can run shots

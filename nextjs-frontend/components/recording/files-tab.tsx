@@ -28,6 +28,7 @@ import { FieldValuesPanel } from "@/components/fields/fields-ui";
 import { useNamespaceFields } from "@/components/fields/use-fields";
 import { uploadKindName } from "@/components/import/files";
 import { chooseFiles } from "@/components/import/pending";
+import { languageName } from "@/components/library/model";
 import { usePlayerApi, usePlayerState } from "@/components/player/media";
 import { saveBlocked } from "@/components/access/model";
 import { useRec } from "@/components/recording/context";
@@ -47,7 +48,14 @@ import {
   typeProblem,
   type FileRole,
 } from "@/components/recording/files-model";
-import { useFileActions, useFileLines, useFiles } from "@/components/recording/hooks";
+import { useFileActions, useFileLines, useFiles, useTranslate, useTranslationPlan } from "@/components/recording/hooks";
+import {
+  defaultTarget,
+  languageChoices,
+  planLine,
+  targetProblem,
+  tidyLanguage,
+} from "@/components/recording/translate-model";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -55,6 +63,7 @@ import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
 import { Label } from "@/components/ui/panel";
 import { EmptyState, Skeleton } from "@/components/ui/states";
+import { useToast } from "@/components/ui/toast";
 import { absolute, bytes, relative } from "@/lib/format";
 import { needRole } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
@@ -76,10 +85,12 @@ const chip =
  * downloads. Editors add, describe and delete files; a public resource opens them with its parts (attachments never).
  */
 export function FilesTab() {
-  const { id, ns, canEdit, fileFocus } = useRec();
+  const { id, ns, canEdit, fileFocus, model } = useRec();
   const files = useFiles(id);
   const blocked = saveBlocked(files.data);
   const [adding, setAdding] = useState(false);
+  const [translating, setTranslating] = useState(false);
+  const hasText = (model?.segments?.length ?? 0) > 0;
   const [picked, setPicked] = useState<File | null>(null);
   const [over, setOver] = useState(false);
   const list = files.data?.files ?? [];
@@ -110,6 +121,18 @@ export function FilesTab() {
         <p className="flex-1 text-[13px] leading-snug text-fg-secondary">
           Transcripts, captions, translations and indexes added here are searchable.
         </p>
+        {hasText && (
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={<Languages />}
+            disabled={!canEdit}
+            disabledReason={canEdit ? undefined : needRole("editor", ns)}
+            onClick={() => setTranslating(true)}
+          >
+            Translate…
+          </Button>
+        )}
         <Button
           size="sm"
           variant="secondary"
@@ -161,6 +184,7 @@ export function FilesTab() {
           )}
         </>
       )}
+      {translating && <TranslateDialog onClose={() => setTranslating(false)} />}
       {files.data && (
         <AddFileDialog
           open={adding}
@@ -576,6 +600,107 @@ function AddFileDialog({
         {READ.includes(role) && (
           <p className="text-[12.5px] leading-snug text-fg-muted">
             Lens reads it into lines when it’s added; a file it can’t read isn’t added.
+          </p>
+        )}
+      </div>
+    </Dialog>
+  );
+}
+
+/** The browser's languages, most wanted first. */
+function browserLanguages(): string[] {
+  if (typeof navigator === "undefined") return [];
+  return navigator.languages?.length ? [...navigator.languages] : navigator.language ? [navigator.language] : [];
+}
+
+/** Translate the transcript: a language (the one the browser reads, unless the transcript is in it), the estimate,
+ * and Translate (or Enter). It runs in the background and arrives as a translation file. */
+function TranslateDialog({ onClose }: { onClose: () => void }) {
+  const { id, rec } = useRec();
+  const source = rec?.language ?? null;
+  const plan = useTranslationPlan(id);
+  const translate = useTranslate(id);
+  const toast = useToast();
+  const browser = browserLanguages();
+  const [language, setLanguage] = useState(() => defaultTarget(browser, source));
+  const code = tidyLanguage(language);
+  const problem = targetProblem(language, source) ?? plan.data?.problem ?? null;
+  const send = () => {
+    if (problem || !plan.data) return;
+    translate.mutate(code, {
+      onSuccess: () => {
+        toast({
+          title: `Translating into ${languageName(code)}`,
+          body: "It’s added here as a translation when it’s done; the job is in Activity too.",
+          tone: "intent",
+        });
+        onClose();
+      },
+    });
+  };
+  return (
+    <Dialog
+      open
+      onOpenChange={(o) => !o && onClose()}
+      title="Translate the transcript"
+      description="The model translates every line, keeping its time and speaker, into a translation file here."
+      actions={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            disabled={Boolean(problem) || !plan.data || translate.isPending}
+            disabledReason={problem ?? (plan.data ? undefined : "Working out what it would take…")}
+            onClick={send}
+          >
+            {translate.isPending ? "Starting…" : "Translate"}
+          </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <Field
+          label="Into"
+          error={targetProblem(language, source)}
+          hint={targetProblem(language, source) ? undefined : `${languageName(code)} · a code such as fr or pt-BR`}
+        >
+          {(ids) => (
+            <>
+              <Input
+                id={ids.id}
+                aria-describedby={ids.describedBy}
+                invalid={ids.invalid}
+                value={language}
+                maxLength={40}
+                list="translate-languages"
+                onChange={(e) => setLanguage(e.target.value)}
+              />
+              <datalist id="translate-languages">
+                {languageChoices(browser, source).map((l) => (
+                  <option key={l.code} value={l.code}>
+                    {l.name}
+                  </option>
+                ))}
+              </datalist>
+            </>
+          )}
+        </Field>
+        {plan.isLoading ? (
+          <Skeleton className="h-5 w-2/3" />
+        ) : plan.isError ? (
+          <p role="alert" className="text-[12.5px] leading-snug text-red-dark">
+            Couldn’t work out what it would take: {plan.error.message}
+          </p>
+        ) : plan.data ? (
+          <p className="text-[12.5px] leading-snug text-fg-secondary" title={plan.data.basis}>
+            {planLine(plan.data)}
+          </p>
+        ) : null}
+        {plan.data?.problem && (
+          <p role="alert" className="text-[12.5px] leading-snug text-red-dark">
+            {plan.data.problem}
           </p>
         )}
       </div>

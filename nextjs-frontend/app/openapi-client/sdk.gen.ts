@@ -1410,6 +1410,9 @@ import type {
   PlaceRecordingsData,
   PlaceRecordingsErrors,
   PlaceRecordingsResponses,
+  PlanTranslationData,
+  PlanTranslationErrors,
+  PlanTranslationResponses,
   PostNamespaceSparqlData,
   PostNamespaceSparqlErrors,
   PostNamespaceSparqlResponses,
@@ -1961,6 +1964,9 @@ import type {
   TopResourcesResponses,
   TranscribeClipData,
   TranscribeClipResponses,
+  TranslateTranscriptData,
+  TranslateTranscriptErrors,
+  TranslateTranscriptResponses,
   TryWorkflowData,
   TryWorkflowErrors,
   TryWorkflowResponses,
@@ -7300,6 +7306,48 @@ export class Files {
       ...options,
       headers: {
         "Content-Type": "application/octet-stream",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Plan Translation
+   *
+   * What translating this asset's transcript would take, before anyone asks for it: its lines, the model calls and
+   * tokens, and the cost at the model's price in Settings, always labelled an estimate; why it can't be translated now,
+   * if it can't (no model, no transcript, a budget used up); and with `language`, the job already translating it into
+   * that language.
+   */
+  public static planTranslation<ThrowOnError extends boolean = false>(
+    options: Options<PlanTranslationData, ThrowOnError>,
+  ): RequestResult<PlanTranslationResponses, PlanTranslationErrors, ThrowOnError> {
+    return (options.client ?? client).get<PlanTranslationResponses, PlanTranslationErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/files/translate",
+      ...options,
+    });
+  }
+
+  /**
+   * Translate Transcript
+   *
+   * Translate this asset's transcript into `language` with the configured model, in the background, and keep it as a
+   * supplementary file with the role `translation` and that language, as if it were uploaded: each line keeps its
+   * times and speaker, and search, the Files tab, IIIF and exports read it like any translation. It runs only when
+   * asked, after what the asset's job still has to do; asking again while it runs gives the same job. The transcript
+   * reaches the model marked as data, so instructions in it are translated, not followed. Each model call is in the
+   * activity ledger; a budget about to go over holds the job, and one used up stops it. Needs the right to process the
+   * asset; 400 without a model or a transcript, 409 over budget (`GET .../translate` says so first). Audited as
+   * `file.translate`.
+   */
+  public static translateTranscript<ThrowOnError extends boolean = false>(
+    options: Options<TranslateTranscriptData, ThrowOnError>,
+  ): RequestResult<TranslateTranscriptResponses, TranslateTranscriptErrors, ThrowOnError> {
+    return (options.client ?? client).post<TranslateTranscriptResponses, TranslateTranscriptErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/files/translate",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
         ...options.headers,
       },
     });
