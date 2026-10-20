@@ -365,7 +365,7 @@ entry_points:
         x-condition: "key and token: admins only, sealed and write-only; events: anyone who can invite the account to an event or edit a calendar it reads"
         control_kinds: [data, x-credential, x-prompt-injection, size]
         obligation_id: admin-creates-sources
-        caller_must_enforce: "admin creates sources; read-only calendar.readonly scope; Google's own token endpoint and API address (a key file's token_uri is ignored); event text escaped into its .ics without control characters"
+        caller_must_enforce: "admin creates sources; read-only calendar.readonly scope, or the broader scope an admin already delegated to a service account acting as someone (google_auth.COVERS), kept in memory and used only for the narrower scope's calls; Google's own token endpoint and API address (a key file's token_uri is ignored); event text escaped into its .ics without control characters"
         provenance: {kind: documented, source: 'docs/processing.md "The token endpoint is always Google''s own"'}
   - id: "News feed sources"
     component: outbound

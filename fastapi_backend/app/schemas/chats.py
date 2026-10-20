@@ -270,6 +270,7 @@ class ChatMessage(ResponseModel):
     notice: str | None = Field(None, description="e.g. the model can't use tools, so the answer came from a search")
     error: str | None = Field(None, description="why there's no answer")
     check: AnswerCheck | None = Field(None, description="its latest source check (POST .../messages/{mid}/check)")
+    rating: Literal["up", "down"] | None = Field(None, description="your thumbs up or down on an answer (PUT .../messages/{mid}/rating)")
     model: str | None = Field(None, description="the model that wrote the answer")
     parent: int | None = Field(None, description="the message it follows; null for a first question")
     versions: Versions | None = Field(None, description="it and the others said in its place, from regenerating or editing")
@@ -330,6 +331,15 @@ class Chat(ChatSummary):
     summary: ChatMemory | None = Field(
         None, description="what the model reads instead of the messages up to its `upto`; none before the first summary"
     )
+
+
+class RatingUpdate(RequestModel):
+    rating: Literal["up", "down"] | None = Field(description="up (a good answer), down (a bad one), or null to clear it")
+
+
+class MessageRating(ResponseModel):
+    id: int = Field(description="the answer")
+    rating: Literal["up", "down"] | None
 
 
 class HeadUpdate(RequestModel):

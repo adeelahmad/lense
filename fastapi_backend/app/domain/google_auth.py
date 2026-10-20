@@ -126,21 +126,50 @@ def _cache_key(creds, scopes):
     return hashlib.sha256(f"{who_}|{' '.join(sorted(scopes))}".encode()).hexdigest()
 
 
-def _refused(r, creds, scopes=()):
+# A broader scope that covers one Lens asks for. Google matches a domain-wide delegation's scopes exactly, so a client an
+# admin gave all of Gmail (as backup tools ask for) is still refused gmail.readonly: a service account acting as someone
+# signs in with the broader scope the admin gave instead. Lens calls only what the narrower scope allows either way.
+COVERS = {
+    "https://www.googleapis.com/auth/gmail.readonly": "https://mail.google.com/",
+    "https://www.googleapis.com/auth/gmail.compose": "https://mail.google.com/",
+    "https://www.googleapis.com/auth/calendar.readonly": "https://www.googleapis.com/auth/calendar",
+    "https://www.googleapis.com/auth/calendar.events": "https://www.googleapis.com/auth/calendar",
+    "https://www.googleapis.com/auth/drive.readonly": "https://www.googleapis.com/auth/drive",
+}
+DELEGATION = "admin.google.com › Security › Access and data control › API controls › Manage Domain Wide Delegation"
+
+
+def _said(r):
+    """Google's error code and its words, from a token endpoint's refusal."""
     try:
         body = r.json()
     except ValueError:
         body = {}
     err = body.get("error") if isinstance(body, dict) else None
     said = (body.get("error_description") if isinstance(body, dict) else None) or err or f"HTTP {r.status_code}"
+    return err, said
+
+
+def _not_delegated(creds, scopes, delegated, said):
+    """What to change in the Admin console when Google won't let a service account act as someone: the scopes it
+    refused, the ones it allowed, and the exact list to paste."""
+    k = creds["key"]
+    refused = [s for s in scopes if s not in delegated] or list(scopes)
+    allowed = f"; it allows {', '.join(sorted(delegated))}" if delegated else "; it allows none of them"
+    return GoogleError(
+        f"Google refused to let {k['client_email']} act as {creds['subject']}: its domain-wide delegation "
+        f"doesn't include {', '.join(refused)}{allowed}. In {DELEGATION}, add or edit client id "
+        f"{k.get('client_id') or '(client_id in the key file)'} and paste these OAuth scopes: {','.join(scopes)}. "
+        f"Google can take a few minutes, sometimes hours, to apply a change. Google said: {said}"
+    )
+
+
+def _refused(r, creds, scopes=()):
+    err, said = _said(r)
     if creds["kind"] == "service_account" and creds["subject"]:
         k = creds["key"]
         if err == "unauthorized_client":
-            return GoogleError(
-                f"Google refused to let {k['client_email']} act as {creds['subject']}: a Workspace admin gives client id "
-                f"{k.get('client_id') or '(in the key file)'} domain-wide delegation for {','.join(scopes) or 'its scopes'} "
-                "(Admin console › Security › API controls)"
-            )
+            return _not_delegated(creds, scopes, (), said)
         if err == "invalid_grant" and "email" in said.lower():
             return GoogleError(f"{k['client_email']} can't act as {creds['subject']}: use the address of someone in your Workspace domain")
     if creds["kind"] == "authorized_user" and err == "invalid_grant":
@@ -152,12 +181,7 @@ def _refused(r, creds, scopes=()):
     return GoogleError(f"Google refused to sign in: {said}")
 
 
-def access_token(cfg, creds, scopes, fresh=False):
-    """An access token for these scopes, from the cache unless it's about to end (or `fresh`)."""
-    key = _cache_key(creds, scopes)
-    hit = _TOKENS.get(key)
-    if hit and not fresh and hit[0] > time.monotonic():
-        return hit[1]
+def _form(creds, scopes):
     if creds["kind"] == "service_account":
         k, now = creds["key"], int(time.time())
         claims = {"iss": k["client_email"], "scope": " ".join(scopes), "aud": TOKEN_URL, "iat": now, "exp": now + 3600}
@@ -169,33 +193,63 @@ def access_token(cfg, creds, scopes, fresh=False):
             )
         except (ValueError, TypeError, jwt.PyJWTError) as e:
             raise GoogleError(f"the service account's private key can't sign: {e}") from None
-        form = {"grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer", "assertion": assertion}
-    else:
-        u = creds["user"]
-        form = {
-            "grant_type": "refresh_token",
-            "client_id": u["client_id"],
-            "client_secret": u["client_secret"],
-            "refresh_token": u["refresh_token"],
-        }
-    with activity.call("google.token", cfg, detail={"as": creds["kind"]}):
+        return {"grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer", "assertion": assertion}
+    u = creds["user"]
+    return {
+        "grant_type": "refresh_token",
+        "client_id": u["client_id"],
+        "client_secret": u["client_secret"],
+        "refresh_token": u["refresh_token"],
+    }
+
+
+def _swap(cfg, creds, scopes):
+    """Google's token endpoint's answer for these scopes (a refusal too), as a row in the activity ledger."""
+    with activity.call("google.token", cfg, detail={"as": creds["kind"]}) as row:
         try:
-            r = httpx.post(TOKEN_URL, data=form, headers={"Accept": "application/json"}, timeout=TIMEOUT)
+            r = httpx.post(TOKEN_URL, data=_form(creds, scopes), headers={"Accept": "application/json"}, timeout=TIMEOUT)
         except httpx.HTTPError as e:
             raise GoogleError(f"couldn't reach Google to sign in: {e}") from None
         if r.status_code >= 400:
-            raise _refused(r, creds, scopes)
-        try:
-            body = r.json()
-            token, lasts = body["access_token"], int(body.get("expires_in") or 3600)
-        except (ValueError, KeyError, TypeError):
-            raise GoogleError("Google's sign-in answered without an access token") from None
-        granted = str(body.get("scope") or "").split()
-        missing = [s for s in scopes if granted and s not in granted]
-        if creds["kind"] == "authorized_user" and missing:  # signed in for one way of reading, then switched to another
-            raise GoogleError(
-                f"the connected Google account doesn't allow “{CAN.get(missing[0], missing[0])}”: connect the Google account again"
-            )
+            row.end(GoogleError(f"Google refused to sign in: {_said(r)[1]}"))
+    return r
+
+
+def _delegated(cfg, creds, scopes):
+    """Which of these scopes Google lets a service account use as its subject, asked one at a time."""
+    return {s for s in scopes if _swap(cfg, creds, (s,)).status_code < 400}
+
+
+def access_token(cfg, creds, scopes, fresh=False):
+    """An access token for these scopes, from the cache unless it's about to end (or `fresh`). A service account acting
+    as someone whose delegation has a broader scope instead (COVERS) signs in with that."""
+    key = _cache_key(creds, scopes)
+    hit = _TOKENS.get(key)
+    if hit and not fresh and hit[0] > time.monotonic():
+        return hit[1]
+    r = _swap(cfg, creds, scopes)
+    acting = creds["kind"] == "service_account" and creds["subject"]
+    if r.status_code >= 400 and acting and _said(r)[0] == "unauthorized_client":
+        broader = tuple(dict.fromkeys(COVERS.get(s, s) for s in scopes))
+        if broader != tuple(scopes):
+            r2 = _swap(cfg, creds, broader)
+            if r2.status_code < 400:
+                r = r2
+        if r.status_code >= 400:
+            raise _not_delegated(creds, scopes, _delegated(cfg, creds, tuple(dict.fromkeys((*scopes, *broader)))), _said(r)[1])
+    if r.status_code >= 400:
+        raise _refused(r, creds, scopes)
+    try:
+        body = r.json()
+        token, lasts = body["access_token"], int(body.get("expires_in") or 3600)
+    except (ValueError, KeyError, TypeError):
+        raise GoogleError("Google's sign-in answered without an access token") from None
+    granted = str(body.get("scope") or "").split()
+    missing = [s for s in scopes if granted and s not in granted]
+    if creds["kind"] == "authorized_user" and missing:  # signed in for one way of reading, then switched to another
+        raise GoogleError(
+            f"the connected Google account doesn't allow “{CAN.get(missing[0], missing[0])}”: connect the Google account again"
+        )
     _TOKENS[key] = (time.monotonic() + max(lasts - 60, 30), token)
     return token
 

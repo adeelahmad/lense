@@ -63,6 +63,8 @@ from app.schemas.chats import (
     HeadUpdate,
     MessageCreate,
     MessageDetail,
+    MessageRating,
+    RatingUpdate,
     StopResult,
 )
 from app.schemas.common import Created, Ok
@@ -871,6 +873,17 @@ def check_message(cid: int, mid: int, user: Writer, db: Db, cfg: Cfg) -> AnswerC
         raise HTTPException(400, str(e)) from None
     db.q("UPDATE $r SET check = $c", r=R("chat_message", mid), c=out)
     return out
+
+
+@router.put("/chats/{cid}/messages/{mid}/rating")
+def rate_message(cid: int, mid: int, body: RatingUpdate, user: Writer, db: Db) -> MessageRating:
+    """Thumbs up or down on an answer (`rating` null clears it). It's saved on the message, shown when the
+    conversation opens and carried in its JSON export: a label for training data, not a change to the answer."""
+    _own_chat(db, cid, user)
+    try:
+        return MessageRating(id=mid, rating=chat.rate(db, cid, mid, body.rating))
+    except KeyError:
+        raise HTTPException(404, "not found") from None
 
 
 def _via(user: Principal) -> str:

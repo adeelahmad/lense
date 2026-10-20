@@ -288,7 +288,7 @@ def test(db, cfg, sid):
             "limited": f"{BACKENDS[src['type']]['label']} is rate limiting this account: {e}"[:300],
         }
     except (RuntimeError, ValueError, subprocess.TimeoutExpired) as e:
-        health = {"ok": False, "checked_at": store.now(), "error": str(e)[:300]}
+        health = {"ok": False, "checked_at": store.now(), "error": str(e)[:1000]}  # room for a fix to paste (google_auth)
     db.q("UPDATE $r SET health = $h", r=R("storage_source", sid), h=health)
     return health
 

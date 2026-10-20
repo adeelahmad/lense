@@ -90,7 +90,9 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   say yes yourself (an API key, an app or an agent can only decline). Give it a goal that needs many look-ups and deep
   research comes back with a plan to approve, edit or revise, then runs in the background and returns a cited report,
   checked against its sources, to keep as a note, hear aloud or turn into a podcast. Regenerating an answer or editing a
-  question makes a new version beside the old one, and nothing is lost. Each answer keeps a record of what produced it
+  question makes a new version beside the old one, and nothing is lost. A thumbs up or down marks an answer good or bad
+  (pressed again, it's taken back), and agents rate answers the same way over MCP. A new conversation with nothing
+  imported yet offers Import rather than questions nothing can answer. Each answer keeps a record of what produced it
   (the model, its tools, how long it took and what it cost), opened from its header. Copy an answer as Markdown or plain
   text, a question or a code block, and export a conversation as Markdown, PDF or JSON, its citations as footnotes that
   link back to the moment in Lens. It reads answers aloud with a speech provider, macOS `say`, or Kokoro (54

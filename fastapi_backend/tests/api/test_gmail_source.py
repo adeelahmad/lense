@@ -14,7 +14,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from app.domain import convert, feeds, gmail, google_auth, sources, store
 from tests import fake_imap
 from tests.api.test_mail_calendar_sources import BUOYS, REPORT, _email
-from tests.fake_gmail import GMAIL_READ, MAIL, Google
+from tests.fake_gmail import COMPOSE, GMAIL_READ, MAIL, Google
 from tests.helpers import drain, login, make_user
 
 R = store.R
@@ -55,11 +55,11 @@ def _key(google, scopes=(GMAIL_READ,), domain="harbour.example"):
     )
 
 
-def _service_account_source(client, admin, google, user=MARA, **kw):
+def _service_account_source(client, admin, google, user=MARA, write=None, **kw):
     body = {
         "name": "Mara's mail",
         "type": "gmail",
-        "params": {"user": user},
+        "params": {"user": user, **({"write": write} if write else {})},
         "secrets": {"service_account_credentials": _key(google, **kw)},
     }
     r = client.post("/api/v1/sources", headers=admin, json=body)
@@ -174,7 +174,8 @@ def test_what_google_says_when_a_service_account_cant_read(client, admin, google
     assert (
         not h["ok"]
         and "1234567890" in h["error"]
-        and "domain-wide delegation for https://www.googleapis.com/auth/gmail.readonly" in h["error"]
+        and "delegation doesn't include https://www.googleapis.com/auth/gmail.readonly; it allows none of them" in h["error"]
+        and "paste these OAuth scopes: https://www.googleapis.com/auth/gmail.readonly." in h["error"]
     )
     h = _service_account_source(client, admin, google, user="ann@elsewhere.example")["health"]
     assert not h["ok"] and "can't act as ann@elsewhere.example" in h["error"]
@@ -182,6 +183,22 @@ def test_what_google_says_when_a_service_account_cant_read(client, admin, google
     assert not h["ok"] and "enter their address" in h["error"]
     r = client.post("/api/v1/sources", headers=admin, json={"type": "gmail", "params": {"via": "pop"}})
     assert r.status_code == 400 and "via is one of" in r.text
+
+
+def test_a_delegation_that_lacks_a_scope_says_which(client, admin, google):
+    """Google refuses a whole sign-in when one scope isn't delegated: the error names it, and what is allowed."""
+    h = _service_account_source(client, admin, google, scopes=(GMAIL_READ,), write="yes")["health"]
+    assert not h["ok"] and "doesn't include https://www.googleapis.com/auth/gmail.compose;" in h["error"], h
+    assert f"it allows {GMAIL_READ}." in h["error"] and f"paste these OAuth scopes: {GMAIL_READ},{COMPOSE}." in h["error"]
+
+
+def test_a_delegation_of_all_of_gmail_covers_reading_and_drafts(client, admin, google):
+    """A client delegated all of Gmail (as backup tools ask for) is refused gmail.readonly by Google, so Lens signs in
+    with the scope the admin gave."""
+    google.add(REPORT, ["INBOX"], at=1790000000000)
+    src = _service_account_source(client, admin, google, scopes=(MAIL,), write="yes")
+    assert src["health"]["ok"], src["health"]
+    assert {t["scope"] for t in google.access.values()} == {MAIL}
 
 
 def _account(google, refresh, scope=GMAIL_READ):

@@ -204,7 +204,7 @@ def _message(m):
 
 def _lens(web, m):
     """What only Lens knows of a message."""
-    keep = ("model", "stopped", "notice", "error", "check", "context", "versions")
+    keep = ("model", "stopped", "notice", "error", "check", "rating", "context", "versions")
     out = {k: m.get(k) for k in keep if m.get(k)}
     if m.get("attachments"):
         out["attachments"] = [store.clean({k: a.get(k) for k in ("filename", "size", "recording")}) for a in m["attachments"]]

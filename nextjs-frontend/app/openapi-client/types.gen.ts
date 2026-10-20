@@ -4165,6 +4165,12 @@ export type ChatMessage = {
    */
   check?: AnswerCheck | null;
   /**
+   * Rating
+   *
+   * your thumbs up or down on an answer (PUT .../messages/{mid}/rating)
+   */
+  rating?: "up" | "down" | null;
+  /**
    * Model
    *
    * the model that wrote the answer
@@ -15343,6 +15349,12 @@ export type MessageDetail = {
    */
   check?: AnswerCheck | null;
   /**
+   * Rating
+   *
+   * your thumbs up or down on an answer (PUT .../messages/{mid}/rating)
+   */
+  rating?: "up" | "down" | null;
+  /**
    * Model
    *
    * the model that wrote the answer
@@ -15374,6 +15386,23 @@ export type MessageDetail = {
    * its rows in the activity ledger: the model and tool calls made for it, newest first
    */
   ledger?: Array<ActivityEntry>;
+  [key: string]: unknown;
+};
+
+/**
+ * MessageRating
+ */
+export type MessageRating = {
+  /**
+   * Id
+   *
+   * the answer
+   */
+  id: number;
+  /**
+   * Rating
+   */
+  rating: "up" | "down" | null;
   [key: string]: unknown;
 };
 
@@ -21205,6 +21234,18 @@ export type RankedLabel = {
    */
   id?: number | null;
   [key: string]: unknown;
+};
+
+/**
+ * RatingUpdate
+ */
+export type RatingUpdate = {
+  /**
+   * Rating
+   *
+   * up (a good answer), down (a bad one), or null to clear it
+   */
+  rating: "up" | "down" | null;
 };
 
 /**
@@ -49375,6 +49416,40 @@ export type CheckMessageResponses = {
 };
 
 export type CheckMessageResponse = CheckMessageResponses[keyof CheckMessageResponses];
+
+export type RateMessageData = {
+  body: RatingUpdate;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+    /**
+     * Mid
+     */
+    mid: number;
+  };
+  query?: never;
+  url: "/api/v1/chats/{cid}/messages/{mid}/rating";
+};
+
+export type RateMessageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RateMessageError = RateMessageErrors[keyof RateMessageErrors];
+
+export type RateMessageResponses = {
+  /**
+   * Successful Response
+   */
+  200: MessageRating;
+};
+
+export type RateMessageResponse = RateMessageResponses[keyof RateMessageResponses];
 
 export type ListApprovalsData = {
   body?: never;

@@ -1824,6 +1824,7 @@ POST   /api/v1/chats/{cid}/messages
 GET    /api/v1/chats/{cid}/messages/{mid}
 POST   /api/v1/chats/{cid}/stop
 POST   /api/v1/chats/{cid}/messages/{mid}/check
+PUT    /api/v1/chats/{cid}/messages/{mid}/rating
 GET    /api/v1/approvals
 GET    /api/v1/approvals/count
 GET    /api/v1/approvals/{aid}
