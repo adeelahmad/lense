@@ -1,10 +1,18 @@
 "use client";
 
-import { Settings } from "lucide-react";
+import { Settings, Upload } from "lucide-react";
 import Link from "next/link";
 
 import { scopeWords, type Scope } from "@/components/chat/scope";
 import { Button } from "@/components/ui/button";
+
+/** Whether no asset you can read is in the scope (false while the list loads): chat has nothing to answer from. */
+export function nothingInScope(rows: { namespace?: string | null }[] | undefined, scope: Scope): boolean {
+  if (!rows) return false;
+  return !rows.some(
+    (r) => !scope.namespaces?.length || (r.namespace != null && scope.namespaces.includes(r.namespace)),
+  );
+}
 
 /** CH2: before the first question — what chat answers from, suggested questions, or why it can't answer yet. */
 export function EmptyChat({
@@ -14,6 +22,8 @@ export function EmptyChat({
   onChangeScope,
   noProvider,
   admin,
+  nothing = false,
+  canImport = false,
 }: {
   scope: Scope;
   suggestions: string[];
@@ -21,6 +31,10 @@ export function EmptyChat({
   onChangeScope: () => void;
   noProvider: boolean;
   admin: boolean;
+  /** No asset in scope yet: chat has nothing to answer from, so the next step is importing. */
+  nothing?: boolean;
+  /** You may import into at least one namespace (an editor or an admin). */
+  canImport?: boolean;
 }) {
   if (noProvider)
     return (
@@ -55,6 +69,37 @@ export function EmptyChat({
         </div>
       </div>
     );
+  if (nothing) {
+    const scoped = Boolean(scope.namespaces?.length);
+    return (
+      <div className="flex max-w-[420px] flex-col gap-4 rounded-lg border border-border bg-surface p-4">
+        <div className="flex flex-col gap-1.5">
+          <h2 className="text-[17px] font-bold text-fg">
+            {scoped ? `Nothing in ${scopeWords(scope)} yet` : "Nothing to answer from yet"}
+          </h2>
+          <p className="m-0 text-[13.5px] leading-normal text-fg-strong">
+            Chat answers only from assets you can read, and cites them. Import a recording, a document or a web page,
+            then ask about it here.
+            {canImport ? "" : " An editor of a namespace or an admin can import; ask one to add you."}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {canImport && (
+            <Button asChild variant="primary" size="sm">
+              <Link href="/import">
+                <Upload /> Import assets
+              </Link>
+            </Button>
+          )}
+          {scoped && (
+            <Button variant="secondary" size="sm" onClick={onChangeScope}>
+              Change scope
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  }
   const title = scope.namespaces?.length === 1 ? `Ask about ${scope.namespaces[0]}` : "Ask about your archive";
   return (
     <div className="flex max-w-[420px] flex-col gap-3">

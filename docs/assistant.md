@@ -6,6 +6,11 @@ Conversations belong to one person and can be scoped to namespaces, assets, coll
 collection in the scope is read each time the assistant answers, so it draws on the collection's assets as they are
 then.
 
+- **Before the first question:** a new conversation suggests questions from what is in its scope. With nothing in
+  the scope yet (no asset you can read, or none in the namespaces picked), it says chat has nothing to answer from
+  and offers **Import assets**, plus **Change scope** when namespaces are picked; someone who can't import anywhere
+  is told an editor or admin can. Agents find the same out from `GET /api/v1/recordings` or the MCP tool
+  `list_recordings` coming back empty.
 - **Retrieval:** the question's keywords go through the word index (English stemming) and, when search by meaning is
   set up, passages about the question in other words are found too
   ([Search by meaning](processing.md#search-by-meaning)); the two are ranked together by reciprocal rank, limited to
