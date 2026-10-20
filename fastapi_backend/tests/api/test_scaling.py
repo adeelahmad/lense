@@ -412,6 +412,8 @@ def test_a_unit_let_go_or_failed_leaves_the_mesh(client, db, cfg, h, fake, monke
 
     mesh = Mesh()
     monkeypatch.setattr(scaling, "mesh_module", lambda: mesh)
+    # let go at the test's clock: at today's, the unit would have run since NOW and spent the group's budget
+    monkeypatch.setattr(scaling, "_now", lambda: NOW)
     cfg = on(db, cfg)
     pid = provider(client, h)["id"]
     gid = group(client, h, pid, min=1, max=1, cooldown_seconds=0, warmup_seconds=0).json()["id"]
