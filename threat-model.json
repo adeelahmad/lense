@@ -451,7 +451,7 @@
       "parameter": "service account key file or connected account's refresh token, calendar ids, impersonate; the events Google returns",
       "attacker_controllable": "yes",
       "component": "outbound",
-      "caller_must_enforce": "admin creates sources; read-only calendar.readonly scope; Google's own token endpoint and API address (a key file's token_uri is ignored); event text escaped into its .ics without control characters",
+      "caller_must_enforce": "admin creates sources; read-only calendar.readonly scope, or the broader scope an admin already delegated to a service account acting as someone (google_auth.COVERS), kept in memory and used only for the narrower scope's calls; Google's own token endpoint and API address (a key file's token_uri is ignored); event text escaped into its .ics without control characters",
       "provenance": "documented",
       "source": "docs/processing.md \"The token endpoint is always Google's own\""
     },

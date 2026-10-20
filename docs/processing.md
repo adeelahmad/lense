@@ -854,8 +854,12 @@ with nothing to set up at Google. A Gmail source signs in one of two ways:
   writes one; enter the account's address as `user` to read over IMAP.
 - **A service account** (Google Workspace). Upload the service account's JSON key and enter the address of the person
   whose mail Lens reads; nobody signs in. A Workspace admin lets the account's client id use
-  `https://www.googleapis.com/auth/gmail.readonly` (or `https://mail.google.com/` to read over IMAP) under Admin
-  console › Security › API controls › Domain-wide delegation. One source reads one person's mailbox.
+  `https://www.googleapis.com/auth/gmail.readonly` (plus `https://www.googleapis.com/auth/gmail.compose` when the
+  connection may send; `https://mail.google.com/` to read over IMAP) under Admin console › Security › Access and data
+  control › API controls › Manage Domain Wide Delegation. Google matches those scopes exactly, so a client already
+  delegated all of Gmail (`https://mail.google.com/`, as backup tools ask for) is used with that scope instead. When
+  Google refuses, the source's error names the scopes the delegation lacks, the ones it allows and the exact list to
+  paste. One source reads one person's mailbox.
 
 Labels are the folders: the inbox, sent, starred, important, the inbox's categories (Primary, Social, Promotions,
 Updates, Forums) and your own labels. A message is a file `<label id>/<message id>.eml`, read as Gmail keeps it, so it
