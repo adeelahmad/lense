@@ -15,7 +15,7 @@ import { shortTitle } from "@/components/chat/cite";
 import { Composer, ScopeBar } from "@/components/chat/composer";
 import { ConversationList } from "@/components/chat/conversations";
 import { refetchFresh, useApprovals, useChat, useChats, useLlmStatus, useStopAnswer } from "@/components/chat/data";
-import { EmptyChat } from "@/components/chat/empty";
+import { EmptyChat, nothingInScope } from "@/components/chat/empty";
 import { ExportMenu, useChatExport } from "@/components/chat/export";
 import { NamespaceOffer, spokenPick } from "@/components/chat/namespace-offer";
 import { ReportActions, ResearchCard } from "@/components/chat/research";
@@ -95,7 +95,7 @@ export function ChatApp() {
   const qc = useQueryClient();
   const toast = useToast();
   const { data: session } = useSession();
-  const { namespace: topNs, admin } = useArchive();
+  const { namespace: topNs, admin, namespaces: readable, can } = useArchive();
   const activeId = params?.id && /^\d+$/.test(params.id) ? Number(params.id) : null;
 
   const chats = useChats();
@@ -617,6 +617,9 @@ export function ChatApp() {
     if (latest) out.push(`Summarise ${shortTitle(latest.title, 40)} in five bullets`);
     return out;
   }, [dir.speakers, index.data, scope.namespaces]);
+  // nothing imported in scope yet: the next step is Import, not a question nothing can answer
+  const nothing = nothingInScope(index.data, scope);
+  const canImport = admin || readable.some((n) => can("editor", n.name));
 
   // the model that answers here: the conversation's choice (or the one picked before it started), else the configured one
   const chosen = activeId != null ? (chat.data?.model ?? null) : draftModel;
@@ -781,6 +784,8 @@ export function ChatApp() {
                 onChangeScope={() => setScopeOpenTick((t) => t + 1)}
                 noProvider={noProvider}
                 admin={admin}
+                nothing={nothing}
+                canImport={canImport}
               />
             )}
             {items.map((it) => {
