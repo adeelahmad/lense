@@ -179,6 +179,15 @@ Changing the model drops the stored vectors (another model's can't be compared) 
 doesn't have the model), indexing jobs skip for ten minutes rather than each waiting on it, and the hourly routine
 waits too; **Test** in Settings → Search, **Index now**, or `lens embed` try again at once.
 
+## A busy local model server
+
+One local server serving the chat model, a vision model and embeddings (an Ollama box, say) unloads one to load the
+next, and while it does it may hang up on a request. Lens asks again once, two seconds later, when the server drops
+the connection; a server that refuses the request, can't be reached or runs past `llm.timeout` (300 seconds) isn't
+asked again, and the error says which it was. A reasoning model (Qwen 3, DeepSeek R1) asked for something short, such
+as a conversation's title, can spend the whole length thinking and say nothing; Lens then asks it again without the
+limit. Ollama keeps more models loaded at once with `OLLAMA_MAX_LOADED_MODELS` on the Ollama machine.
+
 ## Cloud model providers
 
 The setup wizard's model provider step and Settings → LLM provider offer the model servers running nearby (Ollama, LM

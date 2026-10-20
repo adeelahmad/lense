@@ -76,15 +76,11 @@ def _post(cfg, payload, whole=False):
         return _bedrock(cfg, payload, region)
     tries = _spread(cfg)[:2]  # a unit that can't be reached hands the call to the next
     for n, at in enumerate(tries, 1):
-        req = chat_request(at, payload, whole)
         try:
-            r = urllib.request.urlopen(req, timeout=l.get("timeout") or 300, **_tls(l))
-            if "vnd.amazon.eventstream" in (r.headers.get("Content-Type") or ""):
-                return PayloadParts(r)
-            return r
+            return _send(at, payload, whole, l)
         except urllib.error.HTTPError as e:
             said = e.read().decode("utf-8", "replace")
-            if e.code == 403 and req.full_url.endswith("/invocations-response-stream"):
+            if e.code == 403 and payload.get("stream") and not whole and sagemaker_region(at):  # was /invocations-response-stream
                 return _post(at, payload, whole=True)  # keys that may only InvokeEndpoint, as before answers streamed
             if e.code in (400, 413) and FULL_SAYS.search(said):
                 m = WINDOW_SAYS.search(said)
@@ -96,6 +92,34 @@ def _post(cfg, payload, whole=False):
         except (urllib.error.URLError, TimeoutError, OSError) as e:
             if n == len(tries):
                 raise LLMError(f"can't reach the LLM server at {at['llm']['base_url']}: {e}") from None
+
+
+DROPPED = (ConnectionResetError, ConnectionAbortedError, BrokenPipeError)  # RemoteDisconnected is a ConnectionResetError
+REDIAL_AFTER = 2  # seconds before asking again a server that dropped the connection
+
+
+def _dropped(e):
+    """True when the server hung up on the request (a busy Ollama loading another model resets it) rather than being
+    unreachable, slow or refusing it."""
+    return isinstance(e, DROPPED) or isinstance(getattr(e, "reason", None), DROPPED)
+
+
+def _send(cfg, payload, whole, l):
+    """The server's open answer to one chat request, asked once more when the server dropped the connection."""
+    for again in (True, False):
+        req = chat_request(cfg, payload, whole)  # anew each time: an AWS signature is for one moment
+        try:
+            r = urllib.request.urlopen(req, timeout=l.get("timeout") or 300, **_tls(l))
+        except urllib.error.HTTPError:
+            raise
+        except (urllib.error.URLError, OSError) as e:
+            if not (again and _dropped(e)):
+                raise
+            time.sleep(REDIAL_AFTER)
+            continue
+        if "vnd.amazon.eventstream" in (r.headers.get("Content-Type") or ""):
+            return PayloadParts(r)
+        return r
 
 
 _CONTEXTS = {}  # llm.tls_ca -> its SSL context
@@ -426,12 +450,25 @@ def _content(j):
         raise LLMError("unexpected reply from the LLM server") from None
 
 
+def _thought_out(j):
+    """True when a reasoning model spent all of max_tokens thinking: cut at the length with nothing said, its thoughts
+    in `reasoning` or `reasoning_content` (Ollama, vLLM, LM Studio) or an unclosed <think> block."""
+    try:
+        choice = j["choices"][0]
+        return choice.get("finish_reason") == "length" and not unthink(choice["message"].get("content") or "").strip()
+    except (KeyError, IndexError, TypeError, AttributeError):
+        return False
+
+
 def chat(cfg, messages, model=None, max_tokens=None, temperature=0.2):
     payload = {"model": model or cfg["llm"]["model"], "messages": messages, "temperature": temperature}
     if max_tokens:
         payload["max_tokens"] = max_tokens
     with telemetry.model_call(cfg, payload) as call, _post(cfg, payload) as r:
-        return _content(call.reply(_load(r)))
+        j = call.reply(_load(r))
+    if max_tokens and _thought_out(j):  # a short answer (a title) from a model that thinks first: let it finish
+        return chat(cfg, messages, model, None, temperature)
+    return _content(j)
 
 
 def _visible(pieces):
