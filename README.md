@@ -427,3 +427,5 @@ Lens is open source under the [MIT License](LICENSE.txt). Optional extras that y
 licenses (for example `extract-msg`, GPL-3.0, for Outlook `.msg` files); none is part of the default install.
 
 Built on the [Next.js FastAPI Template](https://github.com/vintasoftware/nextjs-fastapi-template) (MIT).
+
+<img src="https://www.google-analytics.com/g/collect?v=2&amp;tid=G-RKFB16BPXJ&amp;cid=555.lense&amp;en=page_view&amp;dl=https%3A%2F%2Fgithub.com%2Fadeelahmad%2Flense&amp;dt=lense&amp;ep.repo=lense" width="1" height="1" alt="">
