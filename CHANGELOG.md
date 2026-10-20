@@ -4,6 +4,61 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+## 0.20.0 <small>October 20, 2026</small> {id="0.20.0"}
+
+- **Photos and videos on a map.** Library → **Map** (beside Table and List, on a phone too) shows each asset whose own
+  file said where it was taken as a dot, with the Library's filters, framed to show them all; a dot links to its
+  asset. Besides a photo's EXIF GPS fix, a video's location is now read as it arrives (the ISO 6709 tag iPhones and
+  Android phones write). Agents get the same through `GET /api/v1/resources?located=true&bbox=west,south,east,north`,
+  which also gives every row its `place`, and the MCP tool `list_recordings` (`located`, `bbox`); only members see
+  where an asset was taken. The tiles under the map come from Settings → **Maps** (OpenStreetMap's by default); each
+  viewer's browser fetches them, so the tile server sees the area looked at: point it at your own tile server, or leave
+  it empty for none ([Where an asset was taken](docs/processing.md#where-an-asset-was-taken),
+  [Maps](docs/configuration.md#maps)). Assets that arrived before keep what they had: nothing needs upgrading.
+
+- **Blur faces for sharing.** A video's People tab has **Blur faces for sharing**: every face found is ticked, and
+  Enter makes a copy of the video with those faces blurred, by ffmpeg over the faces' tracks, in the background as a
+  heavy step (quiet processing hours apply), with its progress shown. The copy is kept with the video's files, the
+  original stays as it is, and an owner can have visitors (public pages, embeds, share links, IIIF, feeds) play the
+  copy instead. Nothing changes for a video until someone asks. Agents use `GET` and
+  `POST /api/v1/recordings/{id}/blur-faces` (all, unnamed or chosen faces), `PUT .../blur-faces/visitors`, and the
+  MCP tools `blur_faces`, `get_face_blur` and `set_face_blur_for_visitors`
+  ([Blurring faces for sharing](docs/video.md#blurring-faces-for-sharing)).
+
+- **Line up a transcript with its audio.** A transcript imported without times (plain text, Word, PDF, Markdown) now
+  says its times are estimated, and once its audio is attached its page offers **Line up with the audio**: one click
+  transcribes the audio in the background with the engine transcription already uses (activity ledger, budgets and
+  quiet processing hours apply), matches the transcript's words to the words heard, and gives each line their times;
+  lines none of whose words were heard sit between their neighbours. The text and speakers stay exactly as they were.
+  Nothing is lined up unless someone asks. Agents use `POST /api/v1/resources/{id}/align` and the MCP tool
+  `align_transcript`; `GET /api/v1/resources/{id}` says `times` (estimated or aligned). Upgrading marks transcripts
+  imported before with estimated times (the `estimated-times` step)
+  ([Lining up a transcript with its audio](docs/processing.md#aligning)).
+
+- **Thumbs up or down on answers.** Under a finished answer in chat, a thumbs up marks it good and a thumbs down bad;
+  pressing the one you gave takes it back. The rating is saved on the answer, shown when the conversation opens and
+  carried in its JSON export (`lens.rating`), the label training data is built from; it makes no model call. Agents
+  rate answers with `PUT /api/v1/chats/{cid}/messages/{mid}/rating` or the MCP tool `rate_answer`, and read it back on
+  each message ([Rating answers](docs/assistant.md#rating-answers)). Nothing needs upgrading: older answers have no
+  rating.
+
+- **An empty chat names the next step.** A new conversation with nothing in its scope yet (nothing imported, or none
+  in the namespaces picked) says chat has nothing to answer from and offers Import assets, plus Change scope when
+  namespaces are picked, instead of suggesting questions nothing can answer. Someone who can't import is told an
+  editor or admin can ([Chat](docs/assistant.md#chat)). Nothing needs upgrading.
+
+- **Google service accounts that act as someone sign in with the scope the admin delegated.** Google matches a
+  domain-wide delegation's scopes exactly, so a client delegated all of Gmail (`https://mail.google.com/`, as backup
+  tools ask for) was refused `gmail.readonly` and `gmail.compose`, and the source said only "domain-wide delegation"
+  with the fix cut off. Lens now signs in with the broader scope the admin gave (all of Gmail, Calendar or Drive) and
+  still calls only what the narrower scope allows. When Google refuses, the source's error names the scopes the
+  delegation lacks, the ones it allows and the exact list to paste in the Admin console, in full
+  ([Gmail](docs/processing.md#gmail-and-google-workspace)).
+
+### Dependencies
+
+- bump aiohttp from 3.14.3 to 3.14.4 in /fastapi_backend ([#698](https://github.com/adeelahmad/lense/pull/698))
+
 ## 0.19.0 <small>October 19, 2026</small> {id="0.19.0"}
 
 - **Circles in the web app.** Your circles are under Profile: a suggested name makes one in one click, people are
