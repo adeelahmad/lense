@@ -1515,6 +1515,9 @@ import type {
   QueueStepData,
   QueueStepErrors,
   QueueStepResponses,
+  RateMessageData,
+  RateMessageErrors,
+  RateMessageResponses,
   ReactToActivityData,
   ReactToActivityErrors,
   ReactToActivityResponses,
@@ -11703,6 +11706,25 @@ export class Chats {
     return (options.client ?? client).post<CheckMessageResponses, CheckMessageErrors, ThrowOnError>({
       url: "/api/v1/chats/{cid}/messages/{mid}/check",
       ...options,
+    });
+  }
+
+  /**
+   * Rate Message
+   *
+   * Thumbs up or down on an answer (`rating` null clears it). It's saved on the message, shown when the
+   * conversation opens and carried in its JSON export: a label for training data, not a change to the answer.
+   */
+  public static rateMessage<ThrowOnError extends boolean = false>(
+    options: Options<RateMessageData, ThrowOnError>,
+  ): RequestResult<RateMessageResponses, RateMessageErrors, ThrowOnError> {
+    return (options.client ?? client).put<RateMessageResponses, RateMessageErrors, ThrowOnError>({
+      url: "/api/v1/chats/{cid}/messages/{mid}/rating",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 

@@ -126,6 +126,17 @@ An app's chat completions keep no messages, so their record comes back in the re
 cost ([Chat completions](api.md#chat-completions-for-any-app)). Answers from before Lens kept records have none; Details
 shows what they have and says the rest wasn't recorded.
 
+### Rating answers
+
+Under a finished answer, a thumbs up says it was a good answer and a thumbs down a bad one; pressing the one you gave
+takes it back, so there's nothing to confirm. The rating is saved on the answer (`rating`: `up`, `down` or none, with
+`rated_at`), shown when the conversation opens on any device, and carried in the conversation's JSON export (`lens.rating`)
+([Copy and export](#copy-and-export)). It changes nothing about the answer and makes no model call: it labels which
+answers were good, the signal training data is built from. Agents give it with `PUT
+/api/v1/chats/<id>/messages/<mid>/rating` (`{"rating": "up"}`, `"down"` or `null`) or the MCP tool `rate_answer`, and
+read it back on each message from `GET /api/v1/chats/<id>` and `read_chat`. Only the conversation's owner rates its
+answers; a question can't be rated.
+
 ### Copy and export
 
 A conversation, or one message of it, comes out as a file to keep or hand on: `GET

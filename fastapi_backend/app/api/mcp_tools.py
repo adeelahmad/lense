@@ -2253,6 +2253,7 @@ def _chat_message(ctx: Context, m: dict[str, Any]) -> dict[str, Any]:
             "citations": [chat_export.citation(ctx.web, p) for p in m.get("passages") or []] or None,
             "record": m.get("meta"),
             "stopped": m.get("stopped") or None,
+            "rating": m.get("rating"),
             "notice": m.get("notice"),
             "error": m.get("error"),
             "files": [a.get("filename") for a in m.get("attachments") or []] or None,
@@ -2317,6 +2318,31 @@ def rename_chat(ctx: Context, chat_id: int, title: str | None) -> dict[str, Any]
     else:
         named = chat_routes.title_chat(chat_id, ctx.user, ctx.db, ctx.cfg).model_dump()
     return {"chat_id": chat_id, **named, "url": f"{ctx.web}/chat/{chat_id}"}
+
+
+@tool(
+    "rate_answer",
+    "Rate an answer",
+    "Thumbs up or down on an answer in one of your conversations, as the person would give it in the web app, or "
+    "`clear` to take it back. The rating is saved on the answer and shown with it: a label for training data that says "
+    "which answers were good, not a change to the answer. Needs a token with the write scope.",
+    Arg("chat_id", "integer", "the conversation (from list_chats)", required=True),
+    Arg("message", "integer", "the answer (an assistant message's id from read_chat)", required=True),
+    Arg("rating", "string", "up for a good answer, down for a bad one, clear to remove it", required=True, enum=("up", "down", "clear")),
+    writes=True,
+    personal=True,
+)
+def rate_answer(ctx: Context, chat_id: int, message: int, rating: str) -> dict[str, Any]:
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to rate answers")
+    chat_routes._own_chat(ctx.db, chat_id, ctx.user)
+    try:
+        got = chat.rate(ctx.db, chat_id, message, None if rating == "clear" else rating)
+    except KeyError:
+        raise ToolError("that isn't an answer in this conversation") from None
+    except ValueError:
+        raise ToolError("rating is up, down or clear") from None
+    return {"chat_id": chat_id, "message": message, "rating": got, "url": f"{ctx.web}/chat/{chat_id}"}
 
 
 @tool(

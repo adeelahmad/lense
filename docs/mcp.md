@@ -47,7 +47,7 @@ has the same tools, but sees only that namespace, whatever else the person who s
 that take a namespace use this one when none is named, `list_namespaces` and `list_files` show only it, and the tools
 about the server itself (`file_storage`, `monitoring`, `services`, `mcp_servers`, `sandbox_gateway`, `install_settings`,
 `mesh` and the ones that change them) aren't there, even for admins. Nor are the person's own conversations (`list_chats`,
-`read_chat`, `rename_chat`, `export_chat`), projects (`list_projects`, `read_project`, `create_project`,
+`read_chat`, `rename_chat`, `rate_answer`, `export_chat`), projects (`list_projects`, `read_project`, `create_project`,
 `update_project`, `schedule_project`) and playlists (`list_playlists`, `add_to_playlist`), which belong to no namespace.
 An admin counts as an owner of the namespace there.
 
@@ -106,6 +106,7 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 | `list_chats` | the person's conversations with Lens's [assistant](assistant.md#chat), newest first, by words in their title, each with its link |
 | `read_chat` | one of them: what it draws on, and the version showing (or the one ending at a `message`), each message with its versions, the tools an answer used, its citations with links and its record; `tree` adds every message's parent and role |
 | `rename_chat` | name one of them, or have Lens [title](assistant.md#titles) it from how it starts (no `title`). Needs a write-scope token |
+| `rate_answer` | a thumbs up or down on one of their answers, or `clear` to take it back ([Rating answers](assistant.md#rating-answers)); saved on the answer, it changes nothing about it. Needs a write-scope token |
 | `export_chat` | one of them as Markdown or JSON ([Copy and export](assistant.md#copy-and-export)): the version showing, one `message`, every version (`all_versions`) or OpenAI's `{"messages": [...]}` shape (`as_messages`) |
 | `list_projects` | the person's [projects](projects.md), the most recently changed first: each one's goal, namespaces, coordinator conversation and how many threads are open |
 | `read_project` | one of them: its goal and instructions, namespaces, coordinator and threads (each one's title, whether it's done and its last message); read a thread with `read_chat` |

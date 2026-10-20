@@ -851,6 +851,7 @@ export function ChatApp() {
                       }
                       onAddScope={addScope}
                       check={checks[it.a.id] ?? it.a.check}
+                      rating={it.a.rating}
                       meta={it.a.meta}
                       onChecked={(c) => setChecks((x) => ({ ...x, [it.a!.id]: c }))}
                       onExport={(fmt) => exporter.mutate({ fmt, message: it.a!.id })}

@@ -87,6 +87,7 @@ def test_clients_are_sent_to_sign_in(client, app, env):
         "write_note",
         "add_to_playlist",
         "rename_chat",
+        "rate_answer",
         "create_project",
         "update_project",
         "schedule_project",

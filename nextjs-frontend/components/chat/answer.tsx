@@ -1,9 +1,9 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ChevronDown, RefreshCw, RotateCcw, ShieldCheck, Square } from "lucide-react";
+import { ChevronDown, RefreshCw, RotateCcw, ShieldCheck, Square, ThumbsDown, ThumbsUp } from "lucide-react";
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { Chats, Search } from "@/app/openapi-client";
 import type { AnswerCheck, MessageRecord, Passage } from "@/app/openapi-client/types.gen";
@@ -32,6 +32,8 @@ import { data, useApiClient } from "@/lib/api/browser";
 import { plural } from "@/lib/format";
 import { useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
+
+type Rating = "up" | "down";
 
 /** Where an answer comes from: "3 assets in podcasts", "2 web pages", "3 assets in podcasts, 2 emails and 1 event". */
 function fromWhere(passages: Passage[] | null): string | null {
@@ -162,6 +164,8 @@ export type AnswerProps = {
   active?: boolean;
   check?: AnswerCheck | null;
   onChecked?: (c: AnswerCheck) => void;
+  /** The thumbs up or down given to it; pressing the one given takes it back. */
+  rating?: Rating | null;
   /** What produced it (the answer's record); older answers have none. */
   meta?: MessageRecord | null;
   /** Export this answer, with its question (a saved answer's copy menu). */
@@ -197,6 +201,24 @@ export function Answer(p: AnswerProps) {
         }),
       ),
     onSuccess: (c) => p.onChecked?.(c),
+  });
+  const [picked, setPicked] = useState<{ id: number | null | undefined; rating: Rating | null } | null>(null);
+  const rating = picked && picked.id === p.messageId ? picked.rating : (p.rating ?? null);
+  const rate = useMutation({
+    mutationFn: (r: Rating | null) =>
+      data(
+        Chats.rateMessage({
+          client,
+          path: { cid: p.chatId as number, mid: p.messageId as number },
+          body: { rating: r },
+        }),
+      ),
+    onMutate: (r) => {
+      const was = rating;
+      setPicked({ id: p.messageId, rating: r });
+      return was;
+    },
+    onError: (_e, _r, was) => setPicked({ id: p.messageId, rating: was ?? null }),
   });
   const result = p.check ?? check.data ?? null;
   const unsupported = (result?.verdicts ?? []).filter((v) => v.supported === false).map((v) => String(v.claim ?? ""));
@@ -371,9 +393,36 @@ export function Answer(p: AnswerProps) {
             {check.isPending ? "Checking sources…" : "Check sources"}
           </Button>
         )}
+        {p.status === "done" && p.messageId != null && p.chatId != null && !blank && !failed && (
+          <span className="inline-flex items-center" role="group" aria-label="Rate this answer">
+            <IconButton
+              label={rating === "up" ? "Good answer (press to take back)" : "Good answer"}
+              size={32}
+              active={rating === "up"}
+              onClick={() => rate.mutate(rating === "up" ? null : "up")}
+              className={cn("[&_svg]:size-4", rating === "up" && "text-fg")}
+            >
+              <ThumbsUp fill={rating === "up" ? "currentColor" : "none"} />
+            </IconButton>
+            <IconButton
+              label={rating === "down" ? "Bad answer (press to take back)" : "Bad answer"}
+              size={32}
+              active={rating === "down"}
+              onClick={() => rate.mutate(rating === "down" ? null : "down")}
+              className={cn("[&_svg]:size-4", rating === "down" && "text-fg")}
+            >
+              <ThumbsDown fill={rating === "down" ? "currentColor" : "none"} />
+            </IconButton>
+          </span>
+        )}
         {!streaming && !blank && !noModel && !nothing && !failed && <ReadAloud text={p.text} />}
         {!streaming && !blank && !noModel && <AnswerMenu text={p.text} passages={p.passages} onExport={p.onExport} />}
       </div>
+      {rate.isError && (
+        <p role="alert" className="m-0 text-[13px] text-red-dark">
+          Couldn’t save the rating: {rate.error.message}
+        </p>
+      )}
       {check.isError && (
         <p role="alert" className="m-0 text-[13px] text-red-dark">
           Couldn’t check the sources: {check.error.message}
