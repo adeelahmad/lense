@@ -28476,6 +28476,68 @@
         }
       }
     },
+    "/api/v1/chats/{cid}/messages/{mid}/rating": {
+      "put": {
+        "tags": [
+          "chats"
+        ],
+        "summary": "Rate Message",
+        "description": "Thumbs up or down on an answer (`rating` null clears it). It's saved on the message, shown when the\nconversation opens and carried in its JSON export: a label for training data, not a change to the answer.",
+        "operationId": "rate_message",
+        "parameters": [
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          },
+          {
+            "name": "mid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Mid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RatingUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageRating"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/approvals": {
       "get": {
         "tags": [
@@ -45506,6 +45568,22 @@
               }
             ],
             "description": "its latest source check (POST .../messages/{mid}/check)"
+          },
+          "rating": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "up",
+                  "down"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating",
+            "description": "your thumbs up or down on an answer (PUT .../messages/{mid}/rating)"
           },
           "model": {
             "anyOf": [
@@ -64713,6 +64791,22 @@
             ],
             "description": "its latest source check (POST .../messages/{mid}/check)"
           },
+          "rating": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "up",
+                  "down"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating",
+            "description": "your thumbs up or down on an answer (PUT .../messages/{mid}/rating)"
+          },
           "model": {
             "anyOf": [
               {
@@ -64792,6 +64886,37 @@
           "content"
         ],
         "title": "MessageDetail"
+      },
+      "MessageRating": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "the answer"
+          },
+          "rating": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "up",
+                  "down"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "rating"
+        ],
+        "title": "MessageRating"
       },
       "MessageRecord": {
         "properties": {
@@ -74786,6 +74911,32 @@
           "p"
         ],
         "title": "RankedLabel"
+      },
+      "RatingUpdate": {
+        "properties": {
+          "rating": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "up",
+                  "down"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating",
+            "description": "up (a good answer), down (a bad one), or null to clear it"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "rating"
+        ],
+        "title": "RatingUpdate"
       },
       "RcloneSignIn": {
         "properties": {

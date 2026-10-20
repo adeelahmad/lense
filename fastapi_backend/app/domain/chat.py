@@ -376,12 +376,27 @@ def history(db, cid, ids=None):
     """A conversation's messages, oldest first: every version's, or only those with `ids` (a path)."""
     return db.rows(
         "SELECT record::id(id) AS id, role, content, passages, created_at, stopped ?? false AS stopped, steps ?? [] AS steps, "
-        "attachments ?? [] AS attachments, notice, error, check, model, context, parent, meta, kind FROM chat_message WHERE chat = $c"
+        "attachments ?? [] AS attachments, notice, error, check, rating, model, context, parent, meta, kind FROM chat_message WHERE chat = $c"
         + (" AND id IN $ids" if ids is not None else "")
         + " ORDER BY id",
         c=cid,
         ids=[R("chat_message", i) for i in ids or []],
     )
+
+
+RATINGS = ("up", "down")
+
+
+def rate(db, cid, mid, rating):
+    """Rate an answer of conversation `cid`: "up", "down" or None to clear it, saved on the message with when. KeyError
+    when `mid` isn't one of its answers. Ratings label answers for the training data (good or bad), nothing else."""
+    m = db.one("SELECT chat, role FROM $r", r=R("chat_message", mid))
+    if not m or m["chat"] != cid or m["role"] != "assistant":
+        raise KeyError(mid)
+    if rating not in (*RATINGS, None):
+        raise ValueError(rating)
+    db.q("UPDATE $r SET rating = $v, rated_at = IF $v = NONE THEN NONE ELSE time::now() END", r=R("chat_message", mid), v=rating)
+    return rating
 
 
 # ---------- versions: a conversation is a tree, each message under the one it follows; the head is the version showing
