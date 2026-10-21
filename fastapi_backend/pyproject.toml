@@ -86,7 +86,7 @@ msg = ["extract-msg"]
 vaultwarden = ["python-vaultwarden>=1.1.2,<2"]
 # auto scaling on Linux hosts over SSH (scaling_ssh.py): Paramiko (LGPL-2.1, used unmodified as a library); fetched
 # when the first SSH provider is saved
-ssh = ["paramiko>=3.5,<5"]
+ssh = ["paramiko>=5.0.0,<6"]
 
 [project.scripts]
 lens = "app.cli:main"
@@ -120,7 +120,7 @@ dev = [
     "pywebrtc-audio>=0.2.0,<0.3",  # the clean_audio step's WebRTC audio processing, tested on synthetic audio
     "python-vaultwarden>=1.1.2,<2",  # the Vaultwarden client, tested against a fake Vaultwarden
     "moto[ec2]>=5.1,<6",
-    "paramiko>=3.5,<5",
+    "paramiko>=5.0.0,<6",
 ]
 
 [tool.hatch.build.targets.wheel]
