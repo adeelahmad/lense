@@ -37,7 +37,7 @@ jobs:
       SURREAL_PASS: ci
       AUTH_SECRET: ci
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Start it as Lens's compose file does
         run: |
