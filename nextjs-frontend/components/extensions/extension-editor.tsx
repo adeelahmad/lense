@@ -320,6 +320,12 @@ function SidePanels({ id }: { id: number }) {
     <div className="flex flex-col gap-4">
       <Panel title="In conversations">
         <div className="flex flex-col gap-3">
+          {e.kind === "mcp" && e.spec.adapter === "auto_ontology" && (
+            <p className="text-[13px] text-fg-secondary">
+              Everyone who can use this extension queries Auto-Ontology as its API token owner, not as their own Lens
+              account. Share only with people allowed to read that external data. Questions can incur model costs.
+            </p>
+          )}
           <Switch
             label={e.enabled ? "On" : "Off"}
             checked={e.enabled}
@@ -505,3 +511,4 @@ function TryPanel({ id, tools }: { id: number; tools: Item[] }) {
     </Panel>
   );
 }
+

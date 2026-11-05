@@ -128,7 +128,9 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   ones that run as a program (`npx`, `uvx`) run in a sandboxed container of their own, off until you turn it on. Add one
   with a form or by pasting another app's config, its tokens sealed and each of its tools switched on or off, or pick a
   ready-made one: GitHub's own server, or a browser (a headless Chromium in a sandbox of its own) the assistant opens,
-  reads, clicks and types in, asking before anything that acts on a page. Settings › AI assistant › MCP servers lists
+  reads, clicks and types in, asking before anything that acts on a page. An optional
+  [Auto-Ontology integration](docs/auto-ontology.md) connects an existing deployment for semantic
+  terms and SQL-backed answers, with private extensions and sealed API tokens. Settings › AI assistant › MCP servers lists
   them all, and agents list and add them over MCP. The MCP runner, the browser and monitoring are containers Lens starts
   next to itself from the web app, through the machine's upgrade agent, each off until an admin turns it on. Install
   skills and plugins from marketplaces in the open plugin format, or from a repository or an archive, and keep your own
@@ -431,3 +433,4 @@ licenses (for example `extract-msg`, GPL-3.0, for Outlook `.msg` files); none is
 Built on the [Next.js FastAPI Template](https://github.com/vintasoftware/nextjs-fastapi-template) (MIT).
 
 <img src="https://www.google-analytics.com/g/collect?v=2&amp;tid=G-RKFB16BPXJ&amp;cid=555.lense&amp;en=page_view&amp;dl=https%3A%2F%2Fgithub.com%2Fadeelahmad%2Flense&amp;dt=lense&amp;ep.repo=lense" width="1" height="1" alt="">
+

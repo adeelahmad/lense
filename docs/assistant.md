@@ -921,6 +921,11 @@ runs (until then its switch is there to turn it on). **GitHub** puts GitHub's ow
 `GET /api/v1/extensions/mcp/presets` (admins), each with the spec to save and, for the browser, whether its container
 is on and answering.
 
+**NVIDIA Auto-Ontology** connects an existing deployment's public web gateway with its API token: semantic term
+search, readiness, answerability and SQL-backed answers. It uses a REST adapter, not the upstream OAuth MCP server,
+and adds no services to Lens. It starts private; sharing delegates the token owner's upstream data access to every
+recipient. Questions can incur model costs. See [Auto-Ontology](auto-ontology.md) for setup, tools and limits.
+
 **Settings › AI assistant › MCP servers** lists the servers added, each with how many of its tools the assistant is
 offered and a link to its page, with **Add MCP server** and the switches that run the MCP runner and the browser on
 this machine. Agents do the same with the MCP tools `mcp_servers`, which lists the servers (header and env names, never
@@ -1082,3 +1087,4 @@ collection, a namespace, a filter, an entity or a person.
 - `/results` returns one table of everyone's outputs. List fields become rows, so you get every action item from every
   call, and `/results.csv` or `/results.md` exports it.
 - `/combine` writes a collection report: one overview from all those results, citing each asset as [n].
+

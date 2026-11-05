@@ -634,6 +634,28 @@ Exported by phase 3.6 (backtest) and de-identified. Closing rows carry their sta
 | Reviewer: text in an asset steers the assistant into saving a note | `write_note` through chat | author of content the assistant reads | wrong-output | `BY-DESIGN: property-disclaimed` **(escalated)** | N-PROMPT, still **inferred** (Q26) |
 | Admin points the model URL at an internal service | model `base_url` setting | the instance admin | info-leak | `OUT-OF-MODEL: trusted-input` **(closed)** | N-ADMIN *(maintainer, 2026-10)* |
 
+### Auto-Ontology REST bridge
+
+The optional `auto_ontology` adapter (`domain/auto_ontology.py`) uses an admin-configured public web gateway and a
+sealed `x-api-key`, through the existing MCP extension permission/approval paths. It adds no default service and does
+not read or ingest Lens's archive. Its fixed routes read semantic terms, compilation/source readiness, question
+coverage and streamed query answers. No caller chooses a route or HTTP method, redirects are refused, term IDs cannot
+select another path, and raw upstream errors are not reflected. Responses have a 2 MB limit, with a question deadline
+and socket timeout; failed requests are never retried automatically. Questions force `prediction: false` to prevent
+upstream KumoRFM predictive uploads and omit `conversation_id` to avoid shared upstream history. SQL is returned as
+data, never executed in Lens. Results remain untrusted third-party content under P-INJECTION-EGRESS.
+
+The API token owner's upstream access is delegated to everyone allowed to use the extension. It is private by
+default; sharing it is not per-user Auto-Ontology authentication or namespace isolation. Admins must grant the token
+least privilege and share only with authorized readers; setup and sharing display this warning. HTTP on a trusted
+local network remains supported and exposes the credential to that network; use HTTPS elsewhere. Upstream models and
+database authorization are the deployment owner's responsibility. Paid calls are recorded as unpriced and use
+Lens's model budget hook, but unpriced remote calls cannot be reliably capped by a USD budget.
+
+Checks: `tests/domain/test_auto_ontology.py` `AutoOntologyTests` (including a local redirect server),
+`tests/api/test_auto_ontology.py` `test_auto_ontology_is_private_sealed_and_callable`,
+`test_auto_ontology_config_and_run_keep_the_adapter`.
+
 ## 1.12 Security properties the project does not provide
 
 | ID | The project does not provide | Conditions / boundary | Tier | False friend? | Provenance |
@@ -1017,3 +1039,4 @@ here. This model is a strict superset, except S14, which the maintainer's 2026-1
 | S18 | Out: denial of service by sheer volume | §1.12 N-VOLUME |
 | S19 | Out: dependency bugs Lens doesn't reach | §1.3; §1.9 |
 | S20 | Test on your own instance and data | §1.1 reporting (process only) |
+

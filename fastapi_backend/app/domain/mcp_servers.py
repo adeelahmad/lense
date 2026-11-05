@@ -58,7 +58,8 @@ def where(server):
             port = u.port
         except ValueError:
             port = None
-        return f"{u.scheme}://{(u.hostname or '').lower()}:{port or (443 if u.scheme == 'https' else 80)}"
+        origin = f"{u.scheme}://{(u.hostname or '').lower()}:{port or (443 if u.scheme == 'https' else 80)}"
+        return origin + ("#adapter:" + str(server["adapter"]) if server.get("adapter") else "")
     run = json.dumps([server.get("command") or "", *(server.get("args") or [])])
     return "command:" + hashlib.sha256(run.encode()).hexdigest()[:32]
 
@@ -172,6 +173,10 @@ def entry(c):
     """One server of a config, as an MCP extension keeps it: (spec, None), or (None, why it's left out)."""
     if not isinstance(c, dict):
         return None, "it isn't an object with a command or an address"
+    if c.get("adapter") not in (None, "auto_ontology"):
+        return None, "the supported MCP adapter is auto_ontology"
+    if c.get("adapter") and c.get("command"):
+        return None, "Auto-Ontology uses its public web address, not a program"
     kind = str(c.get("type") or c.get("transport") or "").lower().replace("_", "-")
     if c.get("command") is not None or kind == "stdio":
         if not isinstance(c.get("command"), str) or not c["command"].strip():
@@ -187,7 +192,7 @@ def entry(c):
     if not isinstance(url, str) or not url.strip():
         return None, "it has neither a command nor an address"
     headers = {k: str(v) for k, v in (c.get("headers") or {}).items() if isinstance(k, str) and isinstance(v, (str, int, float))}
-    return store.clean({"url": url.strip(), "headers": headers or None}), None
+    return store.clean({"url": url.strip(), "headers": headers or None, "adapter": c.get("adapter")}), None
 
 
 def guess_name(server):
@@ -305,6 +310,14 @@ def presets():
             "fill": ["GITHUB_TOKEN"],
             "needs": None,
         },
+        {
+            "name": "auto_ontology",
+            "label": "NVIDIA Auto-Ontology",
+            "description": "Connect an existing Auto-Ontology deployment: semantic terms, answerability and SQL-backed answers. Uses its API token owner's access; keep private unless everyone shared with may read that data.",
+            "spec": {"adapter": "auto_ontology", "url": "${AUTO_ONTOLOGY_URL}", "headers": {"x-api-key": "${AUTO_ONTOLOGY_API_TOKEN}"}},
+            "fill": ["AUTO_ONTOLOGY_URL", "AUTO_ONTOLOGY_API_TOKEN"],
+            "needs": None,
+        },
     ]
 
 
@@ -344,3 +357,4 @@ def migrate_seal(db):
             spec = seal(db, d["id"], d["name"], d["kind"], v["spec"])
             if spec != v["spec"]:
                 db.q("UPDATE $r SET spec = $s", r=store.R("extension_version", v["id"]), s=spec)
+

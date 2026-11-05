@@ -163,6 +163,10 @@ class Session:
 def discover(server):
     """A server's tools, as an MCP extension keeps them: {name, description, schema, read_only}."""
     with activity.call("mcp.list", detail={"url": server.get("url") or server.get("command")}):
+        if server.get("adapter") == "auto_ontology":
+            from . import auto_ontology
+
+            return auto_ontology.discover(server)
         tools = Session(server).tools()
     out = []
     for t in tools:
@@ -206,6 +210,17 @@ def _call(run, args):
 
 def call(run, args):
     """Call one of a server's tools: its text, and anything structured it gave back."""
+    if run.get("adapter") == "auto_ontology":
+        from . import auto_ontology
+
+        costed = run["tool"] in ("check_answerable", "ask_question")
+        with activity.call(
+            "auto_ontology." + run["tool"],
+            model="auto-ontology" if costed else None,
+            detail={"url": run.get("url"), "tool": run["tool"]},
+        ) as usage:
+            usage.unpriced = costed  # upstream supplies neither token usage nor a reliable price
+            return auto_ontology.call(run, args)
     with activity.call("mcp.call", detail={"url": run.get("url") or run.get("command"), "tool": run["tool"]}):
         got = _call(run, args)
     texts = [c.get("text") for c in got.get("content") or [] if isinstance(c, dict) and c.get("type") == "text"]
@@ -215,3 +230,4 @@ def call(run, args):
     if got.get("isError"):
         out["error"] = True
     return out
+

@@ -500,7 +500,8 @@ def test_agents_list_and_add_servers(app, db, cfg, folder, new_client, server, m
     assert "only admins" in mcp("editor", "add_mcp_server", preset="github", values={"GITHUB_TOKEN": "t0ken"})["error"]
     got = mcp("admin", "mcp_servers")
     assert got["servers"] == [] and got["add"].endswith("/extensions/new/mcp")
-    browser, github = got["ready_made"]
+    browser, github, ontology = got["ready_made"]
+    assert ontology["preset"] == "auto_ontology"
     assert (browser["preset"], browser["added"], browser["service"]["profile"]) == ("browser", False, "browser")
     assert (github["preset"], github["values"], "service" in github) == ("github", ["GITHUB_TOKEN"], False)
 
