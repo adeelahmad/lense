@@ -629,7 +629,9 @@ with examples.
 Imports, pipeline runs and folder scans return at once and run as jobs stored in SurrealDB. The server runs
 `workers.inline` workers itself; more can run anywhere that reaches the database, each limited to the steps it can do.
 A job whose next step a worker can't run goes back on the queue for one that can, so a Mac can transcribe with mlx while
-the container does the rest. Jobs can be cancelled and retried from the failed step; a job whose worker stops
+the container does the rest. This also applies to later steps waiting for components to be fetched: completed steps
+stay completed, and the job resumes at the waiting step once its component is ready. Jobs can be cancelled and
+retried from the failed step; a job whose worker stops
 responding is retried. In Activity the queue is handled as a whole too: **Clear queue** cancels every queued and held
 run you may process (in the namespace in view), asking first, and its message can undo it; under **Queued** the runs
 show in the order workers take them, and dragging one by its grip (or Alt+↑ and Alt+↓ on the grip, or Move to top

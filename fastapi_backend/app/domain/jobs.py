@@ -1248,7 +1248,9 @@ class Worker:
             "lens.pipeline.version": pipe.get("version"),
         }
         with telemetry.span("job", attrs) as sp:
-            outcome = run_job(self.db, self.cfg_fn, job, self.name, self.can, self.log)
+            # Keep the readiness gate for every step, not just the first one we claimed. A later
+            # step whose component is still deferred must be queued so the keeper sees its demand.
+            outcome = run_job(self.db, self.cfg_fn, job, self.name, can, self.log)
             sp.set_attribute("lens.job.outcome", outcome)
         telemetry.record("lens.jobs", 1, {"lens.job.outcome": outcome})
         self.register()
