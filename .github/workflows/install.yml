@@ -58,7 +58,8 @@ jobs:
       matrix:
         # the oldest Python it supports (a Mac's own, older Linux) and a current one; Windows and macOS run it too
         include:
-          - { os: ubuntu-latest, python: "3.8" }
+          # setup-python provides Python 3.8 builds for Ubuntu 24.04, but not 26.04.
+          - { os: ubuntu-24.04, python: "3.8" }
           - { os: ubuntu-latest, python: "3.12" }
           - { os: windows-latest, python: "3.12" }
           - { os: macos-latest, python: "3.12" }
