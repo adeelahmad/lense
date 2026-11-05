@@ -520,7 +520,11 @@ def test_agents_list_and_add_servers(app, db, cfg, folder, new_client, server, m
     # GitHub, ready-made: its name, address and description come with it
     gh = mcp("admin", "add_mcp_server", preset="github", values={"GITHUB_TOKEN": "t0ken"})
     assert (gh["name"], gh["url"]) == ("github", "https://api.githubcopilot.com/mcp/")
-    assert [p["added"] for p in mcp("admin", "mcp_servers")["ready_made"]] == [False, True]
+    assert {p["preset"]: p["added"] for p in mcp("admin", "mcp_servers")["ready_made"]} == {
+        "browser": False,
+        "github": True,
+        "auto_ontology": False,
+    }
     # the browser waits for its container
     assert "isn't running yet" in mcp("admin", "add_mcp_server", preset="browser")["error"]
     monkeypatch.setattr(services, "running", lambda profile: True)

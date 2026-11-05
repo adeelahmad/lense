@@ -56,6 +56,10 @@ server can't be reached Lens retries, waiting up to 30 seconds between tries, an
 ones are dropped and counted. **Send a test line** sends one message to the saved server, even while sending is off,
 and Settings → Logs shows how many lines the API has sent and dropped and the last error.
 
+TLS connections send a clean shutdown notification before closing, so the receiver can finish reading queued
+messages. Shutdown waits at most the connection timeout (5 seconds by default) for the server's reply, then releases
+the socket even if the server does not reply. This is transport shutdown, not an acknowledgment that logs were stored.
+
 rsyslog, syslog-ng, Graylog, Grafana Loki (through promtail or Alloy's syslog receiver), Splunk, Papertrail and most
 log tools take RFC 5424 syslog.
 

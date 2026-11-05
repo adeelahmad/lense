@@ -349,6 +349,62 @@ def _mtls(pki):
     return ctx
 
 
+@pytest.mark.parametrize("version", [ssl.TLSVersion.TLSv1_2, ssl.TLSVersion.TLSv1_3])
+def test_syslog_tls_closes_cleanly_without_losing_records(pki, version):
+    received, errors = [], []
+
+    class Receiver(socketserver.StreamRequestHandler):
+        def handle(self):
+            self.connection.settimeout(2)
+            # Require close_notify: a bare TCP EOF must not masquerade as a clean
+            # TLS shutdown, even on OpenSSL versions that tolerate abrupt closes.
+            self.connection.suppress_ragged_eofs = False
+            try:
+                received.append(self.rfile.read())
+                self.connection.unwrap().close()
+            except OSError as error:
+                errors.append(error)
+
+    ctx = _mtls(pki)
+    ctx.minimum_version = ctx.maximum_version = version
+    with socketserver.TCPServer(("127.0.0.1", 0), Receiver) as srv:
+        srv.socket = ctx.wrap_socket(srv.socket, server_side=True)
+        thread = threading.Thread(target=srv.serve_forever, daemon=True)
+        thread.start()
+        try:
+            sender = logs.Sender(
+                "127.0.0.1", srv.server_address[1], "tls", timeout=2, client_cert=pki["client"], server_ca=pki["ca"]
+            )
+            try:
+                sender.send(b"first message")
+                sender.send(b"second message")
+            finally:
+                sender.close()
+            assert _wait(lambda: received or errors)
+            assert received == [b"13 first message14 second message"]
+            assert not errors
+            assert sender.sock is None
+            sender.close()  # repeated cleanup is safe
+        finally:
+            srv.shutdown()
+            thread.join(timeout=3)
+
+
+@pytest.mark.parametrize("error", [TimeoutError("no close_notify"), ssl.SSLError("peer closed abruptly")])
+def test_syslog_tls_close_releases_socket_when_shutdown_fails(error):
+    from unittest.mock import Mock
+
+    sock = Mock()
+    sock.unwrap.side_effect = error
+    sender = logs.Sender("localhost", 6514, "tls")
+    sender.sock = sock
+    sender.close()
+    sender.close()
+    sock.unwrap.assert_called_once_with()
+    sock.close.assert_called_once_with()
+    assert sender.sock is None
+
+
 def test_client_certificates_for_syslog_over_tls_and_https(client, db, cfg, pki):
     h = admin(client, db)
     # a pasted certificate loses its line breaks in a password field: it's rebuilt, checked and sealed

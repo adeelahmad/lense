@@ -511,4 +511,3 @@ function TryPanel({ id, tools }: { id: number; tools: Item[] }) {
     </Panel>
   );
 }
-

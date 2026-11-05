@@ -1039,4 +1039,3 @@ here. This model is a strict superset, except S14, which the maintainer's 2026-1
 | S18 | Out: denial of service by sheer volume | §1.12 N-VOLUME |
 | S19 | Out: dependency bugs Lens doesn't reach | §1.3; §1.9 |
 | S20 | Test on your own instance and data | §1.1 reporting (process only) |
-

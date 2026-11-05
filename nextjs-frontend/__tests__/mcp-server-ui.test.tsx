@@ -362,4 +362,3 @@ describe("MCP servers in Settings", () => {
     expect(toolCount(12, 0)).toBe("12 tools");
   });
 });
-

@@ -452,4 +452,3 @@ request, to another check that proves the same thing; loosening a requirement or
 | The web app works on a phone: every journey is surveyed on one, and none may take more than its baseline | [clicks.yml](https://github.com/adeelahmad/lense/blob/main/.github/workflows/clicks.yml) `Survey on a phone`; [baseline-phone.json](https://github.com/adeelahmad/lense/blob/main/ci/clicks/baseline-phone.json); [phone-layout.test.tsx](https://github.com/adeelahmad/lense/blob/main/nextjs-frontend/__tests__/phone-layout.test.tsx) |
 | Heavy steps kept to their hours and to so many at a time, off by default | [test_quiet.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/domain/test_quiet.py) `test_the_window_and_its_checks`, `test_heavy_steps_wait_for_their_hours_and_their_turn` |
 | The default install runs on a Raspberry Pi (arm64) with a cloud model | No check yet ([#486](https://github.com/adeelahmad/lense/issues/486)) |
-

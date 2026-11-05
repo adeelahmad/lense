@@ -1087,4 +1087,3 @@ collection, a namespace, a filter, an entity or a person.
 - `/results` returns one table of everyone's outputs. List fields become rows, so you get every action item from every
   call, and `/results.csv` or `/results.md` exports it.
 - `/combine` writes a collection report: one overview from all those results, citing each asset as [n].
-
