@@ -372,9 +372,7 @@ def test_syslog_tls_closes_cleanly_without_losing_records(pki, version):
         thread = threading.Thread(target=srv.serve_forever, daemon=True)
         thread.start()
         try:
-            sender = logs.Sender(
-                "127.0.0.1", srv.server_address[1], "tls", timeout=2, client_cert=pki["client"], server_ca=pki["ca"]
-            )
+            sender = logs.Sender("127.0.0.1", srv.server_address[1], "tls", timeout=2, client_cert=pki["client"], server_ca=pki["ca"])
             try:
                 sender.send(b"first message")
                 sender.send(b"second message")
