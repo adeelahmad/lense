@@ -79,7 +79,9 @@ function show(section: SectionId, key: string, saved = false) {
 
 beforeEach(() => {
   (Admin.updateSettings as jest.Mock).mockReset().mockImplementation(() => ok({ ok: true }));
-  (Admin.getSecrets as jest.Mock).mockReset().mockImplementation(() => ok({ providers: [], references: [], fields: [] }));
+  (Admin.getSecrets as jest.Mock)
+    .mockReset()
+    .mockImplementation(() => ok({ providers: [], references: [], fields: [] }));
   for (const status of [Admin.telegramStatus, Admin.slackStatus, Admin.mailboxStatus])
     (status as jest.Mock).mockReset().mockImplementation(() => ok({ state: "off", people: [], chats: [] }));
 });
