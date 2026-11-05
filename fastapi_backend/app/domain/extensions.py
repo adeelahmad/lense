@@ -992,4 +992,3 @@ def http_call(cfg, run, args):
         except ValueError:
             pass
     return {"status": status, "text": text[:RESULT_CHARS]}
-

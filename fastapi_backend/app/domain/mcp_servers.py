@@ -357,4 +357,3 @@ def migrate_seal(db):
             spec = seal(db, d["id"], d["name"], d["kind"], v["spec"])
             if spec != v["spec"]:
                 db.q("UPDATE $r SET spec = $s", r=store.R("extension_version", v["id"]), s=spec)
-
