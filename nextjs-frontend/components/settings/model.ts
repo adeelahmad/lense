@@ -4852,4 +4852,3 @@ export function serverError(section: string, message: string): { field: string |
     message: message ? message[0].toUpperCase() + message.slice(1) : `Couldn’t save ${section}`,
   };
 }
-

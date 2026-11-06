@@ -1,7 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
 
 import { Voice } from "@/app/openapi-client";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 import { generateSpeech, transcribeMedia } from "../service";
 import { VoiceWorkspace } from "../voice-workspace";
@@ -13,12 +15,20 @@ const client = {};
 
 function renderWorkspace() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={queryClient}><VoiceWorkspace /></QueryClientProvider>);
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <VoiceWorkspace />
+      </TooltipProvider>
+    </QueryClientProvider>,
+  );
 }
 
 beforeEach(() => {
   jest.mocked(Voice.voiceInfo).mockResolvedValue({ speak: true, transcribe: true, engine: "local" } as never);
-  jest.mocked(Voice.listVoices).mockResolvedValue({ provider: "openai", current: "alloy", voices: [{ id: "nova", name: "Nova" }] } as never);
+  jest
+    .mocked(Voice.listVoices)
+    .mockResolvedValue({ provider: "openai", current: "alloy", voices: [{ id: "nova", name: "Nova" }] } as never);
   URL.createObjectURL = jest.fn(() => "blob:test-voice");
   URL.revokeObjectURL = jest.fn();
 });
@@ -41,7 +51,12 @@ it("generates exact text in the selected voice and exposes playback and download
 
 it("cancels pending work and ignores its late result", async () => {
   let resolve!: (value: Blob) => void;
-  jest.mocked(generateSpeech).mockImplementation(() => new Promise((done) => { resolve = done; }));
+  jest.mocked(generateSpeech).mockImplementation(
+    () =>
+      new Promise((done) => {
+        resolve = done;
+      }),
+  );
   renderWorkspace();
   await screen.findByRole("option", { name: "Nova" });
   fireEvent.change(screen.getByLabelText("Text to read"), { target: { value: "Hello" } });
@@ -50,8 +65,10 @@ it("cancels pending work and ignores its late result", async () => {
   expect(generateSpeech).toHaveBeenCalledTimes(1);
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
   expect(jest.mocked(generateSpeech).mock.calls[0][3].aborted).toBe(true);
-  resolve(new Blob(["audio"], { type: "audio/mpeg" }));
-  await waitFor(() => expect(screen.queryByRole("link", { name: "Download audio" })).not.toBeInTheDocument());
+  await act(async () => {
+    resolve(new Blob(["audio"], { type: "audio/mpeg" }));
+  });
+  expect(screen.queryByRole("link", { name: "Download audio" })).not.toBeInTheDocument();
 });
 
 it("transcribes uploaded media and clears the old transcript when selecting another file", async () => {
@@ -64,7 +81,9 @@ it("transcribes uploaded media and clears the old transcript when selecting anot
   expect(await screen.findByLabelText("Transcript")).toHaveValue("Words from the recording.");
   expect(await screen.findByRole("link", { name: "Download text" })).toHaveAttribute("download", "lens-transcript.txt");
   expect(transcribeMedia).toHaveBeenCalledWith(client, file, expect.any(AbortSignal));
-  fireEvent.change(screen.getByLabelText("Audio or video file"), { target: { files: [new File(["next"], "next.wav")] } });
+  fireEvent.change(screen.getByLabelText("Audio or video file"), {
+    target: { files: [new File(["next"], "next.wav")] },
+  });
   expect(screen.queryByLabelText("Transcript")).not.toBeInTheDocument();
 });
 

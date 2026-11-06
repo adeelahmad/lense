@@ -62,6 +62,7 @@ const web = (values: Record<string, unknown>) =>
     research: { values: { max_tool_calls: 40, max_minutes: 20, model: null, agents_skip_review: false } },
     voice: {
       values: {
+        public_enabled: false,
         input: "auto",
         stt: "same",
         tts_provider: "openai",
@@ -105,6 +106,7 @@ describe("web search settings", () => {
 
   it("is off, and one switch turns it on with DuckDuckGo", async () => {
     show(web({}));
+    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Results per search")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("switch", { name: /Let the assistant search the web/ }));
     expect(screen.getByText(/an unofficial client/)).toBeInTheDocument();

@@ -9,11 +9,18 @@ export async function generateSpeech(client: Client, text: string, voice: string
   const problem = textProblem(text);
   if (problem) throw new Error(problem);
   const body = { text, voice: voice || undefined, server_only: true };
-  const clip = await data(Voice.speakText({
-    client, body, parseAs: "blob", signal,
-  }));
+  const clip = await data(
+    Voice.speakText({
+      client,
+      body,
+      parseAs: "blob",
+      signal,
+    }),
+  );
   if (!(clip instanceof Blob) || !clip.size || !clip.type.startsWith("audio/")) {
-    throw new Error("The server returned no audio. Check the speech provider in Settings and try again. Browser speech was not used.");
+    throw new Error(
+      "The server returned no audio. Check the speech provider in Settings and try again. Browser speech was not used.",
+    );
   }
   return clip;
 }
@@ -21,8 +28,13 @@ export async function generateSpeech(client: Client, text: string, voice: string
 export async function transcribeMedia(client: Client, file: File, signal: AbortSignal): Promise<string> {
   const problem = mediaProblem(file);
   if (problem) throw new Error(problem);
-  const result = await data(Voice.transcribeClip({
-    client, body: file, headers: { "Content-Type": file.type || "application/octet-stream" }, signal,
-  }));
+  const result = await data(
+    Voice.transcribeClip({
+      client,
+      body: file,
+      headers: { "Content-Type": file.type || "application/octet-stream" },
+      signal,
+    }),
+  );
   return result.text;
 }

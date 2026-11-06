@@ -116,9 +116,7 @@ export function Nav({
                         aria-current={pathname === "/voice" ? "page" : undefined}
                         className={cn(
                           "flex h-8 items-center justify-center gap-1 rounded-sm px-2 text-[13px] hover:bg-surface-neutral",
-                          pathname === "/voice"
-                            ? "bg-blue-surface font-bold text-fg-accent"
-                            : "text-fg-strong",
+                          pathname === "/voice" ? "bg-blue-surface font-bold text-fg-accent" : "text-fg-strong",
                         )}
                       >
                         <AudioLines aria-hidden className="size-[17px] shrink-0" />
@@ -154,4 +152,3 @@ export function Nav({
     </nav>
   );
 }
-

@@ -138,7 +138,10 @@ export function CreatePodcastDialog({
         )}
       </Field>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label={mode === "dialogue" ? "First host's voice" : "Narrator's voice"} hint="Uses this provider's actual voice IDs. Blank keeps the podcast default.">
+        <Field
+          label={mode === "dialogue" ? "First host's voice" : "Narrator's voice"}
+          hint="Uses this provider's actual voice IDs. Blank keeps the podcast default."
+        >
           {(f) => (
             <Select
               id={f.id}
@@ -165,13 +168,26 @@ export function CreatePodcastDialog({
         )}
       </div>
       <p className="text-[13px] text-fg-secondary">
-        {voices.isPending ? "Loading provider voices…" : `Speech provider: ${voices.data?.provider || "configured in Settings"}.`}
-        {" "}These choices apply to this episode only. Remote providers receive the script and may charge for use.
+        {voices.isPending
+          ? "Loading provider voices…"
+          : `Speech provider: ${voices.data?.provider || "configured in Settings"}.`}{" "}
+        These choices apply to this episode only. Remote providers receive the script and may charge for use.
       </p>
       {(voices.error || voices.data?.error) && (
         <p role="alert" className="text-[13px] text-red-dark">
           Could not list voices: {voices.error?.message || voices.data?.error}. You can keep the podcast defaults.
-          <Button size="sm" variant="link" disabled={busy || voices.isFetching} onClick={() => { setVoiceA(""); setVoiceB(""); void voices.refetch(); }}>Retry voice list</Button>
+          <Button
+            size="sm"
+            variant="link"
+            disabled={busy || voices.isFetching}
+            onClick={() => {
+              setVoiceA("");
+              setVoiceB("");
+              void voices.refetch();
+            }}
+          >
+            Retry voice list
+          </Button>
         </p>
       )}
       {mode !== "original" && (
@@ -237,4 +253,3 @@ export function CreatePodcastDialog({
     </Dialog>
   );
 }
-

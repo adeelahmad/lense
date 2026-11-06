@@ -20,7 +20,12 @@ describe("raw voice service", () => {
     jest.mocked(Voice.speakText).mockResolvedValue({ data: clip } as never);
     const text = "  # Raw [1]\n*text* and https://example.com  ";
     await expect(generateSpeech(client, text, "alloy", signal)).resolves.toBe(clip);
-    expect(Voice.speakText).toHaveBeenCalledWith({ client, body: { text, voice: "alloy", server_only: true }, parseAs: "blob", signal });
+    expect(Voice.speakText).toHaveBeenCalledWith({
+      client,
+      body: { text, voice: "alloy", server_only: true },
+      parseAs: "blob",
+      signal,
+    });
   });
   it("does not call the server with oversized text", async () => {
     await expect(generateSpeech(client, "a".repeat(4001), "", signal)).rejects.toThrow(/4,000/);
@@ -40,6 +45,11 @@ describe("raw voice service", () => {
     const file = new File(["media"], "clip.webm", { type: "video/webm" });
     jest.mocked(Voice.transcribeClip).mockResolvedValue({ data: { text: "Exact transcript." } } as never);
     await expect(transcribeMedia(client, file, signal)).resolves.toBe("Exact transcript.");
-    expect(Voice.transcribeClip).toHaveBeenCalledWith({ client, body: file, headers: { "Content-Type": "video/webm" }, signal });
+    expect(Voice.transcribeClip).toHaveBeenCalledWith({
+      client,
+      body: file,
+      headers: { "Content-Type": "video/webm" },
+      signal,
+    });
   });
 });
