@@ -503,6 +503,13 @@ class Sender:
 
     def close(self):
         if self.sock is not None:
+            # TLS 1.3 may still have session tickets in flight. Closing without
+            # close_notify can reset the connection before the peer reads our logs.
+            # Bound the shutdown so an unresponsive collector cannot stall a worker.
+            if isinstance(self.sock, ssl.SSLSocket):
+                with contextlib.suppress(OSError):
+                    self.sock.settimeout(0.5)
+                    self.sock = self.sock.unwrap()
             with contextlib.suppress(OSError):
                 self.sock.close()
             self.sock = None
@@ -876,3 +883,4 @@ def read(cfg, limit=200, min_level=None, q=None, process=None, logger=None, befo
             continue
     found.sort(key=lambda d: d["ts"], reverse=True)
     return found[:limit]
+

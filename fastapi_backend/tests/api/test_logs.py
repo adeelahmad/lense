@@ -399,3 +399,55 @@ def test_client_certificates_for_syslog_over_tls_and_https(client, db, cfg, pki)
         assert _Http.got[-1][0] == "/ingest"
     finally:
         web.shutdown()
+
+
+def test_syslog_tls_close_notifies_peer_and_closes_transport(monkeypatch):
+    class Raw:
+        closed = False
+
+        def close(self):
+            self.closed = True
+
+    raw = Raw()
+
+    class TLS:
+        timeout = None
+
+        def settimeout(self, value):
+            self.timeout = value
+
+        def unwrap(self):
+            return raw
+
+    monkeypatch.setattr(logs.ssl, "SSLSocket", TLS)
+    sock = TLS()
+    sender = logs.Sender("localhost", 6514, "tls")
+    sender.sock = sock
+    sender.close()
+    assert sock.timeout == 0.5
+    assert raw.closed
+    assert sender.sock is None
+
+
+def test_syslog_tls_close_is_bounded_and_cleans_up_on_timeout(monkeypatch):
+    class TLS:
+        closed = False
+        timeout = None
+
+        def settimeout(self, value):
+            self.timeout = value
+
+        def unwrap(self):
+            raise TimeoutError("the peer did not close")
+
+        def close(self):
+            self.closed = True
+
+    monkeypatch.setattr(logs.ssl, "SSLSocket", TLS)
+    sock = TLS()
+    sender = logs.Sender("localhost", 6514, "tls")
+    sender.sock = sock
+    sender.close()
+    assert sock.timeout == 0.5
+    assert sock.closed
+    assert sender.sock is None
