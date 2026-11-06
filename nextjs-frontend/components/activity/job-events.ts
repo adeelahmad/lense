@@ -10,7 +10,7 @@ import { useSession } from "next-auth/react";
 import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 
 import type { JobList } from "@/app/openapi-client/types.gen";
-import { applyCount, applyJobEvent, type JobRecord } from "@/components/activity/job-model";
+import { applyCount, applyJobEvent, byQueue, type JobRecord } from "@/components/activity/job-model";
 import { streamSSE } from "@/lib/api/sse";
 import { useArchive } from "@/lib/hooks/session";
 
@@ -146,7 +146,8 @@ export function useJobEvents(onJob?: Listener, onOpen?: () => void): FeedStatus 
 }
 
 type JobsKeyOpts =
-  { status?: string; recording?: number; limit?: number; namespace?: string; batch?: number } | undefined;
+  | { status?: string; recording?: number; limit?: number; namespace?: string; batch?: number; order?: "queue" }
+  | undefined;
 
 /**
  * Patch every cached job list (query keys ["jobs", {status, recording, limit, namespace, batch}]) with one change.
@@ -165,6 +166,8 @@ export function patchJobLists(qc: QueryClient, job: JobRecord, spaceIds?: Record
       if (!old || !Array.isArray(old.jobs)) return old;
       const before = old.jobs.find((j) => j.id === job.id)?.status;
       let jobs = applyJobEvent(old.jobs as JobRecord[], job, statuses);
+      // Sort before truncating: a new run joins the back, not the front of a full queue page.
+      if (opts?.order === "queue") jobs = [...jobs].sort(byQueue);
       if (opts?.limit && jobs.length > opts.limit) jobs = jobs.slice(0, opts.limit);
       const counts = opts?.recording != null ? old.counts : applyCount(old.counts ?? {}, before, job.status);
       const running = Boolean((counts.queued ?? 0) + (counts.running ?? 0));
