@@ -9,7 +9,7 @@ Lens's assistant can answer in Slack, Discord, Telegram, Matrix, Mattermost, IRC
 Telegram needs no Matterbridge and no public address: Lens reads its own bot's messages (long polling) and answers.
 
 1. In Telegram, message **@BotFather**, send `/newbot` and copy the token it gives you.
-2. Open **Settings → Telegram**, paste the token and turn on **Answer in Telegram**.
+2. Open **Settings → Telegram**, paste the token, turn on **Answer in Telegram**, and click **Save**.
 3. Message your bot. You show on the settings page under **Wrote to the bot, not let in**: click **Let in**.
 
 Anyone can find a bot, so it answers only the people in **People it talks to** (Telegram user ids or usernames);
@@ -22,6 +22,9 @@ namespace's assistant with **Chats for a namespace's assistant** (`-100123456789
 "yes", the account it answers as and routing between namespaces work as below.
 
 Give Lens a bot of its own: a bot that Matterbridge also reads answers neither reliably (**Check the bot** says so).
+
+The bot token is write-only: reopening Settings shows whether it is set, never its value. Use **Replace** to change
+it or **Clear** to remove it, then **Save**. **Cancel** and **Undo** leave the saved token unchanged.
 
 Telegram is one adapter of the chat-channel layer (`app/domain/channels.py`) that Matterbridge is another of; a new
 chat app adds an adapter (reading, sending, files) and gets everything in a room for free. The assistant's own email
@@ -37,7 +40,8 @@ and answers there.
 2. In the app's page, **Install to Workspace**, then copy the **Bot User OAuth Token** (`xoxb-…`, under OAuth &
    Permissions). Under **Basic Information → App-Level Tokens**, generate one with `connections:write` and copy it
    (`xapp-…`).
-3. Paste both tokens in Settings → Slack and turn on **Answer in Slack**. **Check the app** says whether both work.
+3. Paste both tokens in Settings → Slack, turn on **Answer in Slack**, and click **Save**. **Check the app** says
+   whether both saved tokens work.
 
 Message the app directly (always for Lens), invite it to a channel with `/invite @Lens` and say "Lens, …" or
 @mention it, or type `/lens what did we decide about the launch?` anywhere (the answer shows in that channel).
