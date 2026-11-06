@@ -1,0 +1,1 @@
+The upgrade check restarts an old-release worker at most twice after its known SQLite WAL initialization lock race, preserving failed attempt logs. Both versions still start API and worker concurrently; target-version failures and all upgrade data, backup and migration checks remain strict.
