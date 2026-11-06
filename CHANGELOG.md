@@ -4,6 +4,51 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+## 0.21.0 <small>November 6, 2026</small> {id="0.21.0"}
+
+- **A busy local model server no longer fails jobs on a dropped connection.** When the LLM server hangs up on a
+  request (an Ollama box loading another model resets it), Lens asks once more two seconds later instead of failing
+  the job. A reasoning model that spends a short answer's whole length thinking, such as a conversation's title, is
+  asked again without the limit instead of leaving the title unwritten
+  ([A busy local model server](docs/configuration.md#a-busy-local-model-server)).
+
+### Added
+
+- Optional NVIDIA Auto-Ontology integration through its authenticated public REST gateway: semantic term search,
+  readiness, answerability and SQL-backed answers with bounded rows and source provenance. Reuses private MCP
+  extensions, sealed tokens, tool controls and the activity ledger; adds no default services or dependencies.
+  Predictive uploads and persistent upstream conversations are disabled.
+
+### Fixed
+
+- Keep the Clicks workflow's default runner on Ubuntu 24.04, which its pinned Playwright browser bundle supports,
+  instead of letting the moving Ubuntu label break browser installation on 26.04.
+
+Fix syslog-over-TLS shutdown to send `close_notify` before closing the connection, preventing log loss when TLS 1.3 servers send session tickets. Cleanup remains bounded by the connection timeout and always releases the socket. Regression tests cover strict TLS 1.2 and 1.3 receivers and failed shutdown cleanup.
+
+Fixed a crash when opening Telegram, Slack, or Assistant email settings. Their credential fields are now registered
+with the shared form, so tokens and the mailbox password can be saved, replaced, or cleared without exposing stored
+values. Cancel and Undo preserve the saved credentials.
+
+The upgrade check restarts an old-release worker at most twice after its known SQLite WAL initialization lock race, preserving failed attempt logs. Both versions still start API and worker concurrently; target-version failures and all upgrade data, backup and migration checks remain strict.
+
+Queued pipelines now wait for deferred components before later steps, not just before their first step, and resume
+without repeating completed work. Live updates keep the Queued view in worker priority order before applying the
+page limit, so new arrivals no longer displace runs that should execute sooner.
+
+Add a Voice workspace inside Lens for raw text-to-audio and media-to-text using existing speech engines. Raw requests reject oversized text instead of silently truncating it, bound media decoding and concurrent work, and provide explicit server-only errors. Administrators can enable anonymous raw speech on demand, off by default and without opening archive or podcast access. Existing deployments are not changed automatically.
+
+### Dependencies
+
+- bump dompurify from 3.4.16 to 3.4.17 in /extensions/browser ([#715](https://github.com/adeelahmad/lense/pull/715))
+- bump the javascript-minor group across 1 directory with 13 updates ([#713](https://github.com/adeelahmad/lense/pull/713))
+- bump pypdf from 6.20.1 to 6.21.4 in /fastapi_backend ([#716](https://github.com/adeelahmad/lense/pull/716))
+- update fastapi[standard] requirement in /fastapi_backend ([#709](https://github.com/adeelahmad/lense/pull/709))
+- bump regex from 2025.11.3 to 2026.9.29 in /fastapi_backend ([#708](https://github.com/adeelahmad/lense/pull/708))
+- bump pillow from 12.3.0 to 13.0.0 in /fastapi_backend ([#711](https://github.com/adeelahmad/lense/pull/711))
+- bump pyasn1 from 0.6.4 to 0.6.5 in /fastapi_backend ([#723](https://github.com/adeelahmad/lense/pull/723))
+- bump the python-minor group across 1 directory with 25 updates ([#724](https://github.com/adeelahmad/lense/pull/724))
+
 ## 0.20.0 <small>October 20, 2026</small> {id="0.20.0"}
 
 - **Photos and videos on a map.** Library → **Map** (beside Table and List, on a phone too) shows each asset whose own

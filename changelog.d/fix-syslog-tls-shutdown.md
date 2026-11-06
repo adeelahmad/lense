@@ -1,1 +1,0 @@
-Fix syslog-over-TLS shutdown to send `close_notify` before closing the connection, preventing log loss when TLS 1.3 servers send session tickets. Cleanup remains bounded by the connection timeout and always releases the socket. Regression tests cover strict TLS 1.2 and 1.3 receivers and failed shutdown cleanup.
