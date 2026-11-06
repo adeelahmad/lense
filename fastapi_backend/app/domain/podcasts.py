@@ -52,6 +52,20 @@ KINDS = ("claim", "question", "analogy", "banter", "recap")
 CITED = ("claim", "recap")  # lines that state facts, so need a source
 RUN_CHARS = 700  # an excerpt is a run of neighbouring lines up to about this long (a document's stays on one page)
 LINE_CHARS = 600  # longest script line kept
+MODES = ("original", "summary", "explanation", "dialogue")
+MODE_GUIDES = {
+    "summary": (
+        "Make a concise summary, spoken by one narrator, speaker a only. Keep the source's essential points and "
+        "qualifications; leave out banter, invented dialogue and unnecessary detail. Every line must be a cited claim "
+        "or recap. These single-narrator instructions override any two-host instructions in the template."
+    ),
+    "explanation": (
+        "Explain the sources clearly, step by step, for a learner, spoken by one narrator, speaker a only. Define "
+        "unfamiliar terms using the sources and make their connections clear, without adding unsupported facts, "
+        "banter or invented dialogue. Every line must be a cited claim or recap. These single-narrator instructions "
+        "override any two-host instructions in the template."
+    ),
+}
 
 
 class Problem(ValueError):
@@ -78,10 +92,13 @@ def selected_recordings(sel):
 
 
 # ---------- options ----------
-def options(cfg, length=None, style=None, prompt=None, voices=None):
+def options(cfg, length=None, style=None, prompt=None, voices=None, mode=None):
     p = cfg.get("podcasts") or {}
+    mode = "dialogue" if mode is None else mode
+    if mode not in MODES:
+        raise Problem(f"mode is one of {', '.join(MODES)}")
     length = 10 if length is None else int(length)
-    if not 1 <= length <= int(p.get("max_minutes") or 30):
+    if mode != "original" and not 1 <= length <= int(p.get("max_minutes") or 30):
         raise Problem(f"length is 1 to {p.get('max_minutes') or 30} minutes")
     style = style or "deep-dive"
     if style not in STYLES:
@@ -95,7 +112,9 @@ def options(cfg, length=None, style=None, prompt=None, voices=None):
             raise Problem("voices are {a, b}: a voice's name or id for each host")
         if v.strip():
             picked[k] = v.strip()
-    return store.clean({"length": length, "style": style, "prompt": prompt or None, "voices": picked or None})
+    if mode != "dialogue":
+        picked.pop("b", None)
+    return store.clean({"length": length, "style": style, "prompt": prompt or None, "voices": picked or None, "mode": mode})
 
 
 def hosts(cfg):
@@ -167,6 +186,7 @@ def create(
     title=None,
     voices=None,
     space=None,
+    mode=None,
 ):
     """A new episode about what was picked, queued to be made. Returns {episode, job, namespace, placed}.
 
@@ -175,7 +195,7 @@ def create(
     `space` is where it goes when the caller has decided (a routine's podcast episode node): it must fit (`fits`),
     Problem otherwise."""
     sel = clean_selection(selection)
-    opts = options(cfg, length, style, prompt, voices)
+    opts = options(cfg, length, style, prompt, voices, mode)
     rids = selected_recordings(sel)
     rows = db.rows("SELECT record::id(id) AS id, space, title FROM recording WHERE id IN $ids", ids=[R("recording", r) for r in rids])
     if len(rows) != len(rids):
@@ -183,6 +203,9 @@ def create(
     also = sorted({int(x) for x in also or ()})
     if readable is not None and any(r["space"] not in readable and r["id"] not in also for r in rows):
         raise KeyError("recording")
+    if opts["mode"] == "original":
+        # Refuse unavailable or oversized text before making an episode or its namespace. The job checks again.
+        resolve_original(db, cfg, sel, readable=readable, also=also)
     if space is not None:
         if not fits(db, int(space), {r["space"] for r in rows}):
             raise Problem("an episode about these sources can't go in that namespace: people there couldn't read them all")
@@ -229,12 +252,14 @@ def create(
             }
         ),
     )
-    jid = jobs.enqueue(db, rid, steps(), by=by)
+    jid = jobs.enqueue(db, rid, steps(opts["mode"]), by=by)
     return {"episode": rid, "job": jid, "namespace": sid, "placed": placed}
 
 
-def steps():
-    return [{"type": "podcast", "stage": s, "name": STAGE_NAMES[s]} for s in STAGES] + AFTER
+def steps(mode="dialogue"):
+    stages = ("gather", "audio", "publish") if mode == "original" else STAGES
+    # An original reading makes no LLM calls, including the usual post-publication analysis and summary.
+    return [{"type": "podcast", "stage": s, "name": STAGE_NAMES[s]} for s in stages] + ([] if mode == "original" else AFTER)
 
 
 def _collection(db, sid):
@@ -248,9 +273,9 @@ def _collection(db, sid):
 
 def regenerate(db, rid, by=None):
     """Make an episode again from what was asked for (the sources are read afresh). Returns the job."""
-    get_row(db, rid)
+    p = get_row(db, rid)
     _save(db, rid, status="queued", error=None)
-    return jobs.enqueue(db, rid, steps(), by=by)
+    return jobs.enqueue(db, rid, steps(p["request"].get("mode", "dialogue")), by=by)
 
 
 # ---------- reading ----------
@@ -273,6 +298,8 @@ def step(db, cfg, rid, say, spec=None):
         raise ValueError(f"a podcast step's stage is one of {', '.join(STAGES)}")
     if not db.one("SELECT id FROM $r", r=R("podcast", rid)):
         raise jobs.Skip("this resource isn't a podcast episode")
+    if stage in ("plan", "write", "check") and get_row(db, rid)["request"].get("mode") == "original":
+        raise jobs.Skip("an original reading keeps the source text without a model")
     if stage in ("plan", "write", "check") and not llm.configured(cfg):
         raise Problem("no LLM is configured (Settings → Models)")
     _save(db, rid, status=STATUS[stage], error=None)
@@ -398,12 +425,81 @@ def resolve(db, cfg, sel, prompt=None, readable=None, budget=None, also=()):
     return [_excerpt(n, rid, run, recs[rid], names, space_names) for n, (rid, run) in enumerate(chosen, 1)]
 
 
+def resolve_original(db, cfg, sel, readable=None, also=()):
+    """Every selected segment, unchanged and in reading order. Exact line selections add no neighbouring text.
+
+    Unlike the generation context, this is never sampled or shortened. Missing sources, missing selected lines,
+    unprocessed sources and text larger than podcasts.context_chars fail explicitly.
+    """
+    limit = int((cfg.get("podcasts") or {}).get("context_chars") or 24000)
+    rids = selected_recordings(sel)
+    allowed = set(also or ())
+    recs = {
+        r["id"]: r
+        for r in db.rows("SELECT record::id(id) AS id, title, space FROM recording WHERE id IN $ids", ids=[R("recording", i) for i in rids])
+        if readable is None or r["space"] in readable or r["id"] in allowed
+    }
+    if len(recs) != len(rids):
+        raise Problem("not all selected sources can be read any more; select the sources again")
+    whole = set(sel.get("recordings") or ())
+    picked = {}
+    for x in sel.get("excerpts") or ():
+        picked.setdefault(x["recording"], set()).add(x["idx"])
+    sources, count = [], 0
+    space_names = store.space_names(db)
+    for rid in rids:
+        if rid in whole:
+            segs = db.rows("SELECT idx, t0, t1, text, page FROM segment WHERE recording = $r ORDER BY idx", r=rid)
+        else:
+            segs = db.rows(
+                "SELECT idx, t0, t1, text, page FROM segment WHERE recording = $r AND idx IN $i ORDER BY idx",
+                r=rid,
+                i=sorted(picked[rid]),
+            )
+            if {s["idx"] for s in segs} != picked[rid]:
+                raise Problem("a selected line is no longer available; select the source text again")
+        if not segs or not any((s.get("text") or "").strip() for s in segs):
+            raise Problem("a selected source has no text yet; finish importing or processing it first")
+        for s in segs:
+            text = s.get("text") or ""
+            count += len(text)
+            if count > limit:
+                raise Problem(
+                    f"original reading exceeds {limit} characters (podcasts.context_chars); select fewer sources "
+                    "or passages, or raise the limit in Settings. Nothing was shortened."
+                )
+            source = _excerpt(len(sources) + 1, rid, [{**s, "text": text}], recs[rid], {}, space_names)
+            sources.append(source)
+    return sources
+
+
+def original_lines(sources):
+    """Verbatim source text in provider-sized pieces, never through tidy() or a model. Joining each source's pieces
+    restores it exactly, including whitespace; citation numbers remain metadata rather than spoken text."""
+    lines = []
+    for source in sources:
+        rest = source["text"]
+        while rest:
+            end = len(rest)
+            if end > LINE_CHARS:
+                end = rest.rfind(" ", 0, LINE_CHARS) + 1
+                if end < LINE_CHARS // 2:
+                    end = LINE_CHARS
+            lines.append({"idx": len(lines), "speaker": "a", "kind": "original", "text": rest[:end], "citations": [source["n"]]})
+            rest = rest[end:]
+    return lines
+
+
 def gather(db, cfg, rid, say):
     p = get_row(db, rid)
     req = p["request"]
     readable = set(p["readable"]) if p.get("readable") is not None else None
-    sources = resolve(db, cfg, req["selection"], req.get("prompt"), readable, also=p.get("also") or ())
-    _save(db, rid, sources=sources, outline=None, lines=None, checks=None, audio=None)
+    original = req.get("mode") == "original"
+    if original:
+        sources = resolve_original(db, cfg, req["selection"], readable, also=p.get("also") or ())
+    else:
+        sources = resolve(db, cfg, req["selection"], req.get("prompt"), readable, also=p.get("also") or ())
+    _save(db, rid, sources=sources, outline=None, lines=original_lines(sources) if original else None, checks=[], audio=None)
     say(f"gathered {len(sources)} excerpt(s) from {len({s['ref']['recording'] for s in sources})} source(s)")
 
 
@@ -527,8 +623,13 @@ def template(db, stage):
 def _ask(db, cfg, stage, ctx):
     t = template(db, stage)
     prompt = templates.render_body(t["body"], ctx, "prompt")
+    system = t.get("system") or SYSTEM
+    mode = ctx["request"].get("mode", "dialogue")
+    if mode in MODE_GUIDES:
+        # Also covers existing installations' saved two-host templates without overwriting their custom versions.
+        system += "\n\n" + MODE_GUIDES[mode]
     model = (cfg.get("podcasts") or {}).get("model") or None
-    value = llm.json_out(cfg, t.get("system") or SYSTEM, prompt, t.get("schema") or {"type": "object"}, model)
+    value = llm.json_out(cfg, system, prompt, t.get("schema") or {"type": "object"}, model)
     return value, {"template": t["id"], "version": t["version"]}
 
 
@@ -537,6 +638,7 @@ def _context(cfg, p, **more):
     wpm = int((cfg.get("podcasts") or {}).get("words_per_minute") or 150)
     return {
         "request": {
+            "mode": req.get("mode", "dialogue"),
             "prompt": req.get("prompt"),
             "style": req["style"],
             "style_guide": STYLES[req["style"]],
@@ -581,7 +683,7 @@ def plan(db, cfg, rid, say):
 
 
 # ---------- write ----------
-def tidy(raw, known):
+def tidy(raw, known, mode="dialogue"):
     """Script lines as the model wrote them, made safe to keep: known speakers and kinds, text trimmed, citations only to
     excerpts it was given. Returns (lines, problems): each problem says what was dropped."""
     lines, problems = [], []
@@ -599,6 +701,9 @@ def tidy(raw, known):
         if len(kept) < len([c for c in cites if c is not None]):
             problems.append(f"line {k}: dropped citations to excerpts it wasn't given")
         kind = l.get("kind") if l.get("kind") in KINDS else ("claim" if kept else "banter")
+        if mode in MODE_GUIDES:
+            speaker = "a"
+            kind = "recap" if kind == "recap" else "claim"  # every narration line goes through the citation check
         lines.append({"speaker": speaker, "kind": kind, "text": text[:LINE_CHARS], "citations": kept})
     for i, l in enumerate(lines):
         l["idx"] = i
@@ -610,8 +715,9 @@ def write(db, cfg, rid, say):
     if not p.get("outline"):
         raise Problem("there's no outline to write from")
     out, used = _ask(db, cfg, "write", _context(cfg, p, outline=p["outline"]))
-    lines, problems = tidy(out.get("lines"), {s["n"] for s in p["sources"]})
-    if len(lines) < 2:
+    mode = p["request"].get("mode", "dialogue")
+    lines, problems = tidy(out.get("lines"), {s["n"] for s in p["sources"]}, mode)
+    if len(lines) < (2 if mode == "dialogue" else 1):
         raise Problem("the model wrote no usable script")
     _save(db, rid, lines=lines, checks=None, templates={**(p.get("templates") or {}), "write": used})
     for x in problems[:20]:
@@ -711,7 +817,7 @@ def check(db, cfg, rid, say):
     verdicts, used = _verdicts(db, cfg, p, todo) if todo else ({}, None)
     second = lambda new: _verdicts(db, cfg, p, list(new.values()))[0]  # noqa: E731
     kept, log = apply_checks(lines, verdicts, known, second)
-    if len(kept) < 2:
+    if len(kept) < (2 if p["request"].get("mode", "dialogue") == "dialogue" else 1):
         raise Problem("nothing in the script held up against its sources")
     for i, l in enumerate(kept):
         l["idx"] = i
@@ -744,6 +850,8 @@ def voices(cfg, req=None):
     first = speech.tts_voice(cfg)  # None for say: the Mac's own voice
     asked = (req or {}).get("voices") or {}
     a = asked.get("a") or p.get("voice_a") or first
+    if (req or {}).get("mode", "dialogue") != "dialogue":
+        return {"a": a}
     second = kokoro.partner(a) if provider == "kokoro" else SECOND_VOICE.get(provider, first)
     return {"a": a, "b": asked.get("b") or p.get("voice_b") or second}
 

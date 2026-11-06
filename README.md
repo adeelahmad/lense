@@ -77,6 +77,10 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   server](docs/mcp.md#one-namespaces-mcp-server), [chat completions](docs/api.md#chat-completions-for-any-app),
   [API](docs/api.md), [the graph as files](docs/file-tree.md), [authentication](docs/authentication.md);
   [checks](docs/requirements.md#connect-your-agents))
+- **Use speech directly.** The Voice workspace turns raw text into downloadable audio and short media into text,
+  using the configured speech engines. Its API works at the same local or remote Lens address; anonymous raw
+  access is off until an admin enables it, with bounded admission and clip sizes.
+  ([Voice service](docs/voice-service.md); [checks](docs/requirements.md#use-speech-directly))
 - **Ask, and get cited answers.** A chat assistant on every page, and by voice, searches your archive by words (with
   "phrases", OR, and -word to leave lines out) and by meaning, once turned on, reads it, cites it and acts on it with
   tools: changes wait for your approval. A search result opens the asset with Find showing the words. Ask it about Lens itself ("what's the MCP address?", "is Telegram on?") and it
@@ -431,3 +435,4 @@ licenses (for example `extract-msg`, GPL-3.0, for Outlook `.msg` files); none is
 Built on the [Next.js FastAPI Template](https://github.com/vintasoftware/nextjs-fastapi-template) (MIT).
 
 <img src="https://www.google-analytics.com/g/collect?v=2&amp;tid=G-RKFB16BPXJ&amp;cid=555.lense&amp;en=page_view&amp;dl=https%3A%2F%2Fgithub.com%2Fadeelahmad%2Flense&amp;dt=lense&amp;ep.repo=lense" width="1" height="1" alt="">
+

@@ -1,5 +1,12 @@
 # Podcasts
 
+The create dialog supports four output modes: **Original** reads the complete selected source text without rewriting,
+**Summary** and **Explanation** generate a cited single-narrator episode, and **Dialogue** uses two hosts. Choose the
+narrator or host voices from the configured speech provider, or retain the podcast defaults. Import historical text,
+documents or URLs through the existing Library import flow, then select those assets to make episodes. Original mode
+rejects text above the configured context limit rather than silently shortening it. Audio still requires a working
+speech provider; a script-only episode is not playable audio.
+
 **Status: phase 1 built.** Lens writes a cited, fact-checked script, records it in two voices, and serves it over the
 API, MCP and the web app. Picking search hits, topics, notes and graph concepts comes next (see the
 [dev log](https://github.com/adeelahmad/lense/blob/main/DEVLOG.md)).
@@ -97,3 +104,4 @@ the job when it's over.
 - Choose the hosts' voices in the dialog; the API takes them already.
 - Write long episodes in sections, for small local models.
 - Check claims in batches when a script has many.
+

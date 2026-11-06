@@ -1,4 +1,4 @@
-"""Podcasts: two-host learning episodes made from picked resources and passages, every claim cited
+"""Podcasts: original readings and cited learning episodes made from picked resources and passages
 (app/domain/podcasts.py, docs/podcasts.md). An episode is a recording, so its audio, transcript, sharing and deletion
 also go through /recordings; these routes start, show and remake episodes."""
 
@@ -41,6 +41,7 @@ def start(acl: Access, user: Principal, db: DB, cfg: dict, body: PodcastCreate) 
             style=body.style,
             title=body.title,
             voices=body.voices.model_dump(exclude_none=True) if body.voices else None,
+            mode=body.mode,
         )
     except podcasts.Problem as e:
         raise HTTPException(400, str(e)) from None
@@ -54,7 +55,10 @@ def start(acl: Access, user: Principal, db: DB, cfg: dict, body: PodcastCreate) 
 def create_podcast(body: PodcastCreate, acl: Acl, user: Writer, db: Db, cfg: Cfg) -> PodcastStarted:
     """Make an episode about these resources and lines, in the background (watch its job on /events). It goes in the
     podcasts namespace when everyone there can read every source, else in the sources' own namespace (400 when they
-    span several); you need editor access where it goes. Audited as `podcast.create`."""
+    span several); you need editor access where it goes. Original reads the complete selected text without a model,
+    refusing text over podcasts.context_chars; summary and explanation narrate in voice a; dialogue uses a and b.
+    Import text, documents and URLs through the existing import routes before selecting their asset ids here.
+    Audited as `podcast.create`."""
     return start(acl, user, db, cfg, body)
 
 

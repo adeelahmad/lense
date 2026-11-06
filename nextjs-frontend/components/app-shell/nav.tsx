@@ -1,6 +1,6 @@
 "use client";
 
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { AudioLines, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
@@ -95,13 +95,38 @@ export function Nav({
                       {it.group}
                     </div>
                   ))}
-                {collapsed ? (
-                  <Tooltip content={it.label} side="right">
-                    {link}
-                  </Tooltip>
-                ) : (
-                  link
-                )}
+                <div
+                  className={cn(
+                    it.href === "/chat" && !collapsed && "flex items-center gap-1 [&>a:first-child]:flex-1",
+                  )}
+                >
+                  {collapsed ? (
+                    <Tooltip content={it.label} side="right">
+                      {link}
+                    </Tooltip>
+                  ) : (
+                    link
+                  )}
+                  {it.href === "/chat" && (
+                    <Tooltip content="Voice: text to audio and media to text" side="right">
+                      <Link
+                        href="/voice"
+                        onClick={onNavigate}
+                        aria-label="Voice"
+                        aria-current={pathname === "/voice" ? "page" : undefined}
+                        className={cn(
+                          "flex h-8 items-center justify-center gap-1 rounded-sm px-2 text-[13px] hover:bg-surface-neutral",
+                          pathname === "/voice"
+                            ? "bg-blue-surface font-bold text-fg-accent"
+                            : "text-fg-strong",
+                        )}
+                      >
+                        <AudioLines aria-hidden className="size-[17px] shrink-0" />
+                        {!collapsed && <span>Voice</span>}
+                      </Link>
+                    </Tooltip>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -129,3 +154,4 @@ export function Nav({
     </nav>
   );
 }
+
