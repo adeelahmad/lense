@@ -505,11 +505,12 @@ def test_tts_failure_fails_the_job(db, cfg, folder, llm):
 
 def test_original_audio_uses_only_the_selected_narrator(db, cfg, folder, tts):
     a, _b, _c = seed(db, cfg, folder)
+    source_text = db.one("SELECT text FROM segment WHERE recording = $r AND idx = 0 LIMIT 1", r=a)["text"]
     cfg["llm"].update(base_url=None, model=None)
     out = podcasts.create(db, cfg, {"excerpts": [{"recording": a, "idx": 0}]}, mode="original", voices={"a": "echo"}, admin=True)
     drain(db, cfg)
     assert jobs.get(db, out["job"])["status"] == "succeeded"
     ep = podcasts.view(db, out["episode"])
     assert ep["status"] == "ready" and ep["voicing"]["voices"] == {"a": "echo"}
-    assert [(b["input"], b["voice"]) for b in tts.seen] == [("Welcome back.", "echo")]
+    assert [(b["input"], b["voice"]) for b in tts.seen] == [(source_text, "echo")]
 

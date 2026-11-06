@@ -80,7 +80,7 @@ it("does not fetch voices while the dialog is closed", () => {
 });
 
 it("prevents duplicate creation while the first request is pending", async () => {
-  jest.mocked(Podcasts.createPodcast).mockImplementation(() => new Promise(() => undefined));
+  jest.mocked(Podcasts.createPodcast).mockImplementation(() => new Promise<never>(() => undefined));
   const { onOpenChange } = show();
   await screen.findAllByRole("option", { name: "Nova" });
   const create = screen.getByRole("button", { name: "Create podcast" });

@@ -6,7 +6,6 @@ import threading
 from types import SimpleNamespace
 
 import pytest
-
 from starlette.concurrency import run_in_threadpool
 
 from app.domain import ingest, voice
