@@ -26,7 +26,8 @@ permissions:
 jobs:
   clicks:
     name: Clicks and keystrokes per feature
-    runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
+    # Playwright 1.56's browser/dependency bundle supports Ubuntu 24.04, not the rolling ubuntu-latest (26.04).
+    runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-24.04"') }}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7

@@ -73,6 +73,7 @@ nav:
       - Nodes and the mesh: mesh.md
   - Agents and apps:
       - MCP server: mcp.md
+      - Auto-Ontology: auto-ontology.md
       - API: api.md
       - Authentication: authentication.md
       - Access: access.md
