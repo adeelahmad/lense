@@ -1790,6 +1790,7 @@ export const FIELDS: FieldSpec[] = [
   },
   // Telegram (telegram.py)
   { section: "telegram", key: "enabled", label: "Answer in Telegram", kind: "switch" },
+  { section: "telegram", key: "token", label: "Bot token", kind: "secret" },
   {
     section: "telegram",
     key: "account",
@@ -1849,6 +1850,8 @@ export const FIELDS: FieldSpec[] = [
   },
   // Slack (slack.py)
   { section: "slack", key: "enabled", label: "Answer in Slack", kind: "switch" },
+  { section: "slack", key: "bot_token", label: "Bot token", kind: "secret" },
+  { section: "slack", key: "app_token", label: "App-level token", kind: "secret" },
   {
     section: "slack",
     key: "account",
@@ -1898,6 +1901,7 @@ export const FIELDS: FieldSpec[] = [
   },
   // The assistant's mailbox (mailbox.py)
   { section: "mailbox", key: "enabled", label: "Answer email", kind: "switch" },
+  { section: "mailbox", key: "password", label: "Password", kind: "secret" },
   {
     section: "mailbox",
     key: "address",

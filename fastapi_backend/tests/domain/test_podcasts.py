@@ -513,4 +513,3 @@ def test_original_audio_uses_only_the_selected_narrator(db, cfg, folder, tts):
     ep = podcasts.view(db, out["episode"])
     assert ep["status"] == "ready" and ep["voicing"]["voices"] == {"a": "echo"}
     assert [(b["input"], b["voice"]) for b in tts.seen] == [(source_text, "echo")]
-

@@ -2089,4 +2089,3 @@ def lock(cfg, name):
         yield
     finally:
         f.close()
-

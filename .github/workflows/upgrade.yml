@@ -53,6 +53,8 @@ jobs:
         with:
           cache-local-path: ${{ runner.environment == 'self-hosted' && format('{0}/uv-cache', runner.tool_cache) || '' }}
           python-version: "3.12"
+      - name: Test upgrade startup supervision
+        run: python3 ci/upgrade/test_startup.py -v
       - name: Upgrade and check
         env:
           FROM: ${{ inputs.from }}

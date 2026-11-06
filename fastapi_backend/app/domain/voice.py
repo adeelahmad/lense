@@ -91,11 +91,31 @@ def decode_clip(path):
     """
     try:
         out = subprocess.run(
-            ["ffmpeg", "-nostdin", "-v", "error", "-protocol_whitelist", "file,pipe",
-             "-format_whitelist", ingest.MEDIA_DEMUXERS, "-i", str(path),
-             "-t", str(MAX_SECONDS + 1), "-f", "f32le", "-acodec", "pcm_f32le",
-             "-ac", "1", "-ar", str(ingest.SR), "-"],
-            capture_output=True, timeout=DECODE_SECONDS,
+            [
+                "ffmpeg",
+                "-nostdin",
+                "-v",
+                "error",
+                "-protocol_whitelist",
+                "file,pipe",
+                "-format_whitelist",
+                ingest.MEDIA_DEMUXERS,
+                "-i",
+                str(path),
+                "-t",
+                str(MAX_SECONDS + 1),
+                "-f",
+                "f32le",
+                "-acodec",
+                "pcm_f32le",
+                "-ac",
+                "1",
+                "-ar",
+                str(ingest.SR),
+                "-",
+            ],
+            capture_output=True,
+            timeout=DECODE_SECONDS,
         )
     except subprocess.TimeoutExpired:
         raise InvalidClip("audio decoding timed out") from None
@@ -107,6 +127,7 @@ def decode_clip(path):
     if len(audio) > MAX_SECONDS * ingest.SR:
         raise ClipTooLong("clips must be no longer than 300 seconds")
     return audio
+
 
 _LOCK = threading.Lock()
 _ENGINE = {"key": None, "engine": None, "used": 0.0}

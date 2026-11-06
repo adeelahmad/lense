@@ -31,11 +31,11 @@ def raw(monkeypatch):
 
 def test_anonymous_off_by_default_and_narrow_when_enabled(raw):
     client, app, cfg = raw
-    for method, path, kw in [("get", "", {}), ("post", "/speak", {"json": {"text": "hi"}}),
-                             ("post", "/transcribe", {"content": b"clip"})]:
+    for method, path, kw in [("get", "", {}), ("post", "/speak", {"json": {"text": "hi"}}), ("post", "/transcribe", {"content": b"clip"})]:
         assert getattr(client, method)("/api/v1/voice" + path, **kw).status_code == 401
     cfg["voice"]["public_enabled"] = True
     assert client.get("/api/v1/voice").status_code == 200
+
     # Still delegates voice lists to the existing signed-in dependency, not raw_user.
     def private():
         raise HTTPException(401)
@@ -70,8 +70,10 @@ def test_raw_transcription_limits_and_errors(raw, monkeypatch):
     assert client.post("/api/v1/voice/transcribe", content=b"12345").status_code == 413
     assert client.post("/api/v1/voice/transcribe", content=b"").status_code == 400
     for error, status in [(voice.ClipTooLong("long"), 413), (voice.InvalidClip("bad"), 400), (RuntimeError("secret"), 503)]:
+
         def fail(*args, error=error):
             raise error
+
         monkeypatch.setattr(voice, "transcribe", fail)
         result = client.post("/api/v1/voice/transcribe", content=b"123")
         assert result.status_code == status

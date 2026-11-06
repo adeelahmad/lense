@@ -128,4 +128,3 @@ def test_original_mode_api_and_oversize_error(client, db, cfg, env):
     db.q("UPDATE segment SET text = $t WHERE recording = $r AND idx = 0", t="x" * (cfg["podcasts"]["context_chars"] + 1), r=a)
     too_big = client.post("/api/v1/podcasts", headers=env["ed"], json=body)
     assert too_big.status_code == 400 and "Nothing was shortened" in too_big.json()["detail"]
-

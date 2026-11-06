@@ -36,7 +36,15 @@ def voice_info(user: RawUser, cfg: Cfg) -> VoiceInfo:
     return VoiceInfo(transcribe=engine is not None, engine=engine, speak=voice.can_speak(cfg))
 
 
-@router.post("/transcribe", openapi_extra=CLIP, responses={413: {"description": "Clip exceeds 25 MiB or 300 seconds"}, 429: {"description": "Voice service busy"}, 503: {"description": "Transcription failed"}})
+@router.post(
+    "/transcribe",
+    openapi_extra=CLIP,
+    responses={
+        413: {"description": "Clip exceeds 25 MiB or 300 seconds"},
+        429: {"description": "Voice service busy"},
+        503: {"description": "Transcription failed"},
+    },
+)
 async def transcribe_clip(request: Request, response: Response, user: RawUser, cfg: Cfg) -> Heard:
     """Raw media to text, without archiving. At most 25 MiB and 300 seconds. 409 when no engine is configured.
     Anonymous access is opt-in via voice.public_enabled and uses only the configured engine."""
@@ -73,9 +81,12 @@ async def transcribe_clip(request: Request, response: Response, user: RawUser, c
 @router.post(
     "/speak",
     response_class=Response,
-    responses={200: {"content": {"audio/mpeg": {}, "audio/wav": {}}, "description": "the text read aloud"},
-               204: {"description": "the browser reads it"}, 429: {"description": "Voice service busy"},
-               503: {"description": "Server speech unavailable (server_only=true)"}},
+    responses={
+        200: {"content": {"audio/mpeg": {}, "audio/wav": {}}, "description": "the text read aloud"},
+        204: {"description": "the browser reads it"},
+        429: {"description": "Voice service busy"},
+        503: {"description": "Server speech unavailable (server_only=true)"},
+    },
 )
 async def speak_text(body: SpeakRequest, user: RawUser, cfg: Cfg) -> Response:
     """Raw text to audio using configured providers. Set server_only for a real error instead of browser fallback.
