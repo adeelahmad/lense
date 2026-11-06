@@ -268,7 +268,7 @@ def _check_mcp(spec, me, db=None):
     run in the MCP runner's sandbox), its tools as it listed them (mcp_client.py), the tools switched off (`off`) and
     which ask first where that isn't the server's own read-only hint (`ask`: {tool: true or false}), and `keep` for one
     that remembers things between calls, so its calls share one session (mcp_client.py)."""
-    if set(spec) - {"url", "headers", "command", "args", "env", "tools", "off", "ask", "keep"}:
+    if set(spec) - {"url", "headers", "command", "args", "env", "tools", "off", "ask", "keep", "adapter"}:
         raise ValueError(
             "an MCP server is {url, headers, tools, off, ask, keep}, or {command, args, env, tools, off, ask, keep} for one "
             "that runs as a program"
@@ -277,6 +277,12 @@ def _check_mcp(spec, me, db=None):
         raise ValueError("an MCP server's keep is true or false: whether its calls share one session")
     if not me["admin"]:
         raise ValueError("only admins add MCP servers")
+    if spec.get("adapter") not in (None, "auto_ontology"):
+        raise ValueError("the supported MCP adapter is auto_ontology")
+    if spec.get("adapter"):
+        from . import auto_ontology
+
+        auto_ontology.config(spec)
 
     def words(v, what):
         if not isinstance(v, dict) or not all(isinstance(k, str) and isinstance(x, str) for k, x in v.items()):
@@ -296,6 +302,8 @@ def _check_mcp(spec, me, db=None):
         if not re.match(r"^https?://[^/?#\s]+", url):
             raise ValueError("an MCP server's address starts with http:// or https://")
         server = {"url": url, "headers": words(spec.get("headers") or {}, "headers") or None}
+    if spec.get("adapter"):
+        server["adapter"] = spec["adapter"]
     off, ask = spec.get("off") or [], spec.get("ask") or {}
     if not isinstance(off, list) or len(off) > 100 or not all(isinstance(t, str) for t in off):
         raise ValueError("an MCP server's off is a list of its tools' names")
@@ -339,7 +347,7 @@ def mcp_tools(item, ext=None):
         if t["name"] in off:
             continue
         name = re.sub(r"[^A-Za-z0-9_-]", "_", f"{item['name']}__{t['name']}")[:64]
-        where = {k: s.get(k) for k in ("url", "headers", "command", "args", "env", "keep")}
+        where = {k: s.get(k) for k in ("url", "headers", "command", "args", "env", "keep", "adapter")}
         run = store.clean({"type": "mcp", **where, "tool": t["name"], "ext": ext, "server": item["name"]})
         spec = {
             "params": [],
@@ -684,7 +692,7 @@ def try_mcp(db, me, spec, eid=None):
             raise ValueError("that extension isn't an MCP server")
         name = d["name"]
     m = mcp_servers.opened(db, {"name": name, "kind": "mcp", "spec": spec}, eid, before)
-    server = {k: v for k, v in m["spec"].items() if k in ("url", "headers", "command", "args", "env")}
+    server = {k: v for k, v in m["spec"].items() if k in ("url", "headers", "command", "args", "env", "adapter")}
     return check_spec("mcp", server, me, db).get("tools") or []
 
 
