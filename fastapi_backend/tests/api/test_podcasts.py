@@ -106,3 +106,25 @@ def test_agents_make_episodes(client, db, cfg, env):
     assert got["changed_by_fact_check"] and got["sources"][0]["n"] == 1
     assert "not found" in tool_error(client, env["ca"], "get_podcast", episode_id=out["episode"])
     assert "not found" in tool_error(client, env["vi"], "get_podcast", episode_id=a)
+
+
+@pytest.mark.parametrize("mode", ["original", "summary", "explanation", "dialogue"])
+def test_modes_preserve_source_access_checks(client, env, mode):
+    a, _b, c = env["ids"]
+    body = {"selection": {"recordings": [c]}, "mode": mode}
+    assert client.post("/api/v1/podcasts", headers=env["ed"], json=body).status_code == 404
+    assert client.post("/api/v1/podcasts", json={**body, "selection": {"recordings": [a]}}).status_code == 401
+    assert client.post("/api/v1/podcasts", headers=env["vi"], json={**body, "selection": {"recordings": [a]}}).status_code == 400
+
+
+def test_original_mode_api_and_oversize_error(client, db, cfg, env):
+    a, _b, _c = env["ids"]
+    body = {"selection": {"excerpts": [{"recording": a, "idx": 0}]}, "mode": "original", "voices": {"a": "echo"}}
+    r = client.post("/api/v1/podcasts", headers=env["ed"], json=body)
+    assert r.status_code == 202, r.text
+    got = client.get(f"/api/v1/podcasts/{r.json()['episode']}", headers=env["vi"]).json()
+    assert got["request"]["mode"] == "original" and got["request"]["voices"] == {"a": "echo"}
+    assert client.post("/api/v1/podcasts", headers=env["ed"], json={**body, "mode": "song"}).status_code == 422
+    db.q("UPDATE segment SET text = $t WHERE recording = $r AND idx = 0", t="x" * (cfg["podcasts"]["context_chars"] + 1), r=a)
+    too_big = client.post("/api/v1/podcasts", headers=env["ed"], json=body)
+    assert too_big.status_code == 400 and "Nothing was shortened" in too_big.json()["detail"]

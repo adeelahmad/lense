@@ -1748,6 +1748,20 @@
       "conditions": "the mesh (mesh.enabled, off until an admin adds a node) admits only machines that joined with a token an admin made, spent on use and expiring, which never crosses the wire (HMAC proof; answer sealed with a key derived from it); each machine's certificate names only its own address, role and namespaces; the rendered firewall opens the database port to worker nodes and the API port to every node on the primary, a node's agent port to the primary only; removing a node blocklists every certificate it was given on every machine and stops its node token; nodes still sign in to Lens as any client does; on the primary Nebula runs in the mesh container, the only one holding NET_ADMIN, with a key pair it makes itself and Nebula's release checked against the kept checksum; its relays listen on the mesh address only; a node runs lens node and Nebula in two containers with nothing published, its node token and agent key in its own volume (0600), the join token in the first start's environment only; a worker node signs in to the database as its own user of Lens's database (never root, removed with the node) and reads its namespaces' files over the mesh, never a vault's, without the archive's secret; a compute node runs the assistant's sandboxes on a gateway of its own, which Lens reaches over the mesh only with mutual TLS, holding its client certificate sealed, and the node gets nothing of Lens's",
       "provenance": "documented",
       "source": "docs/mesh.md \"What keeps it safe\""
+    },
+    {
+      "property": "P-VOICE-RAW",
+      "violation_symptom": "resource-exhaustion, info-leak",
+      "severity_tier": "security",
+      "conditions": "Raw voice capability, speech and transcription require a valid Lens principal unless an administrator enables voice.public_enabled. Anonymous access cannot list or select private voices, read archive assets or create podcasts, and supplied invalid/scoped credentials never downgrade to anonymous. Per-process admission allows at most two jobs and ten anonymous jobs per minute; raw text is at most 4000 characters and raw media at most 25 MiB/300 seconds, decoded with a media-only demuxer whitelist, local protocols and a 30-second timeout.",
+      "limits": "Per-process limits multiply with API worker count, do not guarantee model cancellation or a prepaid spending ceiling, and do not replace edge rate limits. An enabled cloud provider receives supplied text/audio. An administrator explicitly enabling public access authorizes anyone who can reach the raw service to consume that configured provider until disabled.",
+      "provenance": "documented",
+      "source": "docs/voice-service.md",
+      "x-tests": [
+        "fastapi_backend/tests/api/test_voice_raw.py::test_anonymous_off_by_default_and_narrow_when_enabled",
+        "fastapi_backend/tests/api/test_voice_raw.py::test_busy_and_global_anonymous_budget_ignore_forwarding_headers",
+        "fastapi_backend/tests/domain/test_voice_raw.py::test_decoder_bounds_duration_and_wall_time"
+      ]
     }
   ],
   "properties_not_provided": [

@@ -3200,10 +3200,15 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
       <div className="flex flex-col gap-3">
         <span className="text-[13px] font-bold leading-tight text-fg-strong">Voice</span>
         <p className="text-[13px] leading-normal text-fg-secondary">
-          The mic in chat and on the assistant home. By default this server turns speech into text with its own
-          transcription engine, so it doesn’t leave the server; a speech provider is faster on small machines.
+          <Link href="/voice" className="text-fg-accent underline">
+            Open the Voice workspace
+          </Link>{" "}
+          for text to audio and media to text. The mic in chat and on the assistant home also uses these providers. By
+          default this server turns speech into text with its own transcription engine, so it doesn’t leave the server;
+          a speech provider is faster on small machines.
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
+          <F ctx={ctx} id="voice.public_enabled" />
           <F ctx={ctx} id="voice.input" />
           <F ctx={ctx} id="voice.stt" />
           <F ctx={ctx} id="voice.tts_provider" />

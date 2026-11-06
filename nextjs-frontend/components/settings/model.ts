@@ -2219,6 +2219,13 @@ export const FIELDS: FieldSpec[] = [
     nullable: true,
     placeholder: "the LLM provider’s",
   },
+  {
+    section: "voice",
+    key: "public_enabled",
+    label: "Allow unauthenticated raw voice API requests",
+    kind: "switch",
+    hint: "Off by default. Anyone who can reach Lens can submit text and media to the raw voice API when enabled, using server resources and potentially paid providers. This does not expose Chat, settings, saved recordings or voice listings.",
+  },
   { section: "voice", key: "tts_api_key", label: "Speech server API key", kind: "secret" },
   {
     section: "voice",

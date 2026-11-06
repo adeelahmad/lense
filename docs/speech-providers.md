@@ -7,6 +7,8 @@ instead, which helps on a small machine such as a Raspberry Pi, or when you want
 Status: built (transcription, speakers, language, sentiment, audio events, text to speech, prices per minute and per
 character in the activity ledger). Planned: provider summaries, chapters and entities as optional imports.
 
+For direct text-to-audio and media-to-text work, use the [Voice workspace and API](voice-service.md).
+
 ## Providers
 
 | Provider | Speech to text | Speakers | Language | Emotion | Sounds | Text to speech |
@@ -155,3 +157,4 @@ has no Opus), in pieces when it is longer or larger than the provider takes at o
 to speech sends the answer's text.
 
 Code: `fastapi_backend/app/domain/speech.py`.
+

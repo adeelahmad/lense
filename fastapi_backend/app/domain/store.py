@@ -379,6 +379,7 @@ DEFAULTS = {
     # model kokoro_model (fp32 or int8); styletts2: the optional service at styletts2_url); tts_voice: the voice
     # they read in (null: the provider's default)
     "voice": {
+        "public_enabled": False,  # anonymous raw voice only; archive and provider voice lists stay private
         "input": "auto",
         "stt": "same",
         "tts_provider": "openai",

@@ -19625,6 +19625,12 @@ export type PodcastCitation = {
 export type PodcastCreate = {
   selection: PodcastSelection;
   /**
+   * Mode
+   *
+   * original reads the selected text unchanged; summary and explanation use one narrator; dialogue uses two hosts
+   */
+  mode?: "original" | "summary" | "explanation" | "dialogue";
+  /**
    * Prompt
    *
    * an angle, e.g. "explain it for a beginner"
@@ -19633,7 +19639,7 @@ export type PodcastCreate = {
   /**
    * Length
    *
-   * minutes (up to podcasts.max_minutes)
+   * target minutes (up to podcasts.max_minutes); original follows the source's length
    */
   length?: number;
   /**
@@ -19829,13 +19835,13 @@ export type PodcastVoices = {
   /**
    * A
    *
-   * the explaining host's voice
+   * the narrator or explaining host's voice id from GET /voice/voices
    */
   a?: string | null;
   /**
    * B
    *
-   * the asking host's voice
+   * the second host's voice id; only used by dialogue mode
    */
   b?: string | null;
 };
@@ -27465,6 +27471,12 @@ export type SpeakRequest = {
    * Text
    */
   text: string;
+  /**
+   * Server Only
+   *
+   * Return 503 rather than browser fallback when server speech is unavailable
+   */
+  server_only?: boolean;
   /**
    * Voice
    *
@@ -53206,6 +53218,21 @@ export type TranscribeClipData = {
   url: "/api/v1/voice/transcribe";
 };
 
+export type TranscribeClipErrors = {
+  /**
+   * Clip exceeds 25 MiB or 300 seconds
+   */
+  413: unknown;
+  /**
+   * Voice service busy
+   */
+  429: unknown;
+  /**
+   * Transcription failed
+   */
+  503: unknown;
+};
+
 export type TranscribeClipResponses = {
   /**
    * Successful Response
@@ -53227,6 +53254,14 @@ export type SpeakTextErrors = {
    * Validation Error
    */
   422: HttpValidationError;
+  /**
+   * Voice service busy
+   */
+  429: unknown;
+  /**
+   * Server speech unavailable (server_only=true)
+   */
+  503: unknown;
 };
 
 export type SpeakTextError = SpeakTextErrors[keyof SpeakTextErrors];

@@ -13,6 +13,11 @@ import json
 import logging
 import os
 import tempfile
+import subprocess
+from collections import deque
+from contextlib import contextmanager
+
+import numpy as np
 import threading
 import time
 
@@ -21,6 +26,109 @@ from . import ingest, speech
 log = logging.getLogger(__name__)
 IDLE_SECONDS = 600
 MAX_BYTES = 25 * 1024 * 1024
+MAX_SECONDS = 300
+DECODE_SECONDS = 30
+# Deliberately per process. Deployments with multiple workers need an edge/global budget too.
+_JOBS = threading.BoundedSemaphore(2)
+_UPLOADS = threading.BoundedSemaphore(2)
+_RATE_LOCK = threading.Lock()
+_PUBLIC_JOBS = deque()
+PUBLIC_PER_MINUTE = 10
+
+
+class Busy(RuntimeError):
+    pass
+
+
+class ClipTooLong(ValueError):
+    pass
+
+
+class InvalidClip(ValueError):
+    pass
+
+
+@contextmanager
+def admission(anonymous=False):
+    """No waiting queue; anonymous callers share a budget, never trust forwarding headers."""
+    if not _JOBS.acquire(blocking=False):
+        raise Busy("voice service is busy; try again shortly")
+    try:
+        if anonymous:
+            with _RATE_LOCK:
+                now = time.monotonic()
+                while _PUBLIC_JOBS and _PUBLIC_JOBS[0] <= now - 60:
+                    _PUBLIC_JOBS.popleft()
+                if len(_PUBLIC_JOBS) >= PUBLIC_PER_MINUTE:
+                    raise Busy("public voice request limit reached; try again in a minute")
+                _PUBLIC_JOBS.append(now)
+        yield
+    finally:
+        _JOBS.release()
+
+
+@contextmanager
+def upload_admission():
+    """Bound in-memory request bodies separately from running provider jobs."""
+    if not _UPLOADS.acquire(blocking=False):
+        raise Busy("voice service is busy; try again shortly")
+    try:
+        yield
+    finally:
+        _UPLOADS.release()
+
+
+def run_admitted(function, *args, anonymous=False):
+    """The worker owns its slot until it finishes, even if its HTTP waiter is cancelled."""
+    with admission(anonymous=anonymous):
+        return function(*args)
+
+
+def decode_clip(path):
+    """Decode at most 301 seconds, not an entire potentially hours-long compressed upload.
+
+    Only an uploaded local media file is accepted; playlists and network protocols cannot fetch other resources.
+    """
+    try:
+        out = subprocess.run(
+            [
+                "ffmpeg",
+                "-nostdin",
+                "-v",
+                "error",
+                "-protocol_whitelist",
+                "file,pipe",
+                "-format_whitelist",
+                ingest.MEDIA_DEMUXERS,
+                "-i",
+                str(path),
+                "-t",
+                str(MAX_SECONDS + 1),
+                "-f",
+                "f32le",
+                "-acodec",
+                "pcm_f32le",
+                "-ac",
+                "1",
+                "-ar",
+                str(ingest.SR),
+                "-",
+            ],
+            capture_output=True,
+            timeout=DECODE_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        raise InvalidClip("audio decoding timed out") from None
+    except OSError:
+        raise RuntimeError("audio decoder is unavailable") from None
+    if out.returncode or len(out.stdout) % 4:
+        raise InvalidClip("could not decode audio")
+    audio = np.frombuffer(out.stdout, dtype=np.float32)
+    if len(audio) > MAX_SECONDS * ingest.SR:
+        raise ClipTooLong("clips must be no longer than 300 seconds")
+    return audio
+
+
 _LOCK = threading.Lock()
 _ENGINE = {"key": None, "engine": None, "used": 0.0}
 
@@ -95,18 +203,21 @@ def transcribe(cfg, data):
     if not data:
         return {"text": "", "language": None, "engine": None, "seconds": 0.0}
     if len(data) > MAX_BYTES:
-        raise ValueError("that clip is too long; say it in shorter parts")
+        raise ClipTooLong("clips must be no larger than 25 MiB")
     fd, path = tempfile.mkstemp(prefix="lens-voice-", suffix=".clip")
     try:
         with os.fdopen(fd, "wb") as f:
             f.write(data)
-        audio = ingest.decode(path)
+        audio = decode_clip(path)
     finally:
         os.unlink(path)
     seconds = len(audio) / ingest.SR
     if seconds < 0.3:
         return {"text": "", "language": None, "engine": None, "seconds": round(seconds, 2)}
-    e = engine(cfg)
+    try:
+        e = engine(cfg)
+    except ingest.EngineMissing:
+        raise RuntimeError("speech-to-text engine is unavailable") from None
     t = threading.Timer(IDLE_SECONDS + 5, let_go)
     t.daemon = True
     t.start()

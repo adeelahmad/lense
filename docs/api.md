@@ -2055,3 +2055,11 @@ many more there are. For someone signed in without permission,
 it is open to everyone); asking again replaces the request. `GET /access-requests` lists the requests waiting for an
 answer in the namespaces the caller owns. Assets the caller may not see at all (restricted ones
 to visitors who aren't signed in, private ones to anyone without permission) answer 404, as missing ones do.
+
+
+## Raw voice service
+
+The [Voice service](voice-service.md) reuses `/api/v1/voice/speak` and `/api/v1/voice/transcribe` for
+direct audio and text, locally or at the existing remote origin. Authentication remains on by default;
+`voice.public_enabled` opens only the stateless raw service on demand. Use `server_only:true` for explicit
+synthesis errors instead of the assistant's browser fallback.

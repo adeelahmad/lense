@@ -47,12 +47,23 @@ def test_selection_is_cleaned():
 
 
 def test_options_are_checked(cfg):
-    assert podcasts.options(cfg) == {"length": 10, "style": "deep-dive"}
+    assert podcasts.options(cfg) == {"length": 10, "style": "deep-dive", "mode": "dialogue"}
     assert podcasts.options(cfg, voices={"a": " af_heart ", "b": ""})["voices"] == {"a": "af_heart"}
     assert podcasts.options(cfg, 5, "beginner", "  explain it simply ")["prompt"] == "explain it simply"
     for bad in ({"length": 0}, {"length": 31}, {"style": "opera"}, {"prompt": "x" * 2001}, {"voices": {"c": "x"}}, {"voices": {"a": 3}}):
         with pytest.raises(podcasts.Problem):
             podcasts.options(cfg, **bad)
+
+
+def test_modes_keep_dialogue_defaults_and_one_narrator(cfg):
+    assert podcasts.options(cfg, mode="summary", voices={"a": "alloy", "b": "onyx"})["voices"] == {"a": "alloy"}
+    with pytest.raises(podcasts.Problem, match="mode is one of"):
+        podcasts.options(cfg, mode="song")
+    # Original duration follows its source, not a hidden generated-episode target.
+    cfg["podcasts"]["max_minutes"] = 5
+    assert podcasts.options(cfg, mode="original", length=20)["length"] == 20
+    assert [s["stage"] for s in podcasts.steps("original")] == ["gather", "audio", "publish"]
+    assert podcasts.voices(cfg, {"mode": "explanation", "voices": {"a": "echo", "b": "onyx"}}) == {"a": "echo"}
 
 
 def test_runs_and_picking_within_a_budget():
@@ -88,6 +99,42 @@ def test_resolve_numbers_excerpts_and_respects_access(db, cfg, folder):
     assert len(near) == 1 and (near[0]["ref"]["idx0"], near[0]["ref"]["idx1"]) == (0, 3)
     with pytest.raises(podcasts.Problem):
         podcasts.resolve(db, cfg, podcasts.clean_selection({"recordings": [c]}), readable={pods})
+
+
+def test_original_reads_exact_picked_lines_without_neighbours_or_speaker_prefixes(db, cfg, folder):
+    a, _b, c = seed(db, cfg, folder)
+    pods = store.ns_id(db, "pods")
+    sel = podcasts.clean_selection({"excerpts": [{"recording": a, "idx": 1}]})
+    original = "  Original words, unchanged.\n" + "long word " * 200 + "END.  "
+    db.q("UPDATE segment SET text = $t WHERE recording = $r AND idx = 1", t=original, r=a)
+    out = podcasts.resolve_original(db, cfg, sel, readable={pods})
+    assert len(out) == 1 and out[0]["text"] == original
+    assert out[0]["ref"] == {"kind": "segment", "recording": a, "idx0": 1, "idx1": 1}
+    lines = podcasts.original_lines(out)
+    assert "".join(line["text"] for line in lines) == original
+    assert all(len(line["text"]) <= podcasts.LINE_CHARS and line["speaker"] == "a" and line["citations"] == [1] for line in lines)
+    with pytest.raises(podcasts.Problem, match="not all selected sources"):
+        podcasts.resolve_original(db, cfg, {"recordings": [a, c]}, readable={pods})
+    with pytest.raises(podcasts.Problem, match="selected line is no longer available"):
+        podcasts.resolve_original(db, cfg, {"excerpts": [{"recording": a, "idx": 999}]}, readable={pods})
+
+
+def test_original_refuses_oversized_sources_before_creating_an_episode(db, cfg, folder):
+    a, _b, _c = seed(db, cfg, folder)
+    cfg["podcasts"]["context_chars"] = 2000
+    db.q("UPDATE segment SET text = $t WHERE recording = $r AND idx = 0", t="x" * 2001, r=a)
+    with pytest.raises(podcasts.Problem, match="Nothing was shortened"):
+        podcasts.create(db, cfg, {"recordings": [a]}, mode="original", admin=True)
+    assert podcasts.list_episodes(db) == []
+    assert "podcasts" not in store.space_names(db).values()
+
+
+def test_original_stays_in_its_sources_vault(db, cfg, folder):
+    a, _b, _c = seed(db, cfg, folder)
+    pods = store.ns_id(db, "pods")
+    db.q("UPSERT $r MERGE {vault: true}", r=R("data_key", pods))
+    out = podcasts.create(db, cfg, {"recordings": [a]}, mode="original", admin=True)
+    assert (out["namespace"], out["placed"]) == (pods, "sources")
 
 
 # ---------- script ----------
@@ -294,6 +341,42 @@ def test_no_llm_fails_with_a_reason(db, cfg, folder):
     assert "no LLM is configured" in jobs.get(db, out["job"])["error"]
 
 
+def test_original_job_never_calls_a_model_and_regenerates_in_original_mode(db, cfg, folder, monkeypatch):
+    a, _b, _c = seed(db, cfg, folder)
+    cfg["llm"].update(base_url=None, model=None)
+
+    def no_model(*args, **kwargs):
+        pytest.fail("an original reading must not call a language model")
+
+    monkeypatch.setattr(podcasts.llm, "json_out", no_model)
+    expected = db.rows("SELECT idx, text FROM segment WHERE recording = $r ORDER BY idx", r=a)
+    out = podcasts.create(db, cfg, {"recordings": [a]}, mode="original", admin=True)
+    drain(db, cfg)
+    assert jobs.get(db, out["job"])["status"] == "succeeded"
+    ep = podcasts.view(db, out["episode"])
+    assert ep["status"] == "script_only" and not ep["checks"] and not ep.get("templates")
+    assert [s["text"] for s in ep["sources"]] == [s["text"] for s in expected]
+    for source in ep["sources"]:
+        assert "".join(line["text"] for line in ep["lines"] if source["n"] in line["citations"]) == source["text"]
+    assert {line["speaker"] for line in ep["lines"]} == {"a"}
+    jid = podcasts.regenerate(db, out["episode"])
+    assert [s["stage"] for s in jobs.get(db, jid)["steps"]] == ["gather", "audio", "publish"]
+    drain(db, cfg)
+    assert jobs.get(db, jid)["status"] == "succeeded"
+
+
+@pytest.mark.parametrize("mode", ["summary", "explanation"])
+def test_narration_modes_are_cited_checked_and_single_speaker(db, cfg, folder, llm, mode):
+    a, _b, _c = seed(db, cfg, folder)
+    out = podcasts.create(db, cfg, {"recordings": [a]}, mode=mode, admin=True)
+    drain(db, cfg)
+    assert jobs.get(db, out["job"])["status"] == "succeeded"
+    ep = podcasts.view(db, out["episode"])
+    assert ep["request"]["mode"] == mode and ep["checks"]
+    assert all(line["speaker"] == "a" and line["kind"] in podcasts.CITED and line["citations"] for line in ep["lines"])
+    assert any(podcasts.MODE_GUIDES[mode] in m["messages"][0]["content"] for m in llm.seen)
+
+
 def test_podcast_step_skips_other_recordings(db, cfg, folder):
     a, _b, _c = seed(db, cfg, folder)
     said = []
@@ -418,3 +501,15 @@ def test_tts_failure_fails_the_job(db, cfg, folder, llm):
     drain(db, cfg)
     assert "text to speech failed on line 1" in jobs.get(db, out["job"])["error"]
     assert podcasts.view(db, out["episode"])["error"].startswith("recording the voices: ")
+
+
+def test_original_audio_uses_only_the_selected_narrator(db, cfg, folder, tts):
+    a, _b, _c = seed(db, cfg, folder)
+    source_text = db.one("SELECT text FROM segment WHERE recording = $r AND idx = 0 LIMIT 1", r=a)["text"]
+    cfg["llm"].update(base_url=None, model=None)
+    out = podcasts.create(db, cfg, {"excerpts": [{"recording": a, "idx": 0}]}, mode="original", voices={"a": "echo"}, admin=True)
+    drain(db, cfg)
+    assert jobs.get(db, out["job"])["status"] == "succeeded"
+    ep = podcasts.view(db, out["episode"])
+    assert ep["status"] == "ready" and ep["voicing"]["voices"] == {"a": "echo"}
+    assert [(b["input"], b["voice"]) for b in tts.seen] == [(source_text, "echo")]

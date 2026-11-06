@@ -1716,6 +1716,31 @@ build_flags:
 # rows `claimed` (documented) but names no §1.11 ID, and the v2 schema needs a
 # property_id on every claimed row. They add no claim beyond the matrix row.
 properties_claimed:
+  - id: P-VOICE-RAW
+    kind: availability
+    components:
+    - web
+    - identity
+    tier: security-critical
+    conditions: Raw voice capability, speech and transcription require a valid Lens principal unless an administrator
+      enables voice.public_enabled. Anonymous access cannot list or select private voices, read archive assets or
+      create podcasts, and supplied invalid/scoped credentials never downgrade to anonymous. Per-process admission
+      allows at most two jobs and ten anonymous jobs per minute; raw text is at most 4000 characters and raw media
+      at most 25 MiB/300 seconds, decoded with a media-only demuxer whitelist, local protocols and a 30-second timeout.
+    violation_symptoms:
+    - resource-exhaustion
+    - info-leak
+    x-voided-by: Per-process limits multiply with API worker count, do not guarantee model cancellation or a prepaid
+      spending ceiling, and do not replace edge rate limits. An enabled cloud provider receives supplied text/audio.
+      An administrator explicitly enabling public access authorizes anyone who can reach the raw service to consume
+      that configured provider until disabled.
+    x-tests:
+    - fastapi_backend/tests/api/test_voice_raw.py::test_anonymous_off_by_default_and_narrow_when_enabled
+    - fastapi_backend/tests/api/test_voice_raw.py::test_busy_and_global_anonymous_budget_ignore_forwarding_headers
+    - fastapi_backend/tests/domain/test_voice_raw.py::test_decoder_bounds_duration_and_wall_time
+    provenance:
+      kind: documented
+      source: docs/voice-service.md
   - id: P-NS-ISOLATION
     kind: confidentiality
     components: [authz]

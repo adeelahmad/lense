@@ -9,6 +9,7 @@ from pydantic import Field
 from app.schemas.common import RequestModel, ResponseModel
 
 Style = Literal["deep-dive", "recap", "debate", "beginner"]
+Mode = Literal["original", "summary", "explanation", "dialogue"]
 
 
 class PickedLine(RequestModel):
@@ -22,14 +23,18 @@ class PodcastSelection(RequestModel):
 
 
 class PodcastVoices(RequestModel):
-    a: str | None = Field(None, max_length=100, description="the explaining host's voice")
-    b: str | None = Field(None, max_length=100, description="the asking host's voice")
+    a: str | None = Field(None, max_length=100, description="the narrator or explaining host's voice id from GET /voice/voices")
+    b: str | None = Field(None, max_length=100, description="the second host's voice id; only used by dialogue mode")
 
 
 class PodcastCreate(RequestModel):
     selection: PodcastSelection
+    mode: Mode = Field(
+        "dialogue",
+        description="original reads the selected text unchanged; summary and explanation use one narrator; dialogue uses two hosts",
+    )
     prompt: str | None = Field(None, max_length=2000, description='an angle, e.g. "explain it for a beginner"')
-    length: int = Field(10, ge=1, le=120, description="minutes (up to podcasts.max_minutes)")
+    length: int = Field(10, ge=1, le=120, description="target minutes (up to podcasts.max_minutes); original follows the source's length")
     style: Style = "deep-dive"
     title: str | None = Field(None, max_length=200)
     voices: PodcastVoices | None = None

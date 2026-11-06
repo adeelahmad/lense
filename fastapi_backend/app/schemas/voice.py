@@ -19,7 +19,8 @@ class Heard(ResponseModel):
 
 
 class SpeakRequest(RequestModel):
-    text: str = Field(max_length=8000)
+    text: str = Field(min_length=1, max_length=4000)
+    server_only: bool = Field(False, description="Return 503 rather than browser fallback when server speech is unavailable")
     voice: str | None = Field(None, max_length=200, description="read in this voice (an id from GET /voice/voices); else the settings'")
 
 

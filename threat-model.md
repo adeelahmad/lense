@@ -1039,3 +1039,11 @@ here. This model is a strict superset, except S14, which the maintainer's 2026-1
 | S18 | Out: denial of service by sheer volume | §1.12 N-VOLUME |
 | S19 | Out: dependency bugs Lens doesn't reach | §1.3; §1.9 |
 | S20 | Test on your own instance and data | §1.1 reporting (process only) |
+
+## Raw voice service boundary
+
+| Property | Contract | Symptom | Tier | Source | Limits |
+|---|---|---|---|---|---|
+| P-VOICE-RAW | Raw voice capability, speech and transcription require a valid Lens principal unless an administrator enables voice.public_enabled. Anonymous access cannot list or select private voices, read archive assets or create podcasts, and supplied invalid/scoped credentials never downgrade to anonymous. Per-process admission allows at most two jobs and ten anonymous jobs per minute; raw text is at most 4000 characters and raw media at most 25 MiB/300 seconds, decoded with a media-only demuxer whitelist, local protocols and a 30-second timeout. | resource-exhaustion, info-leak | security-critical | docs/voice-service.md | Per-process limits multiply with API worker count, do not guarantee model cancellation or a prepaid spending ceiling, and do not replace edge rate limits. An enabled cloud provider receives supplied text/audio. An administrator explicitly enabling public access authorizes anyone who can reach the raw service to consume that configured provider until disabled. |
+
+Tested by `fastapi_backend/tests/api/test_voice_raw.py::test_anonymous_off_by_default_and_narrow_when_enabled`, `fastapi_backend/tests/api/test_voice_raw.py::test_busy_and_global_anonymous_budget_ignore_forwarding_headers`, `fastapi_backend/tests/domain/test_voice_raw.py::test_decoder_bounds_duration_and_wall_time`.

@@ -2009,6 +2009,7 @@ import type {
   TopResourcesErrors,
   TopResourcesResponses,
   TranscribeClipData,
+  TranscribeClipErrors,
   TranscribeClipResponses,
   TranslateTranscriptData,
   TranslateTranscriptErrors,
@@ -13717,13 +13718,13 @@ export class Voice {
   /**
    * Transcribe Clip
    *
-   * What was said in a short clip, sent as the raw request body (webm, ogg, mp4 or wav, up to 25 MB), by the
-   * server's speech-to-text engine. Nothing is kept. 409 when the server has no engine (use the browser's).
+   * Raw media to text, without archiving. At most 25 MiB and 300 seconds. 409 when no engine is configured.
+   * Anonymous access is opt-in via voice.public_enabled and uses only the configured engine.
    */
   public static transcribeClip<ThrowOnError extends boolean = false>(
     options: Options<TranscribeClipData, ThrowOnError>,
-  ): RequestResult<TranscribeClipResponses, unknown, ThrowOnError> {
-    return (options.client ?? client).post<TranscribeClipResponses, unknown, ThrowOnError>({
+  ): RequestResult<TranscribeClipResponses, TranscribeClipErrors, ThrowOnError> {
+    return (options.client ?? client).post<TranscribeClipResponses, TranscribeClipErrors, ThrowOnError>({
       bodySerializer: null,
       url: "/api/v1/voice/transcribe",
       ...options,
@@ -13737,8 +13738,8 @@ export class Voice {
   /**
    * Speak Text
    *
-   * The text read aloud by the text-to-speech model (Settings → AI assistant → Voice). 204 when there's none, or it
-   * failed: the browser reads it instead.
+   * Raw text to audio using configured providers. Set server_only for a real error instead of browser fallback.
+   * Anonymous callers cannot select private account voices; they use the administrator's configured default.
    */
   public static speakText<ThrowOnError extends boolean = false>(
     options: Options<SpeakTextData, ThrowOnError>,
@@ -13922,7 +13923,10 @@ export class Podcasts {
    *
    * Make an episode about these resources and lines, in the background (watch its job on /events). It goes in the
    * podcasts namespace when everyone there can read every source, else in the sources' own namespace (400 when they
-   * span several); you need editor access where it goes. Audited as `podcast.create`.
+   * span several); you need editor access where it goes. Original reads the complete selected text without a model,
+   * refusing text over podcasts.context_chars; summary and explanation narrate in voice a; dialogue uses a and b.
+   * Import text, documents and URLs through the existing import routes before selecting their asset ids here.
+   * Audited as `podcast.create`.
    */
   public static createPodcast<ThrowOnError extends boolean = false>(
     options: Options<CreatePodcastData, ThrowOnError>,
