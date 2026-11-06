@@ -62,7 +62,7 @@ sync_backend() { # TREE VENV: the backend's packages, as its image installs them
 }
 
 lens_start() { # LABEL TREE VENV: the API and a worker at once, as the production stack starts them
-  local label=$1 tree=$2 venv=$3
+  local label=$1 tree=$2 venv=$3 worker_restarts=0
   (cd "$tree/fastapi_backend" && exec "$venv/bin/fastapi" run app/main.py --host 127.0.0.1 --port "$API_PORT") \
     >"$OUT/$label-api.log" 2>&1 &
   API_PID=$!
@@ -70,10 +70,31 @@ lens_start() { # LABEL TREE VENV: the API and a worker at once, as the productio
   WORKER_PID=$!
   PIDS+=("$API_PID" "$WORKER_PID")
   for _ in $(seq 180); do
-    if curl -sf -o /dev/null "http://127.0.0.1:$API_PORT/api/v1/auth/status" && grep -q 'Ctrl-C to stop' "$OUT/$label-worker.log"; then
+    if ! kill -0 "$API_PID" 2>/dev/null; then break; fi
+    if ! kill -0 "$WORKER_PID" 2>/dev/null; then
+      # Old releases cannot be patched here. Reproduce production's restart policy only for the known
+      # empty-index WAL race before seeding. Never retry the version under test or other startup failures.
+      if [ "$label" != from ] || [ "$worker_restarts" -ge 2 ] ||
+        ! grep -Fq 'textindex.py' "$OUT/$label-worker.log" ||
+        ! grep -Fq 'PRAGMA journal_mode=WAL' "$OUT/$label-worker.log" ||
+        ! grep -Fxq 'sqlite3.OperationalError: database is locked' "$OUT/$label-worker.log"; then
+        break
+      fi
+      wait "$WORKER_PID" 2>/dev/null || true
+      worker_restarts=$((worker_restarts + 1))
+      mv "$OUT/$label-worker.log" "$OUT/$label-worker-attempt-$worker_restarts.log"
+      echo "Restarting baseline worker after SQLite WAL startup race ($worker_restarts/2)"
+      sleep 1
+      (cd "$tree/fastapi_backend" && exec "$venv/bin/lens" worker) >"$OUT/$label-worker.log" 2>&1 &
+      WORKER_PID=$!
+      PIDS+=("$WORKER_PID")
+      continue
+    fi
+    if curl -sf -o /dev/null "http://127.0.0.1:$API_PORT/api/v1/auth/status" &&
+      grep -q 'Ctrl-C to stop' "$OUT/$label-worker.log" &&
+      kill -0 "$API_PID" 2>/dev/null && kill -0 "$WORKER_PID" 2>/dev/null; then
       return 0
     fi
-    if ! kill -0 "$API_PID" 2>/dev/null || ! kill -0 "$WORKER_PID" 2>/dev/null; then break; fi
     sleep 1
   done
   tail -n 40 "$OUT/$label-api.log" "$OUT/$label-worker.log"
