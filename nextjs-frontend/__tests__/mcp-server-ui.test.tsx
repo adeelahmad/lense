@@ -162,6 +162,47 @@ describe("adding an MCP server", () => {
     });
   });
 
+  it("sets Auto-Ontology up through its public gateway with a private token", async () => {
+    m(Extensions.mcpPresets).mockReturnValue(
+      ok({
+        presets: [
+          {
+            name: "auto_ontology",
+            label: "NVIDIA Auto-Ontology",
+            description: "External semantic catalog",
+            spec: {
+              adapter: "auto_ontology",
+              url: "${AUTO_ONTOLOGY_URL}",
+              headers: { "x-api-key": "${AUTO_ONTOLOGY_API_TOKEN}" },
+            },
+            fill: ["AUTO_ONTOLOGY_URL", "AUTO_ONTOLOGY_API_TOKEN"],
+            needs: null,
+          },
+        ],
+      }),
+    );
+    m(Extensions.createExtension).mockReturnValue(ok({ id: 9 }));
+    wrap(<McpServerForm />);
+    fireEvent.click(await screen.findByRole("button", { name: "Set up NVIDIA Auto-Ontology" }));
+    expect(screen.getByText(/Its public web gateway origin/)).toBeInTheDocument();
+    expect(screen.getByText(/Uses the API token owner/)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("AUTO_ONTOLOGY_URL"), {
+      target: { value: "https://ontology.example.com" },
+    });
+    const token = screen.getByLabelText("AUTO_ONTOLOGY_API_TOKEN");
+    expect(token).toHaveAttribute("type", "password");
+    fireEvent.change(token, { target: { value: "ontology-secret" } });
+    fireEvent.submit(token);
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/extensions/9"));
+    expect(m(Extensions.createExtension).mock.calls[0][0].body.manifest).toMatchObject({
+      kind: "mcp",
+      adapter: "auto_ontology",
+      url: "https://ontology.example.com",
+      headers: { "x-api-key": "ontology-secret" },
+    });
+    expect(m(Extensions.createExtension).mock.calls[0][0].body.manifest.visibility).toBeUndefined();
+  });
+
   it("reads a pasted config, fills in its token, tests it and saves it with Enter", async () => {
     m(Extensions.readMcpConfig).mockReturnValue(ok({ servers: [tracker], skipped: [] }));
     m(Extensions.testMcpServer).mockReturnValue(
