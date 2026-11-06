@@ -8,7 +8,6 @@ import sys
 import tempfile
 import unittest
 
-
 SCRIPT = Path(__file__).with_name("upgrade.sh").read_text()
 STARTUP = SCRIPT[SCRIPT.index("lens_start() {") : SCRIPT.index("lens_stop() {")]
 WAL_ERROR = (
@@ -132,7 +131,9 @@ raise SystemExit(0 if (Path(os.environ['TEST_ROOT']) / 'api-ready').exists() els
                 self.assertEqual(attempts, 1)
 
     def test_dead_worker_with_stale_ready_message_fails(self):
-        result, attempts, _ = self.run_startup(error="Ctrl-C to stop\nRuntimeError: fatal\n")
+        result, attempts, _ = self.run_startup(
+            error="Ctrl-C to stop\nRuntimeError: fatal\n"
+        )
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(attempts, 1)
 
