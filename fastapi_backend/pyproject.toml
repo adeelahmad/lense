@@ -6,7 +6,7 @@ requires-python = ">=3.12,<3.14"
 readme = "README.md"
 license = "MIT"
 dependencies = [
-    "fastapi[standard]>=0.143.0,<0.144",
+    "fastapi[standard]>=0.143.3,<0.144",
     "starlette>=1.8.0", # security floor (Dependabot); fastapi itself allows older
     "pydantic-settings>=2.5.2,<3",
     "pyjwt>=2.9,<3",
@@ -16,7 +16,7 @@ dependencies = [
     "scipy>=1.11",
     "pyyaml>=6",
     "jinja2>=3.1",
-    "pypdf>=6.20.1",
+    "pypdf>=6.21.4",
     "pillow>=10",
     "markdown>=3.11.1",
     "cryptography>=50",
@@ -26,7 +26,7 @@ dependencies = [
     "opentelemetry-exporter-otlp-proto-http>=1.45.1,<2",
     "webauthn>=3.0.1,<4",
     "feedparser>=6.0.11,<7",
-    "regex>=2024.11",  # patterns in automations' conditions, with a time limit (Apache-2.0; fastapi-mail needs it too)
+    "regex>=2026.9.29",  # patterns in automations' conditions, with a time limit (Apache-2.0; fastapi-mail needs it too)
 ]
 
 [project.optional-dependencies]
@@ -86,7 +86,7 @@ msg = ["extract-msg"]
 vaultwarden = ["python-vaultwarden>=1.1.2,<2"]
 # auto scaling on Linux hosts over SSH (scaling_ssh.py): Paramiko (LGPL-2.1, used unmodified as a library); fetched
 # when the first SSH provider is saved
-ssh = ["paramiko>=3.5,<5"]
+ssh = ["paramiko>=5.0.0,<6"]
 
 [project.scripts]
 lens = "app.cli:main"
@@ -120,7 +120,7 @@ dev = [
     "pywebrtc-audio>=0.2.0,<0.3",  # the clean_audio step's WebRTC audio processing, tested on synthetic audio
     "python-vaultwarden>=1.1.2,<2",  # the Vaultwarden client, tested against a fake Vaultwarden
     "moto[ec2]>=5.1,<6",
-    "paramiko>=3.5,<5",
+    "paramiko>=5.0.0,<6",
 ]
 
 [tool.hatch.build.targets.wheel]
