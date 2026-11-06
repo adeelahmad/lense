@@ -502,10 +502,17 @@ class Sender:
             raise
 
     def close(self):
-        if self.sock is not None:
+        sock, self.sock = self.sock, None
+        if sock is not None:
+            # Send TLS close_notify before closing TCP. An abrupt close can reset the
+            # connection while the peer writes TLS 1.3 session tickets, losing logs.
+            # unwrap also waits for the peer's close_notify, bounded by our timeout;
+            # a peer that closes abruptly or never replies must still be closed.
+            if self.transport == "tls":
+                with contextlib.suppress(OSError):
+                    sock = sock.unwrap()
             with contextlib.suppress(OSError):
-                self.sock.close()
-            self.sock = None
+                sock.close()
 
 
 class SyslogHandler(logging.Handler):

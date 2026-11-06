@@ -240,6 +240,23 @@
   ],
   "entry_points": [
     {
+      "entry_point": "Auto-Ontology REST bridge through private MCP extensions",
+      "parameter": "admin gateway origin and sealed x-api-key; term IDs, search pagination, questions and upstream JSON/SSE results",
+      "attacker_controllable": "yes",
+      "component": "assistant",
+      "caller_must_enforce": "Admin-configured origin only; fixed read routes and methods; redirects refused; term IDs cannot select paths; credentials sealed to the extension and destination; errors do not reflect upstream content. Responses are capped at 2 MB with question and socket deadlines, and failed requests are never retried automatically. Questions force prediction=false and omit conversation_id; SQL is returned as data, never executed in Lens. No Lens archive ingestion or default service. Results are untrusted third-party content under P-INJECTION-EGRESS.",
+      "provenance": "documented",
+      "source": "threat-model.md \"Auto-Ontology REST bridge\"",
+      "x-tests": [
+        "fastapi_backend/tests/domain/test_auto_ontology.py::test_only_a_fixed_gateway_and_api_token_are_allowed",
+        "fastapi_backend/tests/domain/test_auto_ontology.py::test_redirects_never_receive_the_api_token",
+        "fastapi_backend/tests/domain/test_auto_ontology.py::test_term_ids_cannot_select_another_route",
+        "fastapi_backend/tests/domain/test_auto_ontology.py::test_size_and_time_limits_are_enforced",
+        "fastapi_backend/tests/domain/test_auto_ontology.py::test_question_returns_sql_rows_and_source_without_predictions_or_history",
+        "fastapi_backend/tests/api/test_auto_ontology.py::test_auto_ontology_is_private_sealed_and_callable"
+      ]
+    },
+    {
       "entry_point": "every /api/v1/* route",
       "parameter": "Authorization: Bearer (web JWT, la_ API token, lo_ app token)",
       "attacker_controllable": "yes",
@@ -2068,6 +2085,7 @@
     "steal-sessions"
   ],
   "downstream_responsibilities": [
+    "Auto-Ontology administrators must grant the token least privilege and share the private-by-default extension only with readers authorized for that upstream token. Sharing delegates token-owner access, not per-user upstream authentication or Lens namespace isolation. Use HTTPS outside trusted local networks; plain HTTP exposes the token to the network. The deployment owner is responsible for upstream models and database authorization. Paid calls are recorded as unpriced through the model budget hook, so USD budgets cannot reliably cap them (N-BUDGET).",
     "Put everything behind HTTPS before exposing it beyond one machine, and set server.secure_cookies: true there",
     "Use docker-compose.prod.yml or an installer, never dev compose, and set unique secrets",
     "Change the SurrealDB credential when SurrealDB runs as its own server",
@@ -2099,6 +2117,11 @@
     "When the NFS share is on, list only your own networks and pick an account that sees only what the share should show (and may add only where the share should take files), or turn nfs.add_files off"
   ],
   "known_misuse": [
+    {
+      "pattern": "Sharing an Auto-Ontology extension as though each caller had separate upstream credentials or namespace isolation",
+      "why_unsafe": "Every allowed caller inherits the configured API token owner's upstream access; HTTP also exposes that token to its network.",
+      "instead": "Keep the extension private unless readers are authorized for the same least-privilege token, and use HTTPS outside trusted local networks."
+    },
     {
       "pattern": "Running docker-compose.yml on a server",
       "why_unsafe": "Known secrets forge media links and session cookies",

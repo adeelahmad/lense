@@ -480,7 +480,14 @@ export function McpServerForm() {
               )}
               {draft.how === "url" ? (
                 <>
-                  <Field label="Address" hint="Its Streamable HTTP address, usually ending in /mcp.">
+                  <Field
+                    label="Address"
+                    hint={
+                      draft.extra.adapter === "auto_ontology"
+                        ? "Its public web gateway origin, for example https://ontology.example.com (not /mcp or the private backend)."
+                        : "Its Streamable HTTP address, usually ending in /mcp."
+                    }
+                  >
                     {({ id, describedBy }) => (
                       <Input
                         id={id}
@@ -493,6 +500,12 @@ export function McpServerForm() {
                       />
                     )}
                   </Field>
+                  {draft.extra.adapter === "auto_ontology" && (
+                    <p className="text-[12.5px] text-fg-muted">
+                      Uses the API token owner’s data access. Keep this extension private unless everyone you share it
+                      with may read that data. Questions can incur costs at your Auto-Ontology model provider.
+                    </p>
+                  )}
                   <Pairs
                     label="Headers"
                     add="Add a header"

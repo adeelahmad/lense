@@ -146,6 +146,35 @@ host_side_effects:
 
 # ---------------------------------------------------------------- §1.7 trust table
 entry_points:
+  - id: Auto-Ontology REST bridge through private MCP extensions
+    component: assistant
+    parameters:
+    - name: admin gateway origin and sealed x-api-key; term IDs, search pagination, questions and upstream JSON/SSE
+        results
+      attacker_controllable: true
+      x-condition: Only admins configure the origin/token; extension permissions gate callers and upstream responses
+        remain untrusted.
+      control_kinds:
+      - data
+      - resource-name
+      - x-network-destination
+      - x-credential
+      obligation_id: auto-ontology-least-privilege
+      caller_must_enforce: Admin-configured origin only; fixed read routes and methods; redirects refused; term IDs
+        cannot select paths; credentials sealed to the extension and destination; errors do not reflect upstream content.
+        Responses are capped at 2 MB with question and socket deadlines, and failed requests are never retried automatically.
+        Questions force prediction=false and omit conversation_id; SQL is returned as data, never executed in Lens.
+        No Lens archive ingestion or default service. Results are untrusted third-party content under P-INJECTION-EGRESS.
+      provenance:
+        kind: documented
+        source: threat-model.md "Auto-Ontology REST bridge"
+    x-tests:
+    - fastapi_backend/tests/domain/test_auto_ontology.py::test_only_a_fixed_gateway_and_api_token_are_allowed
+    - fastapi_backend/tests/domain/test_auto_ontology.py::test_redirects_never_receive_the_api_token
+    - fastapi_backend/tests/domain/test_auto_ontology.py::test_term_ids_cannot_select_another_route
+    - fastapi_backend/tests/domain/test_auto_ontology.py::test_size_and_time_limits_are_enforced
+    - fastapi_backend/tests/domain/test_auto_ontology.py::test_question_returns_sql_rows_and_source_without_predictions_or_history
+    - fastapi_backend/tests/api/test_auto_ontology.py::test_auto_ontology_is_private_sealed_and_callable
   - id: "every /api/v1/* route"
     component: identity
     parameters:
@@ -2355,6 +2384,19 @@ x-false-friends-without-row:
 
 # ---------------------------------------------------------------- §1.13
 downstream_responsibilities:
+  - id: dr-auto-ontology-least-privilege
+    component: assistant
+    statement: Auto-Ontology administrators must grant the token least privilege and share the private-by-default
+      extension only with readers authorized for that upstream token. Sharing delegates token-owner access, not per-user
+      upstream authentication or Lens namespace isolation. Use HTTPS outside trusted local networks; plain HTTP exposes
+      the token to the network. The deployment owner is responsible for upstream models and database authorization.
+      Paid calls are recorded as unpriced through the model budget hook, so USD budgets cannot reliably cap them (N-BUDGET).
+    enforces:
+    - P-INJECTION-EGRESS
+    - N-BUDGET
+    provenance:
+      kind: documented
+      source: threat-model.md "Auto-Ontology REST bridge"
   - {id: dr-https-secure-cookies, component: web, statement: "Put everything behind HTTPS before exposing it beyond one machine, and set server.secure_cookies: true there", enforces: [P-AUTH-REQ, P-SETUP-ONCE], x-protects: "sessions, setup, IIIF cookie (§1.6 plain HTTP)", provenance: {kind: documented, source: 'docs/configuration.md "Put everything behind HTTPS"'}}
   - {id: dr-prod-compose-unique-secrets, component: web, statement: "Use docker-compose.prod.yml or an installer, never dev compose, and set unique secrets", enforces: [P-AUTH-REQ, P-MEDIA-LINK], provenance: {kind: maintainer, date: "2026-10"}}
   - {id: dr-change-db-credential, component: authz, statement: "Change the SurrealDB credential when SurrealDB runs as its own server", enforces: [N-APP-LAYER], provenance: {kind: maintainer, date: "2026-10"}}
@@ -2390,6 +2432,18 @@ downstream_responsibilities:
 # tagged prose statement elsewhere in the model that grounds the same misuse
 # (named in x-provenance-basis); none is stronger than that statement.
 known_misuses:
+  - id: km-auto-ontology-shared-token
+    components:
+    - assistant
+    pattern: Sharing an Auto-Ontology extension as though each caller had separate upstream credentials or namespace
+      isolation
+    x-why-unsafe: Every allowed caller inherits the configured API token owner's upstream access; HTTP also exposes
+      that token to its network.
+    safer_alternative: Keep the extension private unless readers are authorized for the same least-privilege token,
+      and use HTTPS outside trusted local networks.
+    provenance:
+      kind: documented
+      source: threat-model.md "Auto-Ontology REST bridge"
   - {id: km-dev-compose-on-server, components: [web], pattern: "Running docker-compose.yml on a server", x-why-unsafe: "Known secrets forge media links and session cookies", safer_alternative: "Use docker-compose.prod.yml or an installer", x-provenance-basis: "§1.13 row 'Use docker-compose.prod.yml or an installer'; §1.6 dev compose row", provenance: {kind: maintainer, date: "2026-10"}}
   - {id: km-env-example-secret, components: [identity, authz], pattern: "Copying .env.example without changing ACCESS_SECRET_KEY", x-why-unsafe: "The example passes the length check and is public", safer_alternative: "Generate a random key", x-provenance-basis: "§1.13 row 'set unique secrets'", provenance: {kind: maintainer, date: "2026-10"}}
   - {id: km-broad-trusted-proxies, components: [authz], pattern: "Broad server.trusted_proxies (for example a whole LAN)", x-why-unsafe: "Any host in it can claim any visitor address and open IP groups", safer_alternative: "List only the proxy hops", x-provenance-basis: "§1.13 row 'List exactly the front hops'", provenance: {kind: documented, source: 'docs/configuration.md "Trusted proxies"'}}
