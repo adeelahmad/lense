@@ -4222,6 +4222,7 @@ export type {
   TopResourcesResponses,
   TopSpend,
   TranscribeClipData,
+  TranscribeClipErrors,
   TranscribeClipResponse,
   TranscribeClipResponses,
   TranslateTranscriptData,
