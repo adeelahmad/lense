@@ -159,7 +159,10 @@ requests that change the backend, and by hand from any version (Actions > Upgrad
 older version; `ci/local-ci.sh` runs it too):
 
 1. The last release (the newest `vX.Y.Z` tag) starts as the production stack runs it, the API and a worker on the
-   SurrealDB server its `docker-compose.prod.yml` names, with an empty database.
+   SurrealDB server its `docker-compose.prod.yml` names, with an empty database. If the old worker exits with the
+   known SQLite WAL initialization lock error, it is restarted at most twice, like production's restart policy;
+   failed attempts are kept in separate logs. Other failures stop the check. The version being upgraded to is
+   never retried, so its concurrent startup and migration failures remain visible.
 2. It's seeded through its API (`ci/upgrade/lens_upgrade.py seed`): two transcripts and their analysis, an entity, a
    note and a comment on an asset, a notes page, a conversation, an MCP server with a token, an API key and settings.
    What the API shows of them is kept.
