@@ -68,7 +68,8 @@ raise SystemExit(0 if (Path(os.environ['TEST_ROOT']) / 'api-ready').exists() els
             script = (
                 "set -euo pipefail\n"
                 'OUT="$TEST_ROOT/out"; API_PORT=1; PIDS=()\n'
-                "cleanup() { for p in \"${PIDS[@]}\"; do kill \"$p\" 2>/dev/null || true; done; wait || true; }\n"
+                'cleanup() { for p in "${PIDS[@]}"; do kill "$p" 2>/dev/null || true; '
+                "done; wait || true; }\n"
                 "trap cleanup EXIT\n"
                 "sleep() { /bin/sleep .02; }\n"
                 + STARTUP
