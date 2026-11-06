@@ -500,7 +500,8 @@ def test_agents_list_and_add_servers(app, db, cfg, folder, new_client, server, m
     assert "only admins" in mcp("editor", "add_mcp_server", preset="github", values={"GITHUB_TOKEN": "t0ken"})["error"]
     got = mcp("admin", "mcp_servers")
     assert got["servers"] == [] and got["add"].endswith("/extensions/new/mcp")
-    browser, github = got["ready_made"]
+    browser, github, ontology = got["ready_made"]
+    assert ontology["preset"] == "auto_ontology"
     assert (browser["preset"], browser["added"], browser["service"]["profile"]) == ("browser", False, "browser")
     assert (github["preset"], github["values"], "service" in github) == ("github", ["GITHUB_TOKEN"], False)
 
@@ -519,7 +520,11 @@ def test_agents_list_and_add_servers(app, db, cfg, folder, new_client, server, m
     # GitHub, ready-made: its name, address and description come with it
     gh = mcp("admin", "add_mcp_server", preset="github", values={"GITHUB_TOKEN": "t0ken"})
     assert (gh["name"], gh["url"]) == ("github", "https://api.githubcopilot.com/mcp/")
-    assert [p["added"] for p in mcp("admin", "mcp_servers")["ready_made"]] == [False, True]
+    assert {p["preset"]: p["added"] for p in mcp("admin", "mcp_servers")["ready_made"]} == {
+        "browser": False,
+        "github": True,
+        "auto_ontology": False,
+    }
     # the browser waits for its container
     assert "isn't running yet" in mcp("admin", "add_mcp_server", preset="browser")["error"]
     monkeypatch.setattr(services, "running", lambda profile: True)
