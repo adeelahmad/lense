@@ -518,3 +518,26 @@ def test_agents_work_the_queue_over_mcp(client, db, cfg, folder):
     db.q("UPDATE $j SET status = 'failed'", j=store.R("job", ja))
     assert [r["job_id"] for r in tool(client, he, "runs", status="failed")["runs"]] == [ja]
     assert tool(client, he, "retry_runs")["jobs"] == [ja]
+
+
+def test_later_steps_wait_for_their_components(db, cfg, folder, monkeypatch):
+    """A ready first step must not bypass a later step's deferred model download."""
+    a = seed(db, cfg, folder)[0]
+    ran = []
+    monkeypatch.setitem(jobs.STEPS, "analyze", lambda *args: ran.append("analyze"))
+    monkeypatch.setitem(jobs.STEPS, "report", lambda *args: ran.append("report"))
+    jid = jobs.enqueue(db, a, ["analyze", "report"])
+    blocked = {"report"}
+    worker = jobs.Worker(db, lambda: cfg, name="fetching", steps=["analyze", "report"])
+    worker.keeper = type("Fetching", (), {"blocked": lambda self: blocked.copy()})()
+
+    assert worker.run_once()
+    waiting = jobs.get(db, jid)
+    assert (waiting["status"], waiting["step_index"], waiting["next_step"]) == ("queued", 1, "report")
+    assert ran == ["analyze"]
+    assert not worker.run_once()  # nothing runnable until the component is ready
+
+    blocked.clear()
+    assert worker.run_once()
+    assert jobs.get(db, jid)["status"] == "succeeded"
+    assert ran == ["analyze", "report"]  # resume, without repeating completed steps

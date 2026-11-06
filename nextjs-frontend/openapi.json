@@ -34720,7 +34720,7 @@
           "voice"
         ],
         "summary": "Transcribe Clip",
-        "description": "What was said in a short clip, sent as the raw request body (webm, ogg, mp4 or wav, up to 25 MB), by the\nserver's speech-to-text engine. Nothing is kept. 409 when the server has no engine (use the browser's).",
+        "description": "Raw media to text, without archiving. At most 25 MiB and 300 seconds. 409 when no engine is configured.\nAnonymous access is opt-in via voice.public_enabled and uses only the configured engine.",
         "operationId": "transcribe_clip",
         "requestBody": {
           "content": {
@@ -34743,6 +34743,15 @@
                 }
               }
             }
+          },
+          "413": {
+            "description": "Clip exceeds 25 MiB or 300 seconds"
+          },
+          "429": {
+            "description": "Voice service busy"
+          },
+          "503": {
+            "description": "Transcription failed"
           }
         }
       }
@@ -34753,7 +34762,7 @@
           "voice"
         ],
         "summary": "Speak Text",
-        "description": "The text read aloud by the text-to-speech model (Settings \u2192 AI assistant \u2192 Voice). 204 when there's none, or it\nfailed: the browser reads it instead.",
+        "description": "Raw text to audio using configured providers. Set server_only for a real error instead of browser fallback.\nAnonymous callers cannot select private account voices; they use the administrator's configured default.",
         "operationId": "speak_text",
         "requestBody": {
           "content": {
@@ -34769,11 +34778,18 @@
           "200": {
             "description": "the text read aloud",
             "content": {
-              "audio/mpeg": {}
+              "audio/mpeg": {},
+              "audio/wav": {}
             }
           },
           "204": {
             "description": "the browser reads it"
+          },
+          "429": {
+            "description": "Voice service busy"
+          },
+          "503": {
+            "description": "Server speech unavailable (server_only=true)"
           },
           "422": {
             "description": "Validation Error",
@@ -35234,7 +35250,7 @@
           "podcasts"
         ],
         "summary": "Create Podcast",
-        "description": "Make an episode about these resources and lines, in the background (watch its job on /events). It goes in the\npodcasts namespace when everyone there can read every source, else in the sources' own namespace (400 when they\nspan several); you need editor access where it goes. Audited as `podcast.create`.",
+        "description": "Make an episode about these resources and lines, in the background (watch its job on /events). It goes in the\npodcasts namespace when everyone there can read every source, else in the sources' own namespace (400 when they\nspan several); you need editor access where it goes. Original reads the complete selected text without a model,\nrefusing text over podcasts.context_chars; summary and explanation narrate in voice a; dialogue uses a and b.\nImport text, documents and URLs through the existing import routes before selecting their asset ids here.\nAudited as `podcast.create`.",
         "operationId": "create_podcast",
         "requestBody": {
           "required": true,
@@ -72118,6 +72134,18 @@
           "selection": {
             "$ref": "#/components/schemas/PodcastSelection"
           },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "original",
+              "summary",
+              "explanation",
+              "dialogue"
+            ],
+            "title": "Mode",
+            "description": "original reads the selected text unchanged; summary and explanation use one narrator; dialogue uses two hosts",
+            "default": "dialogue"
+          },
           "prompt": {
             "anyOf": [
               {
@@ -72136,7 +72164,7 @@
             "maximum": 120.0,
             "minimum": 1.0,
             "title": "Length",
-            "description": "minutes (up to podcasts.max_minutes)",
+            "description": "target minutes (up to podcasts.max_minutes); original follows the source's length",
             "default": 10
           },
           "style": {
@@ -72485,7 +72513,7 @@
               }
             ],
             "title": "A",
-            "description": "the explaining host's voice"
+            "description": "the narrator or explaining host's voice id from GET /voice/voices"
           },
           "b": {
             "anyOf": [
@@ -72498,7 +72526,7 @@
               }
             ],
             "title": "B",
-            "description": "the asking host's voice"
+            "description": "the second host's voice id; only used by dialogue mode"
           }
         },
         "additionalProperties": false,
@@ -85721,8 +85749,15 @@
         "properties": {
           "text": {
             "type": "string",
-            "maxLength": 8000,
+            "maxLength": 4000,
+            "minLength": 1,
             "title": "Text"
+          },
+          "server_only": {
+            "type": "boolean",
+            "title": "Server Only",
+            "description": "Return 503 rather than browser fallback when server speech is unavailable",
+            "default": false
           },
           "voice": {
             "anyOf": [
